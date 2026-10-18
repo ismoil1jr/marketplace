@@ -1,0 +1,46 @@
+{
+ "actions": [],
+ "autoname": "field:rang_nomi",
+ "creation": "2026-10-16 08:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "rang_nomi",
+  "hex"
+ ],
+ "fields": [
+  {
+   "fieldname": "rang_nomi",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Rang nomi",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "description": "Saytda shu rangdagi doiracha chiqadi",
+   "fieldname": "hex",
+   "fieldtype": "Color",
+   "in_list_view": 1,
+   "label": "Rangi"
+  }
+ ],
+ "links": [],
+ "modified": "2026-10-16 08:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Marketplace",
+ "name": "Rang",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {"create": 1, "delete": 1, "read": 1, "write": 1, "export": 1, "report": 1, "role": "System Manager"},
+  {"create": 1, "delete": 1, "read": 1, "write": 1, "report": 1, "role": "Marketplace Manager"},
+  {"create": 1, "read": 1, "role": "Shop Seller"}
+ ],
+ "quick_entry": 1,
+ "row_format": "Dynamic",
+ "sort_field": "rang_nomi",
+ "sort_order": "ASC",
+ "states": [],
+ "title_field": "rang_nomi"
+}

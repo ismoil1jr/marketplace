@@ -1,0 +1,72 @@
+{% from "marketplace/templates/storefront/macros.html" import story_card, shop_avatar %}
+{% autoescape true %}
+<div class="st">
+	<header class="st-cover">
+		{% if shop.cover_image %}<img src="{{ shop.cover_image }}" alt="" decoding="async">{% endif %}
+		<div class="st-cover__bar">
+			<button class="st-glass" type="button" data-toggle-search aria-label="Qidirish"><svg><use href="#i-search"/></svg></button>
+			<a class="st-glass" href="{{ base }}/savat" aria-label="Savat">
+				<svg><use href="#i-bag"/></svg><span class="sf-count" data-cart-count hidden>0</span>
+			</a>
+		</div>
+	</header>
+
+	<section class="st-profile">
+		<div class="st-profile__row">
+			{{ shop_avatar(shop, "st-avatar") }}
+			<a class="st-insta" href="{{ base }}/buyurtmalarim">
+				<svg><use href="#i-receipt"/></svg>Buyurtmalarim
+			</a>
+		</div>
+		<h1 class="st-name">{{ shop.shop_name }}</h1>
+		<p class="st-bio">
+			{% if shop.instagram_handle %}<a class="sf-insta-link" href="https://instagram.com/{{ shop.instagram_handle }}" target="_blank" rel="noopener">@{{ shop.instagram_handle }}</a>{% endif %}{% if shop.instagram_handle and shop.tagline %} · {% endif %}{{ shop.tagline or "" }}
+		</p>
+		<div class="st-meta">
+			{% if shop.delivery_short %}<span><svg><use href="#i-truck"/></svg>{{ shop.delivery_short }}</span>{% endif %}
+			{% if shop.payment_label %}<span><svg><use href="#i-card"/></svg>{{ shop.payment_label }}</span>{% endif %}
+		</div>
+
+		<label class="st-search" data-search-box hidden>
+			<svg><use href="#i-search"/></svg>
+			<input type="search" placeholder="Mahsulot qidirish" data-search aria-label="Mahsulot qidirish">
+		</label>
+	</section>
+
+	<nav class="st-highlights" aria-label="Bo‘limlar">
+		<button type="button" class="st-hl is-active" data-group="">
+			<span class="st-hl__ring">{{ shop_avatar(shop, "st-hl__all") }}</span>
+			<small>Hammasi</small>
+		</button>
+		<button type="button" class="st-hl" data-group="__fav" data-fav-filter hidden>
+			<span class="st-hl__ring is-accent"><span class="st-hl__icon">♥</span></span>
+			<small>Sevimlilar</small>
+		</button>
+		{% for h in highlights %}
+		<button type="button" class="st-hl" data-group="{{ h.key }}">
+			<span class="st-hl__ring {{ 'is-accent' if h.accent else '' }}">
+				{% if h.thumb %}<img src="{{ h.thumb }}" alt="" loading="lazy">{% endif %}
+			</span>
+			<small>{{ h.label }}</small>
+		</button>
+		{% endfor %}
+	</nav>
+
+	<main class="st-feed">
+		{% if catalog["items"] %}
+		<div class="st-grid" data-grid>
+			{% for p in catalog["items"] %}{{ story_card(p, base, loop.index) }}{% endfor %}
+		</div>
+		<p class="sf-empty" data-no-results hidden>Hech narsa topilmadi.</p>
+		<span data-result-count hidden></span>
+		{% else %}
+		<p class="sf-empty">Hozircha tovarlar yo‘q. Tez orada qo‘shiladi.</p>
+		{% endif %}
+	</main>
+
+	<a class="st-cartbar" href="{{ base }}/savat" data-cartbar hidden>
+		<span><b data-cart-qty-label></b> · <span data-cart-total></span></span>
+		<span class="st-cartbar__cta">Savatni ochish</span>
+	</a>
+</div>
+{% endautoescape %}

@@ -1,0 +1,406 @@
+{
+ "actions": [],
+ "allow_import": 1,
+ "autoname": "field:slug",
+ "creation": "2026-10-15 14:15:03.594526",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "sb_main",
+  "shop_name",
+  "slug",
+  "status",
+  "tagline",
+  "city",
+  "cb_main",
+  "logo",
+  "cover_image",
+  "brand_color",
+  "layout_style",
+  "sb_storefront",
+  "delivery_short",
+  "banner_label",
+  "banner_title",
+  "cb_storefront",
+  "banner_image",
+  "banner_group",
+  "sb_banners",
+  "banners",
+  "sb_contact",
+  "instagram",
+  "phone",
+  "delivery_info",
+  "cb_contact",
+  "legal_name",
+  "stir",
+  "sb_payments",
+  "enable_payme",
+  "enable_click",
+  "enable_cod",
+  "sb_payme",
+  "payme_merchant_id",
+  "payme_key",
+  "payme_test_key",
+  "cb_payme",
+  "payme_test_mode",
+  "sb_click",
+  "click_service_id",
+  "click_merchant_id",
+  "cb_click",
+  "click_merchant_user_id",
+  "click_secret_key",
+  "sb_team",
+  "warehouse",
+  "members",
+  "telegram_ids"
+ ],
+ "fields": [
+  {
+   "fieldname": "sb_main",
+   "fieldtype": "Section Break",
+   "label": "Asosiy"
+  },
+  {
+   "fieldname": "shop_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Shop Name",
+   "reqd": 1
+  },
+  {
+   "description": "Havola: shop.uz/s/&lt;slug&gt;. Faqat kichik lotin harflari, raqam va chiziqcha. Saqlangandan keyin o'zgarmaydi.",
+   "fieldname": "slug",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Slug",
+   "reqd": 1,
+   "set_only_once": 1,
+   "unique": 1,
+   "permlevel": 1
+  },
+  {
+   "default": "Draft",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Draft\nActive\nSuspended",
+   "permlevel": 1
+  },
+  {
+   "fieldname": "tagline",
+   "fieldtype": "Data",
+   "label": "Tagline",
+   "description": "Masalan: Tabiiy matolardan kundalik kiyimlar"
+  },
+  {
+   "fieldname": "city",
+   "fieldtype": "Data",
+   "label": "City",
+   "permlevel": 1
+  },
+  {
+   "fieldname": "cb_main",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "logo",
+   "fieldtype": "Attach Image",
+   "label": "Logo"
+  },
+  {
+   "fieldname": "cover_image",
+   "fieldtype": "Attach Image",
+   "label": "Cover Image"
+  },
+  {
+   "default": "#1F5C4A",
+   "fieldname": "brand_color",
+   "fieldtype": "Color",
+   "label": "Brand Color",
+   "permlevel": 1
+  },
+  {
+   "default": "vitrina",
+   "fieldname": "layout_style",
+   "fieldtype": "Select",
+   "label": "Sayt shabloni",
+   "options": "vitrina\nstory\nkatalog",
+   "permlevel": 1,
+   "description": "vitrina — A: kiyim va oddiy do'kon · story — B: Instagram uslubi · katalog — C: zavod va ulgurji. Sotuvchining tovar formasi ham shu shablonga moslashadi"
+  },
+  {
+   "fieldname": "sb_storefront",
+   "fieldtype": "Section Break",
+   "label": "Mijoz sahifasi (sayt)"
+  },
+  {
+   "fieldname": "delivery_short",
+   "fieldtype": "Data",
+   "label": "Delivery (qisqa)",
+   "description": "Sahifa tepasidagi belgi, masalan: 1–2 kunda yetkazish"
+  },
+  {
+   "fieldname": "banner_label",
+   "fieldtype": "Data",
+   "label": "Banner Label",
+   "description": "Masalan: Yangi kolleksiya",
+   "hidden": 1,
+   "permlevel": 1
+  },
+  {
+   "fieldname": "banner_title",
+   "fieldtype": "Data",
+   "label": "Banner Title",
+   "description": "Bo'sh bo'lsa banner ko'rsatilmaydi",
+   "hidden": 1,
+   "permlevel": 1
+  },
+  {
+   "fieldname": "cb_storefront",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "banner_image",
+   "fieldtype": "Attach Image",
+   "label": "Banner Image",
+   "hidden": 1,
+   "permlevel": 1
+  },
+  {
+   "fieldname": "banner_group",
+   "fieldtype": "Link",
+   "options": "Item Group",
+   "label": "Banner Category",
+   "description": "\"Ko'rish\" tugmasi shu kategoriyani ochadi",
+   "hidden": 1,
+   "permlevel": 1
+  },
+  {
+   "fieldname": "sb_banners",
+   "fieldtype": "Section Break",
+   "label": "Karusel (sayt tepasidagi aylanadigan rasmlar)",
+   "depends_on": "eval:doc.layout_style==='vitrina'"
+  },
+  {
+   "fieldname": "banners",
+   "fieldtype": "Table",
+   "label": "Slaydlar",
+   "options": "Shop Banner",
+   "description": "Har bir qator — bitta slayd. Tartibni sudrab o'zgartiring."
+  },
+  {
+   "fieldname": "sb_contact",
+   "fieldtype": "Section Break",
+   "label": "Aloqa va yuridik"
+  },
+  {
+   "fieldname": "instagram",
+   "fieldtype": "Data",
+   "label": "Instagram"
+  },
+  {
+   "fieldname": "phone",
+   "fieldtype": "Data",
+   "label": "Phone",
+   "options": "Phone"
+  },
+  {
+   "fieldname": "delivery_info",
+   "fieldtype": "Small Text",
+   "label": "Delivery Info"
+  },
+  {
+   "fieldname": "cb_contact",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "legal_name",
+   "fieldtype": "Data",
+   "label": "Legal Name",
+   "permlevel": 1
+  },
+  {
+   "fieldname": "stir",
+   "fieldtype": "Data",
+   "label": "STIR",
+   "permlevel": 1
+  },
+  {
+   "fieldname": "sb_payments",
+   "fieldtype": "Section Break",
+   "label": "To'lov turlari"
+  },
+  {
+   "default": "0",
+   "fieldname": "enable_payme",
+   "fieldtype": "Check",
+   "label": "Enable Payme",
+   "permlevel": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "enable_click",
+   "fieldtype": "Check",
+   "label": "Enable Click",
+   "permlevel": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "enable_cod",
+   "fieldtype": "Check",
+   "label": "Enable COD (naqd)",
+   "permlevel": 1
+  },
+  {
+   "fieldname": "sb_payme",
+   "fieldtype": "Section Break",
+   "label": "Payme kassasi",
+   "permlevel": 2,
+   "collapsible": 1,
+   "description": "Payme Business kabinetida: Endpoint URL va hisob (account) maydoni nomi <b>order_id</b>. To'g'ri manzil shu formaning tepasida ko'rsatiladi."
+  },
+  {
+   "fieldname": "payme_merchant_id",
+   "fieldtype": "Data",
+   "label": "Payme kassa ID (merchant id)",
+   "permlevel": 2
+  },
+  {
+   "fieldname": "payme_key",
+   "fieldtype": "Password",
+   "label": "Payme kalit (key)",
+   "permlevel": 2
+  },
+  {
+   "fieldname": "payme_test_key",
+   "fieldtype": "Password",
+   "label": "Payme TEST kalit (test kassa uchun)",
+   "permlevel": 2
+  },
+  {
+   "fieldname": "cb_payme",
+   "fieldtype": "Column Break",
+   "permlevel": 2
+  },
+  {
+   "fieldname": "payme_test_mode",
+   "fieldtype": "Check",
+   "label": "Test rejimi (checkout.test.paycom.uz, TEST kalit bilan)",
+   "default": "0",
+   "permlevel": 2
+  },
+  {
+   "fieldname": "sb_click",
+   "fieldtype": "Section Break",
+   "label": "Click kassasi",
+   "permlevel": 2,
+   "collapsible": 1,
+   "description": "Click merchant kabinetida Prepare/Complete URL'lari shu formaning tepasida ko'rsatiladi."
+  },
+  {
+   "fieldname": "click_service_id",
+   "fieldtype": "Data",
+   "label": "Click service_id",
+   "permlevel": 2
+  },
+  {
+   "fieldname": "click_merchant_id",
+   "fieldtype": "Data",
+   "label": "Click merchant_id",
+   "permlevel": 2
+  },
+  {
+   "fieldname": "cb_click",
+   "fieldtype": "Column Break",
+   "permlevel": 2
+  },
+  {
+   "fieldname": "click_merchant_user_id",
+   "fieldtype": "Data",
+   "label": "Click merchant_user_id",
+   "permlevel": 2
+  },
+  {
+   "fieldname": "click_secret_key",
+   "fieldtype": "Password",
+   "label": "Click secret key",
+   "permlevel": 2
+  },
+  {
+   "fieldname": "sb_team",
+   "fieldtype": "Section Break",
+   "label": "Ombor va a'zolar",
+   "permlevel": 1
+  },
+  {
+   "description": "Do'kon yaratilganda avtomatik ochiladi",
+   "fieldname": "warehouse",
+   "fieldtype": "Link",
+   "label": "Warehouse",
+   "options": "Warehouse",
+   "read_only": 1,
+   "permlevel": 1
+  },
+  {
+   "fieldname": "members",
+   "fieldtype": "Table",
+   "label": "Members",
+   "options": "Shop Member",
+   "permlevel": 1
+  },
+  {
+   "fieldname": "telegram_ids",
+   "fieldtype": "Small Text",
+   "label": "Sotuvchi Telegram ID(lar)i",
+   "permlevel": 1,
+   "description": "Yangi buyurtma xabari shu ID'larga boradi (vergul bilan). Sotuvchi botni bir marta ochib /start bosishi kerak. ID'ni @userinfobot ko'rsatadi"
+  }
+ ],
+ "grid_page_length": 50,
+ "image_field": "logo",
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-10-16 10:10:00.000000",
+ "modified_by": "Administrator",
+ "module": "Marketplace",
+ "name": "Shop",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "permlevel": 1,
+   "read": 1,
+   "write": 1,
+   "role": "System Manager"
+  },
+  {
+   "permlevel": 2,
+   "read": 1,
+   "write": 1,
+   "role": "System Manager"
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "search_fields": "shop_name",
+ "show_title_field_in_link": 1,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "shop_name",
+ "track_changes": 1
+}

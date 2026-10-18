@@ -1,0 +1,24 @@
+{% autoescape true %}<!doctype html>
+<html lang="uz">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+	<title>Do‘kon paneli</title>
+	<meta name="theme-color" content="#F2F1EE">
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="/assets/marketplace/css/panel.css?v={{ asset_version }}">
+</head>
+<body>
+	{% include "marketplace/templates/storefront/icons.html" %}
+	{% if error %}
+	<main class="p-wrap p-error"><h1>Panel</h1><p>{{ error }}</p><a class="p-btn" href="/logout">Chiqish</a></main>
+	{% else %}
+	<div id="app" class="p-wrap" aria-live="polite"><p class="p-muted p-center">Yuklanmoqda…</p></div>
+	<div class="p-toast" id="toast" role="status"></div>
+	<script>window.PANEL = { shop: {{ shop | tojson }}, csrf: {{ csrf_token | tojson }}, user: {{ user_name | tojson }} };</script>
+	<script src="/assets/marketplace/js/panel.js?v={{ asset_version }}" defer></script>
+	{% endif %}
+</body>
+</html>{% endautoescape %}

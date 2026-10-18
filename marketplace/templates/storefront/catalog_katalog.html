@@ -1,0 +1,96 @@
+{% from "marketplace/templates/storefront/macros.html" import shop_avatar %}
+{% autoescape true %}
+<div class="kt">
+	<header class="kt-head">
+		<div class="kt-head__inner">
+			{{ shop_avatar(shop, "kt-avatar") }}
+			<div class="kt-head__text">
+				<strong>{{ shop.shop_name }}</strong>
+				<small>{{ shop.tagline or "" }}{% if shop.tagline and shop.city %} · {% endif %}{{ shop.city or "" }}</small>
+			</div>
+			<a class="kt-iconbtn" href="{{ base }}/buyurtmalarim" aria-label="Buyurtmalarim" title="Buyurtmalarim"><svg><use href="#i-receipt"/></svg></a>
+			<a class="kt-iconbtn" href="{{ base }}/savat" aria-label="Savat">
+				<svg><use href="#i-bag"/></svg><span class="sf-count" data-cart-count hidden>0</span>
+			</a>
+		</div>
+	</header>
+
+	<main class="kt-main">
+		{% if has_wholesale %}
+		<div class="kt-toggle" role="tablist" aria-label="Narx turi">
+			<button type="button" role="tab" class="is-active" data-price-mode="retail">Chakana narx</button>
+			<button type="button" role="tab" data-price-mode="wholesale">Ulgurji ({{ wholesale_min_label }}+ dona)</button>
+		</div>
+		{% endif %}
+
+		<div class="kt-searchrow">
+			<label class="sf-search">
+				<svg><use href="#i-search"/></svg>
+				<input type="search" placeholder="Model yoki artikul" data-search aria-label="Qidirish">
+			</label>
+			<select class="kt-sort" data-sort aria-label="Saralash">
+				<option value="new">Yangilari</option>
+				<option value="cheap">Arzonroq</option>
+				<option value="expensive">Qimmatroq</option>
+			</select>
+		</div>
+
+		<nav class="kt-tabs" aria-label="Kategoriyalar">
+			<button type="button" class="is-active" data-group="">Hammasi</button>
+			<button type="button" data-group="__fav" data-fav-filter hidden>♥ Sevimlilar</button>
+			{% for g in catalog.groups %}<button type="button" data-group="{{ g }}">{{ g }}</button>{% endfor %}
+		</nav>
+
+		{% if catalog["items"] %}
+		<div class="kt-list" data-grid>
+			{% for p in catalog["items"] %}
+			<article class="sf-card kt-row" data-code="{{ p.code }}" data-group="{{ p.group }}" data-price="{{ p.price }}"
+				data-name="{{ (p.name ~ ' ' ~ (p.spec or '') ~ ' ' ~ p.code) | lower }}" data-created="{{ p.created }}">
+				<a class="kt-row__img" href="{{ base }}/p/{{ p.code }}" aria-label="{{ p.name }}">
+					{% if p.thumb %}<img src="{{ p.thumb }}" alt="" width="160" height="160" loading="{{ 'eager' if loop.index <= 6 else 'lazy' }}" decoding="async">{% else %}<svg><use href="#i-image"/></svg>{% endif %}
+				</a>
+				<div class="kt-row__body">
+					<a class="kt-row__name" href="{{ base }}/p/{{ p.code }}">{{ p.name }}</a>
+					<p class="kt-row__meta">
+						{% if p.spec %}{{ p.spec }}{% endif %}{% if p.spec and p.stock_qty is not none %} · {% endif %}
+						{% if p.stock_qty is not none %}{% if p.in_stock %}Omborda {{ p.stock_qty }} ta{% else %}<span class="kt-out">Tugagan</span>{% endif %}{% endif %}
+					</p>
+					<div class="kt-row__foot">
+						<div class="kt-price">
+							<strong data-retail>{{ fmt_sum(p.price) }}</strong>
+							{% if p.wholesale_price %}
+							<small data-ws-note>Ulgurji: {{ fmt_sum(p.wholesale_price) }}</small>
+							<strong data-ws hidden>{{ fmt_sum(p.wholesale_price) }}</strong>
+							<small data-retail-note hidden>Chakana: {{ fmt_sum(p.price) }} · {{ p.wholesale_min }}+ dona</small>
+							{% endif %}
+						</div>
+						{% if p.in_stock and p.has_variants %}
+						<a class="kt-add" href="{{ base }}/p/{{ p.code }}">Tanlash</a>
+						{% elif p.in_stock %}
+						<div class="kt-qty" data-row-qty="{{ p.code }}" data-max="{{ p.stock_qty or 99 }}">
+							<button type="button" class="kt-add" data-add="{{ p.code }}">Qo‘shish<span class="sf-add__qty" hidden></span></button>
+							<div class="sf-stepper sf-stepper--sm kt-stepper" hidden>
+								<button type="button" data-row-step="-1" aria-label="Kamaytirish"><svg><use href="#i-minus"/></svg></button>
+								<output data-row-out>0</output>
+								<button type="button" data-row-step="1" aria-label="Ko‘paytirish"><svg><use href="#i-plus"/></svg></button>
+							</div>
+						</div>
+						{% endif %}
+					</div>
+				</div>
+			</article>
+			{% endfor %}
+		</div>
+		<p class="sf-empty" data-no-results hidden>Hech narsa topilmadi.</p>
+		<span data-result-count hidden></span>
+		{% else %}
+		<p class="sf-empty">Hozircha tovarlar yo‘q. Tez orada qo‘shiladi.</p>
+		{% endif %}
+	</main>
+
+	<a class="kt-bar" href="{{ base }}/savat" data-cartbar hidden>
+		<span><small data-cart-summary></small><strong data-cart-total></strong></span>
+		<span class="kt-bar__cta">Rasmiylashtirish</span>
+	</a>
+</div>
+{% endautoescape %}

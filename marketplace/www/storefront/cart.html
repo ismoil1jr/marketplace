@@ -1,0 +1,62 @@
+{% extends "marketplace/templates/storefront/base.html" %}
+{% from "marketplace/templates/storefront/macros.html" import auth_form %}
+
+{% block title %}{% autoescape true %}Savat — {{ shop.shop_name }}{% endautoescape %}{% endblock %}
+{% block body_class %}page-cart layout-{{ shop.layout }}{% endblock %}
+
+{% block content %}{% autoescape true %}
+<div class="sf-narrow">
+	<header class="sf-pagehead">
+		<a class="sf-round" href="{{ base }}" aria-label="Do‘konga qaytish"><svg><use href="#i-back"/></svg></a>
+		<h1>Savat</h1>
+		<span class="sf-muted">{{ shop.shop_name }}</span>
+	</header>
+
+	<div data-cart-lines>
+		<p class="sf-muted sf-center sf-pad">Yuklanmoqda…</p>
+	</div>
+
+	<template id="sf-line-tpl">
+		<article class="sf-line">
+			<a class="sf-line__img" data-link><img alt="" data-img></a>
+			<div class="sf-line__body">
+				<a class="sf-line__name" data-link data-name></a>
+				<small class="sf-line__variant" data-variant hidden></small>
+				<div class="sf-line__row">
+					<strong data-price></strong>
+					<div class="sf-stepper sf-stepper--sm">
+						<button type="button" data-line-step="-1" aria-label="Kamaytirish"><svg><use href="#i-minus"/></svg></button>
+						<output data-qty></output>
+						<button type="button" data-line-step="1" aria-label="Ko‘paytirish"><svg><use href="#i-plus"/></svg></button>
+					</div>
+				</div>
+				<small class="sf-line__note" data-note hidden></small>
+			</div>
+		</article>
+	</template>
+
+	<section class="sf-box" data-checkout-form hidden>
+		<h2>Buyurtma uchun ma’lumot</h2>
+		{{ auth_form() }}
+	</section>
+
+	<section class="sf-box" data-delivery hidden>
+		<h2>Yetkazib berish</h2>
+		<div class="sf-choice">
+			<label><input type="radio" name="delivery" value="Kuryer" checked><span><b>Kuryer orqali</b><small>{{ shop.delivery_short or "Kelishiladi" }}</small></span></label>
+			<label><input type="radio" name="delivery" value="O'zim olaman"><span><b>O‘zim olaman</b><small>Do‘kon manzilidan</small></span></label>
+		</div>
+		<label class="sf-field" data-address-field><span>Manzil</span><textarea rows="2" placeholder="Tuman, ko‘cha, uy, xonadon" data-address autocomplete="street-address"></textarea></label>
+	</section>
+
+	<section class="sf-summary" data-summary hidden>
+		<div><span data-summary-label></span><span data-summary-amount></span></div>
+		<div class="sf-summary__total"><span>Jami</span><strong data-summary-total></strong></div>
+	</section>
+
+	<div class="sf-checkout" data-checkout hidden>
+		<button class="sf-btn sf-btn--brand sf-btn--block" type="button" data-checkout-btn disabled>To‘lovga o‘tish</button>
+		<p class="sf-muted sf-center" data-checkout-hint>Avval telefon raqamingizni tasdiqlang</p>
+	</div>
+</div>
+{% endautoescape %}{% endblock %}

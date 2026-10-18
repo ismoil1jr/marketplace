@@ -1,0 +1,92 @@
+{% extends "marketplace/templates/storefront/base.html" %}
+{% from "marketplace/templates/storefront/macros.html" import auth_form %}
+
+{% block title %}{% autoescape true %}{% if show_receipt %}Chek{% else %}To‘lov{% endif %} — {{ shop.shop_name }}{% endautoescape %}{% endblock %}
+{% block body_class %}page-order layout-{{ shop.layout }}{% endblock %}
+
+{% block content %}{% autoescape true %}
+<div class="sf-narrow">
+	<header class="sf-pagehead">
+		<a class="sf-round" href="{{ base }}" aria-label="Do‘konga qaytish"><svg><use href="#i-back"/></svg></a>
+		<h1>{% if not order %}Buyurtma{% elif order.state == "cancelled" %}Buyurtma{% elif order.payment_status == "To'langan" %}To‘landi{% elif order.payment_method == "Naqd" %}Buyurtma qabul qilindi{% else %}To‘lov{% endif %}</h1>
+		<a class="sf-link" href="{{ base }}/buyurtmalarim">Buyurtmalarim</a>
+	</header>
+
+	{% if not order %}
+	<section class="sf-box" data-auth-page>
+		<h2>Kirish</h2>
+		{{ auth_form("Bu buyurtmani ko‘rish uchun telefon raqamingizni tasdiqlang.") }}
+	</section>
+	{% elif show_receipt or order.state == "cancelled" %}
+	{% if show_receipt %}
+	<section class="sf-box sf-done">
+		<div class="sf-done__icon">✓</div>
+		<h2>Rahmat! Buyurtmangiz qabul qilindi</h2>
+		<p class="sf-muted">
+			{% if order.payment_status == "To'langan" %}To‘lov qabul qilindi.{% else %}To‘lov: naqd pul, {{ "kuryerga yetkazilganda" if order.delivery_method == "Kuryer" else "mahsulotni olganingizda" }}.{% endif %}
+			{% if order.state != "delivered" %}{{ shop.shop_name }} tez orada siz bilan bog‘lanadi.{% endif %}
+		</p>
+	</section>
+	{% else %}
+	<p class="sf-note sf-note--bad"><span>Bu buyurtma bekor qilingan. Savollar bo‘lsa, {{ shop.shop_name }} bilan bog‘laning.</span></p>
+	{% endif %}
+
+	<section class="sf-box sf-receipt" aria-label="{{ 'Chek' if show_receipt else 'Buyurtma tarkibi' }}">
+		<div class="sf-receipt__head">
+			<h2>{{ "Chek" if show_receipt else "Buyurtma tarkibi" }}</h2>
+			<span class="sf-status sf-status--{{ order.state }}">{{ order.state_label }}</span>
+		</div>
+		<dl class="sf-receipt__meta">
+			<div><dt>Do‘kon</dt><dd>{{ shop.shop_name }}</dd></div>
+			<div><dt>Buyurtma</dt><dd>{{ order.name }}</dd></div>
+			<div><dt>Sana</dt><dd>{{ order.created }}</dd></div>
+		</dl>
+		<ul class="sf-receipt__items">
+			{% for i in order["items"] %}
+			<li>
+				<span><span class="sf-receipt__name">{{ i.item_name }}</span><small>{{ i.qty | int }} × {{ fmt_sum(i.rate) }}</small></span>
+				<b>{{ fmt_sum(i.amount) }}</b>
+			</li>
+			{% endfor %}
+		</ul>
+		<div class="sf-receipt__total"><span>Jami</span><strong>{{ fmt_sum(order.grand_total) }}</strong></div>
+		<dl class="sf-receipt__meta">
+			<div><dt>To‘lov usuli</dt><dd>{{ order.pay_title }}</dd></div>
+			<div><dt>To‘lov holati</dt><dd>{{ order.pay_status_title }}</dd></div>
+			{% if order.delivery_method %}<div><dt>Yetkazish</dt><dd>{{ order.delivery_title }}</dd></div>{% endif %}
+			{% if order.delivery_address %}<div><dt>Manzil</dt><dd>{{ order.delivery_address }}</dd></div>{% endif %}
+		</dl>
+	</section>
+
+	<div class="sf-actions">
+		<a class="sf-btn sf-btn--brand sf-btn--block" href="{{ base }}">Xaridni davom ettirish</a>
+		<a class="sf-btn sf-btn--block" href="{{ base }}/buyurtmalarim">Buyurtmalarim</a>
+	</div>
+	{% else %}
+	<section class="sf-box sf-ordercard">
+		<small class="sf-muted">Buyurtma raqami</small>
+		<strong class="sf-ordercard__no">{{ order.name }}</strong>
+		<div class="sf-ordercard__row">
+			<span>{{ shop.shop_name }} · {{ order.count }} ta mahsulot</span>
+			<b>{{ fmt_sum(order.grand_total) }}</b>
+		</div>
+	</section>
+
+	<h2 class="sf-h2">To‘lov usulini tanlang</h2>
+	<div class="sf-pay" data-pay data-order="{{ order.name }}">
+		{% for m in methods %}
+		<label class="sf-pay__opt {{ '' if m.ready else 'is-soon' }}">
+			<input type="radio" name="pay" value="{{ m.key }}" {{ 'checked' if m.key == first_ready else '' }} {{ '' if m.ready else 'disabled' }}>
+			<span class="sf-pay__icon sf-pay__icon--{{ m.key | lower }}"><svg><use href="#{{ m.icon }}"/></svg></span>
+			<span class="sf-pay__text"><b>{{ m.title }}</b><small>{{ m.sub }}</small></span>
+			<span class="sf-pay__radio"></span>
+		</label>
+		{% endfor %}
+	</div>
+	<p class="sf-note"><svg><use href="#i-lock"/></svg><span>Pul to‘g‘ridan-to‘g‘ri <b>{{ shop.shop_name }}</b> hisobiga tushadi. Karta ma’lumotlari faqat Payme yoki Click sahifasida kiritiladi.</span></p>
+	<div class="sf-checkout">
+		<button class="sf-btn sf-btn--brand sf-btn--block" type="button" data-pay-btn data-total="{{ fmt_sum(order.grand_total) }}">Buyurtmani tasdiqlash</button>
+	</div>
+	{% endif %}
+</div>
+{% endautoescape %}{% endblock %}

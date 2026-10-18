@@ -10,16 +10,16 @@ app_license = "mit"
 
 # required_apps = []
 
-# Each item in the list will be shown as an app in the apps page
-# add_to_apps_screen = [
-# 	{
-# 		"name": "marketplace",
-# 		"logo": "/assets/marketplace/logo.png",
-# 		"title": "Marketplace",
-# 		"route": "/marketplace",
-# 		"has_permission": "marketplace.api.permission.has_app_permission",
-# 	}
-# ]
+# Desk bosh ekranidagi ikonka: adminga "Marketplace", sotuvchiga o'z do'koni (seller_desk.boot_session)
+add_to_apps_screen = [
+	{
+		"name": "marketplace",
+		"logo": "/assets/marketplace/images/marketplace-logo.svg",
+		"title": "Marketplace",
+		"route": "/desk/marketplace",
+		"has_permission": "marketplace.admin.has_app_permission",
+	}
+]
 
 # The dock, the rail down the left of the desk, is a document rather than a hook. Author it in
 # Manage Dock on a developer-mode site and press Export to App, and it is written to
@@ -35,7 +35,8 @@ app_license = "mit"
 
 # include js, css files in header of desk.html
 # app_include_css = "/assets/marketplace/css/marketplace.css"
-# app_include_js = "/assets/marketplace/js/marketplace.js"
+# Desk'da yangi buyurtma signali (ovoz + ekrandagi xabar)
+app_include_js = "/assets/marketplace/js/seller_notify.js"
 
 # include js, css files in header of web template
 # web_include_css = "/assets/marketplace/css/marketplace.css"
@@ -53,6 +54,9 @@ app_license = "mit"
 
 # include js in doctype views
 # doctype_js = {"doctype" : "public/js/doctype.js"}
+# Sotuvchi uchun soddalashtirilgan tovar formasi
+doctype_js = {"Item": "public/js/item_seller.js", "Sales Order": "public/js/sales_order_seller.js"}
+doctype_list_js = {"Sales Order": "public/js/sales_order_list.js", "Item": "public/js/item_list_seller.js"}
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_kanban_js = {"doctype" : "public/js/doctype_kanban.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
@@ -96,7 +100,26 @@ app_license = "mit"
 # ------------
 
 # before_install = "marketplace.install.before_install"
-# after_install = "marketplace.install.after_install"
+
+# Payme webhook'i Authorization sarlavhasi bilan keladi: Frappe'ning API-kalit tekshiruvidan oldin olib qo'yamiz
+before_request = ["marketplace.payments.before_request"]
+
+# Sotuvchiga Desktop'da faqat o'z do'koni ikonkasi
+boot_session = "marketplace.seller_desk.boot_session"
+
+after_install = "marketplace.setup.after_install"
+after_migrate = "marketplace.setup.after_migrate"
+
+jinja = {"methods": ["marketplace.storefront.fmt_sum"]}
+
+# Mijoz sahifalari: shop.uz/s/<do'kon>, /s/<do'kon>/p/<tovar>, /s/<do'kon>/savat
+website_route_rules = [
+	{"from_route": "/s/<shop>", "to_route": "storefront/catalog"},
+	{"from_route": "/s/<shop>/p/<item>", "to_route": "storefront/product"},
+	{"from_route": "/s/<shop>/savat", "to_route": "storefront/cart"},
+	{"from_route": "/s/<shop>/buyurtma/<order>", "to_route": "storefront/order"},
+	{"from_route": "/s/<shop>/buyurtmalarim", "to_route": "storefront/orders"},
+]
 
 # Uninstallation
 # ------------
@@ -147,9 +170,21 @@ app_license = "mit"
 # -----------
 # Permissions evaluated in scripted ways
 
-# permission_query_conditions = {
-# 	"Event": "frappe.desk.doctype.event.event.get_permission_query_conditions",
-# }
+# Sotuvchi faqat o'z buyurtmachilarini ko'radi
+permission_query_conditions = {
+	"Item": "marketplace.permissions.item_query",
+	"Sales Order": "marketplace.permissions.sales_order_query",
+	"Delivery Note": "marketplace.permissions.delivery_note_query",
+	"Item Price": "marketplace.permissions.item_price_query",
+	"Item Group": "marketplace.permissions.item_group_query",
+	"Customer": "marketplace.permissions.customer_query",
+	"Contact": "marketplace.permissions.contact_query",
+}
+has_permission = {
+	"Item Group": "marketplace.permissions.item_group_has_permission",
+	"Customer": "marketplace.permissions.customer_has_permission",
+	"Contact": "marketplace.permissions.contact_has_permission",
+}
 #
 # has_permission = {
 # 	"Event": "frappe.desk.doctype.event.event.has_permission",
@@ -159,16 +194,53 @@ app_license = "mit"
 # ---------------
 # Hook on document methods and events
 
-# doc_events = {
-# 	"*": {
-# 		"on_update": "method",
-# 		"on_cancel": "method",
-# 		"on_trash": "method"
-# 	}
-# }
+doc_events = {
+	"Item": {
+		"before_insert": "marketplace.permissions.item_before_insert",
+		"before_validate": [
+			"marketplace.permissions.set_shop",
+			"marketplace.seller_desk.item_default_attributes",
+		],
+		"validate": [
+			"marketplace.seller_desk.item_template_price",
+			"marketplace.permissions.item_validate",
+			"marketplace.images.process_gallery",
+		],
+		"after_insert": "marketplace.seller_desk.item_after_insert",
+		"on_update": [
+			"marketplace.seller_desk.item_on_update",
+			"marketplace.storefront.clear_catalog_cache",
+		],
+		"on_trash": "marketplace.storefront.clear_catalog_cache",
+	},
+	"Item Group": {
+		"before_insert": "marketplace.permissions.item_group_before_insert",
+		"validate": "marketplace.permissions.item_group_validate",
+		"on_update": "marketplace.permissions.item_group_on_update",
+	},
+	"Marketplace Settings": {"on_update": "marketplace.telegram_bot.on_settings_update"},
+	"Item Price": {
+		"before_validate": "marketplace.permissions.set_shop",
+		"on_update": "marketplace.storefront.clear_catalog_cache",
+		"on_trash": "marketplace.storefront.clear_catalog_cache",
+	},
+	"Sales Order": {
+		"before_validate": "marketplace.permissions.set_shop",
+		# Yangi buyurtma: sotuvchiga bildirishnoma (Desk) va Telegram xabari
+		"on_submit": [
+			"marketplace.seller_desk.notify_new_order",
+			"marketplace.telegram_bot.enqueue_order_notification",
+		],
+	},
+	"Delivery Note": {"before_validate": "marketplace.permissions.set_shop"},
+}
 
 # Scheduled Tasks
 # ---------------
+
+scheduler_events = {
+	"hourly": ["marketplace.otp.cleanup_expired"],
+}
 
 # scheduler_events = {
 # 	"all": [

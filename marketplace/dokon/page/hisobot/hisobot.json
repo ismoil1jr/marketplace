@@ -1,0 +1,30 @@
+{
+ "content": null,
+ "creation": "2026-10-15 18:00:00.000000",
+ "docstatus": 0,
+ "doctype": "Page",
+ "icon": "bar-chart",
+ "idx": 0,
+ "modified": "2026-10-15 18:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Dokon",
+ "name": "hisobot",
+ "owner": "Administrator",
+ "page_name": "hisobot",
+ "roles": [
+  {
+   "role": "Shop Seller"
+  },
+  {
+   "role": "Marketplace Manager"
+  },
+  {
+   "role": "System Manager"
+  }
+ ],
+ "script": null,
+ "standard": "Yes",
+ "style": null,
+ "system_page": 0,
+ "title": "Hisobot"
+}

@@ -1,0 +1,80 @@
+{% extends "marketplace/templates/storefront/base.html" %}
+
+{% block title %}{% autoescape true %}{{ product.name }} — {{ shop.shop_name }}{% endautoescape %}{% endblock %}
+{% block body_class %}page-product layout-{{ shop.layout }}{% endblock %}
+
+{% block content %}{% autoescape true %}
+<div class="sf-product">
+	<section class="sf-gallery">
+		<div class="sf-gallery__track" data-gallery>
+			{% for img in product.images %}
+			<img src="{{ img }}" alt="{{ product.name }}" width="1200" height="1200" decoding="async"
+				loading="{{ 'eager' if loop.first else 'lazy' }}">
+			{% else %}
+			<div class="sf-gallery__ph"><svg><use href="#i-image"/></svg></div>
+			{% endfor %}
+		</div>
+		{% if product.images | length > 1 %}
+		<div class="sf-dots" data-dots>
+			{% for img in product.images %}<span class="{{ 'is-active' if loop.first else '' }}"></span>{% endfor %}
+		</div>
+		{% endif %}
+		<div class="sf-gallery__bar">
+			<a class="sf-round" href="{{ base }}" aria-label="Orqaga"><svg><use href="#i-back"/></svg></a>
+			<span>
+				<button class="sf-round" type="button" data-share aria-label="Ulashish"><svg><use href="#i-share"/></svg></button>
+				<button class="sf-round sf-fav--inline" type="button" data-fav="{{ product.code }}" aria-label="Sevimlilarga qo‘shish"><svg><use href="#i-heart"/></svg></button>
+			</span>
+		</div>
+	</section>
+
+	<section class="sf-sheet">
+		<a class="sf-sheet__shop sf-only-desktop" href="{{ base }}">← {{ shop.shop_name }}</a>
+		<h1>{{ product.name }}</h1>
+		<div class="sf-sheet__price">
+			<strong>{{ fmt_sum(product.price) }}</strong>
+			{% if product.old_price %}<s>{{ fmt_sum(product.old_price) }}</s><span class="sf-badge sf-badge--inline">−{{ product.discount }}%</span>{% endif %}
+			{% if product.in_stock %}<span class="sf-stock">Omborda bor</span>{% else %}<span class="sf-stock sf-stock--out">Tugagan</span>{% endif %}
+		</div>
+
+		{% if product.options %}
+		<div class="sf-variants" data-variants='{{ product.options | tojson }}'>
+			{% if product.options.colors %}
+			<p class="sf-variants__label">Rang: <b data-color-label></b></p>
+			<div class="sf-swatches">
+				{% for c in product.options.colors %}
+				<button type="button" class="sf-swatch" data-color="{{ c.value }}" style="--sw: {{ c.hex }}" aria-label="{{ c.value }}" title="{{ c.value }}"></button>
+				{% endfor %}
+			</div>
+			{% endif %}
+			{% if product.options.sizes %}
+			<p class="sf-variants__label">O‘lcham</p>
+			<div class="sf-sizes">
+				{% for sz in product.options.sizes %}<button type="button" class="sf-size" data-size="{{ sz }}">{{ sz }}</button>{% endfor %}
+			</div>
+			{% endif %}
+			<p class="sf-variants__stock" data-variant-stock></p>
+		</div>
+		{% endif %}
+
+		{% if product.description %}<div class="sf-desc">{{ product.description }}</div>{% endif %}
+
+		{% if shop.delivery_info %}
+		<p class="sf-delivery"><svg><use href="#i-truck"/></svg>{{ shop.delivery_info }}</p>
+		{% endif %}
+
+		<div class="sf-buy" data-buy data-code="{{ product.code }}" data-max="{{ product.max_qty }}">
+			{% if product.in_stock %}
+			<div class="sf-stepper">
+				<button type="button" data-step="-1" aria-label="Kamaytirish"><svg><use href="#i-minus"/></svg></button>
+				<output data-qty>1</output>
+				<button type="button" data-step="1" aria-label="Ko‘paytirish"><svg><use href="#i-plus"/></svg></button>
+			</div>
+			<button class="sf-btn sf-btn--brand sf-btn--grow" type="button" data-buy-add>Savatga qo‘shish</button>
+			{% else %}
+			<button class="sf-btn sf-btn--grow" type="button" disabled>Hozircha mavjud emas</button>
+			{% endif %}
+		</div>
+	</section>
+</div>
+{% endautoescape %}{% endblock %}

@@ -1,0 +1,36 @@
+{% autoescape true %}
+<!doctype html>
+<html lang="uz">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+	<title>{% block title %}{{ shop.shop_name }}{% endblock %}</title>
+	<meta name="description" content="{{ shop.tagline or shop.shop_name }}">
+	<meta name="theme-color" content="{{ '#121110' if shop.layout == 'story' else '#F2F1EE' }}">
+	<meta property="og:type" content="website">
+	<meta property="og:title" content="{{ self.title() }}">
+	<meta property="og:description" content="{{ shop.tagline or '' }}">
+	{% if og_image %}<meta property="og:image" content="{{ og_image }}">{% endif %}
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700{% if shop.layout == "story" %}&family=Unbounded:wght@600;700{% endif %}&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="/assets/marketplace/css/storefront.css?v={{ asset_version }}">
+	<style>:root { --brand: {{ shop.brand_color or "#1F5C4A" }}; }</style>
+</head>
+<body class="{% block body_class %}{% endblock %}">
+	{% include "marketplace/templates/storefront/icons.html" %}
+	{% block content %}{% endblock %}
+	<div class="sf-toast" id="sf-toast" role="status" aria-live="polite"></div>
+	<script>
+		window.SF = {
+			shop: {{ shop.name | tojson }},
+			base: "/s/" + {{ shop.name | tojson }},
+			catalog: {{ (catalog_json or {}) | tojson }},
+			preview: {{ shop.preview | tojson }},
+			csrf: {{ (csrf_token or "") | tojson }},
+		};
+	</script>
+	<script src="/assets/marketplace/js/storefront.js?v={{ asset_version }}" defer></script>
+</body>
+</html>
+{% endautoescape %}

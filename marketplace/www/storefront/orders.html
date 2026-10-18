@@ -1,0 +1,41 @@
+{% extends "marketplace/templates/storefront/base.html" %}
+{% from "marketplace/templates/storefront/macros.html" import auth_form, order_row %}
+
+{% block title %}{% autoescape true %}Buyurtmalarim — {{ shop.shop_name }}{% endautoescape %}{% endblock %}
+{% block body_class %}page-orders layout-{{ shop.layout }}{% endblock %}
+
+{% block content %}{% autoescape true %}
+<div class="sf-narrow">
+	<header class="sf-pagehead">
+		<a class="sf-round" href="{{ base }}" aria-label="Do‘konga qaytish"><svg><use href="#i-back"/></svg></a>
+		<h1>Buyurtmalarim</h1>
+		{% if customer %}<button type="button" class="sf-link" data-orders-logout>Chiqish</button>{% endif %}
+	</header>
+
+	{% if not customer %}
+	<section class="sf-box" data-auth-page>
+		<h2>Kirish</h2>
+		{{ auth_form("Buyurtmalaringizni ko‘rish uchun telefon raqamingizni tasdiqlang.") }}
+	</section>
+	{% else %}
+	<p class="sf-muted sf-whoami">{{ customer.name }} · {{ phone_masked }}</p>
+
+	{% if not active and not done %}
+	<div class="sf-box sf-empty">
+		<p>{{ shop.shop_name }} do‘konida hali buyurtmangiz yo‘q.</p>
+		<a class="sf-btn sf-btn--brand" href="{{ base }}">Xaridni boshlash</a>
+	</div>
+	{% endif %}
+
+	{% if active %}
+	<h2 class="sf-h2">Jarayonda <span class="sf-muted">{{ active | length }}</span></h2>
+	<div class="sf-orows">{% for o in active %}{{ order_row(o, base) }}{% endfor %}</div>
+	{% endif %}
+
+	{% if done %}
+	<h2 class="sf-h2">Yakunlangan <span class="sf-muted">{{ done | length }}</span></h2>
+	<div class="sf-orows">{% for o in done %}{{ order_row(o, base) }}{% endfor %}</div>
+	{% endif %}
+	{% endif %}
+</div>
+{% endautoescape %}{% endblock %}

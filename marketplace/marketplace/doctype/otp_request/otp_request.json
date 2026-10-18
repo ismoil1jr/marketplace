@@ -1,0 +1,102 @@
+{
+ "actions": [],
+ "creation": "2026-10-15 18:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "phone",
+  "channel",
+  "code_hash",
+  "expires_at",
+  "attempts",
+  "used",
+  "provider_request_id",
+  "ip",
+  "return_path"
+ ],
+ "fields": [
+  {
+   "fieldname": "phone",
+   "fieldtype": "Data",
+   "label": "Telefon",
+   "in_list_view": 1,
+   "search_index": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "channel",
+   "fieldtype": "Select",
+   "label": "Kanal",
+   "options": "Telegram\nTelegram Bot\nTest",
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "code_hash",
+   "fieldtype": "Data",
+   "label": "Kod xeshi",
+   "hidden": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "expires_at",
+   "fieldtype": "Datetime",
+   "label": "Muddati",
+   "read_only": 1
+  },
+  {
+   "fieldname": "attempts",
+   "fieldtype": "Int",
+   "label": "Urinishlar",
+   "read_only": 1
+  },
+  {
+   "fieldname": "used",
+   "fieldtype": "Check",
+   "label": "Ishlatilgan",
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "provider_request_id",
+   "fieldtype": "Data",
+   "label": "Provayder request_id",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ip",
+   "fieldtype": "Data",
+   "label": "IP",
+   "read_only": 1
+  },
+  {
+   "fieldname": "return_path",
+   "fieldtype": "Data",
+   "label": "Qaytish sahifasi",
+   "read_only": 1
+  }
+ ],
+ "links": [],
+ "modified": "2026-10-16 09:30:00.000000",
+ "modified_by": "Administrator",
+ "module": "Marketplace",
+ "name": "OTP Request",
+ "owner": "Administrator",
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1
+  }
+ ],
+ "autoname": "hash",
+ "in_create": 1
+}

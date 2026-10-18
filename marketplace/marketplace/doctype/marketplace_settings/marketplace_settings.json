@@ -1,0 +1,149 @@
+{
+ "actions": [],
+ "creation": "2026-10-15 18:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "sb_otp",
+  "otp_provider",
+  "telegram_gateway_token",
+  "cb_otp",
+  "otp_length",
+  "otp_ttl",
+  "otp_resend_after",
+  "sb_bot",
+  "telegram_bot_token",
+  "telegram_bot_username",
+  "telegram_admin_id",
+  "cb_bot",
+  "site_url",
+  "telegram_webhook_secret",
+  "telegram_mode",
+  "sb_session",
+  "session_days"
+ ],
+ "fields": [
+  {
+   "fieldname": "sb_otp",
+   "fieldtype": "Section Break",
+   "label": "Tasdiqlash kodi (OTP)"
+  },
+  {
+   "fieldname": "otp_provider",
+   "fieldtype": "Select",
+   "label": "OTP provayderi",
+   "options": "Test (konsol)\nTelegram Bot\nTelegram Gateway",
+   "default": "Test (konsol)",
+   "description": "Telegram Bot — o'z botimiz (bepul): mijoz botda raqamini bir marta yuboradi, keyin kodlar darhol keladi. Telegram Gateway — pullik, botsiz. Test — kod bench terminaliga yoziladi."
+  },
+  {
+   "fieldname": "telegram_gateway_token",
+   "fieldtype": "Password",
+   "label": "Telegram Gateway API token",
+   "depends_on": "eval:doc.otp_provider=='Telegram Gateway'",
+   "description": "gateway.telegram.org → API token"
+  },
+  {
+   "fieldname": "cb_otp",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "otp_length",
+   "fieldtype": "Int",
+   "label": "Kod uzunligi",
+   "default": "6"
+  },
+  {
+   "fieldname": "otp_ttl",
+   "fieldtype": "Int",
+   "label": "Kod amal qilish muddati (soniya)",
+   "default": "300"
+  },
+  {
+   "fieldname": "otp_resend_after",
+   "fieldtype": "Int",
+   "label": "Qayta yuborish (soniya)",
+   "default": "60"
+  },
+  {
+   "fieldname": "sb_session",
+   "fieldtype": "Section Break",
+   "label": "Mijoz sessiyasi"
+  },
+  {
+   "fieldname": "session_days",
+   "fieldtype": "Int",
+   "label": "Sessiya muddati (kun)",
+   "default": "30",
+   "description": "Shu muddat ichida mijoz qayta kod kiritmasdan buyurtma bera oladi"
+  },
+  {
+   "fieldname": "sb_bot",
+   "fieldtype": "Section Break",
+   "label": "Telegram bot"
+  },
+  {
+   "fieldname": "telegram_bot_token",
+   "fieldtype": "Password",
+   "label": "Bot token (@BotFather)",
+   "description": "Saqlanganda bot nomi avtomatik aniqlanadi"
+  },
+  {
+   "fieldname": "telegram_bot_username",
+   "fieldtype": "Data",
+   "label": "Bot username",
+   "read_only": 1
+  },
+  {
+   "fieldname": "telegram_admin_id",
+   "fieldtype": "Data",
+   "label": "Admin Telegram ID",
+   "description": "Barcha do'konlarning yangi buyurtmalari nusxasi shu ID'ga ham keladi. Vergul bilan bir nechta"
+  },
+  {
+   "fieldname": "cb_bot",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "site_url",
+   "fieldtype": "Data",
+   "label": "Sayt manzili (https://...)",
+   "description": "Botdagi \"Buyurtmani ko'rish\" tugmasi va webhook shu manzil bilan yasaladi. Bo'sh bo'lsa, joriy sayt manzili"
+  },
+  {
+   "fieldname": "telegram_webhook_secret",
+   "fieldtype": "Data",
+   "label": "Webhook maxfiy kaliti",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "telegram_mode",
+   "fieldtype": "Data",
+   "label": "Bot holati",
+   "read_only": 1
+  }
+ ],
+ "links": [],
+ "modified": "2026-10-16 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Marketplace",
+ "name": "Marketplace Settings",
+ "owner": "Administrator",
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1
+  }
+ ],
+ "issingle": 1
+}

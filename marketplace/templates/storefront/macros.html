@@ -1,0 +1,127 @@
+{% macro product_card(p, base, loop_index) %}{% autoescape true %}
+<article class="sf-card" data-code="{{ p.code }}" data-group="{{ p.group }}" data-price="{{ p.price }}"
+	data-name="{{ p.name | lower }}" data-created="{{ p.created }}">
+	<a class="sf-card__media" href="{{ base }}/p/{{ p.code }}" aria-label="{{ p.name }}">
+		{% if p.thumb %}
+		<img src="{{ p.thumb }}" alt="{{ p.name }}" width="480" height="600"
+			loading="{{ 'eager' if loop_index <= 4 else 'lazy' }}" decoding="async">
+		{% else %}
+		<svg class="sf-card__ph"><use href="#i-image"/></svg>
+		{% endif %}
+		{% if p.discount %}<span class="sf-badge">−{{ p.discount }}%</span>{% endif %}
+		{% if not p.in_stock %}<span class="sf-badge sf-badge--muted">Tugagan</span>{% endif %}
+	</a>
+	<button class="sf-fav" type="button" data-fav="{{ p.code }}" aria-label="Sevimlilarga qo‘shish">
+		<svg><use href="#i-heart"/></svg>
+	</button>
+	<div class="sf-card__body">
+		<a class="sf-card__name" href="{{ base }}/p/{{ p.code }}">{{ p.name }}</a>
+		<div class="sf-card__row">
+			<div class="sf-price">
+				<span class="sf-price__now">{{ fmt_sum(p.price) }}</span>
+				{% if p.old_price %}<s class="sf-price__old">{{ fmt_sum(p.old_price) }}</s>{% endif %}
+			</div>
+			{% if p.in_stock and p.has_variants %}
+			<a class="sf-add" href="{{ base }}/p/{{ p.code }}" aria-label="Rang va o‘lchamni tanlash"><svg><use href="#i-plus"/></svg></a>
+			{% elif p.in_stock %}
+			<button class="sf-add" type="button" data-add="{{ p.code }}" aria-label="Savatga qo‘shish">
+				<svg><use href="#i-plus"/></svg><span class="sf-add__qty" hidden></span>
+			</button>
+			{% endif %}
+		</div>
+	</div>
+</article>
+{% endautoescape %}{% endmacro %}
+
+{% macro shop_avatar(shop, cls="") %}{% autoescape true %}
+<span class="sf-avatar {{ cls }}">
+	{% if shop.logo %}<img src="{{ shop.logo }}" alt="">{% else %}{{ shop.initials }}{% endif %}
+</span>
+{% endautoescape %}{% endmacro %}
+
+{% macro story_card(p, base, loop_index) %}{% autoescape true %}
+<article class="sf-card st-card" data-code="{{ p.code }}" data-group="{{ p.group }}" data-price="{{ p.price }}"
+	data-name="{{ p.name | lower }}" data-created="{{ p.created }}"
+	data-new="{{ 1 if p.is_new else '' }}" data-sale="{{ 1 if p.discount else '' }}">
+	<div class="st-card__media">
+		<div class="st-slides" data-slides>
+			{% for img in (p.images or [p.thumb]) %}
+			<a href="{{ base }}/p/{{ p.code }}" aria-label="{{ p.name }}">
+				{% if img %}<img src="{{ img }}" alt="{{ p.name }}" width="800" height="1000"
+					loading="{{ 'eager' if loop_index == 1 and loop.first else 'lazy' }}" decoding="async">{% endif %}
+			</a>
+			{% endfor %}
+		</div>
+		{% if (p.images | length) > 1 %}<span class="st-counter" data-counter>1 / {{ p.images | length }}</span>{% endif %}
+		{% if p.discount %}<span class="sf-badge">−{{ p.discount }}%</span>{% endif %}
+		{% if not p.in_stock %}<span class="sf-badge sf-badge--muted">Tugagan</span>{% endif %}
+		<button class="sf-fav" type="button" data-fav="{{ p.code }}" aria-label="Sevimlilarga qo‘shish"><svg><use href="#i-heart"/></svg></button>
+	</div>
+	<div class="st-card__body">
+		<div>
+			<a class="st-card__name" href="{{ base }}/p/{{ p.code }}">{{ p.name }}</a>
+			<div class="st-card__price">
+				<strong>{{ fmt_sum(p.price) }}</strong>
+				{% if p.old_price %}<s>{{ fmt_sum(p.old_price) }}</s>{% endif %}
+			</div>
+		</div>
+		{% if p.in_stock and p.has_variants %}
+		<a class="sf-add st-add" href="{{ base }}/p/{{ p.code }}"><svg><use href="#i-plus"/></svg><span class="st-add__label">Tanlash</span></a>
+		{% elif p.in_stock %}
+		<button class="sf-add st-add" type="button" data-add="{{ p.code }}" aria-label="Savatga qo‘shish">
+			<svg><use href="#i-plus"/></svg><span class="st-add__label">Savatga</span><span class="sf-add__qty" hidden></span>
+		</button>
+		{% endif %}
+	</div>
+</article>
+{% endautoescape %}{% endmacro %}
+
+{# Telefon → Telegram kodi → tasdiqlash. JS: storefront.js initAuth(). Savat, "Buyurtmalarim" va buyurtma sahifasida. #}
+{% macro auth_form(intro="Bir marta ro‘yxatdan o‘tasiz.") %}{% autoescape true %}
+<div data-auth-guest>
+	<p class="sf-muted">{{ intro }} Kod <b>Telegram</b>ga keladi.</p>
+	<div class="sf-fields">
+		<label class="sf-field"><span>Ism</span><input name="first_name" autocomplete="given-name" placeholder="Ismingiz" data-first></label>
+		<label class="sf-field"><span>Familiya</span><input name="last_name" autocomplete="family-name" placeholder="Familiyangiz" data-last></label>
+	</div>
+	<span class="sf-label">Telefon raqam</span>
+	<div class="sf-phone">
+		<span class="sf-phone__prefix">+998</span>
+		<input type="tel" inputmode="numeric" autocomplete="tel-national" placeholder="90 123 45 67" maxlength="12" data-phone>
+		<button type="button" class="sf-btn sf-btn--outline" data-send-code>Kod olish</button>
+	</div>
+	<div class="sf-otp" data-otp hidden>
+		<span class="sf-label">Telegram kod</span>
+		<div class="sf-otp__boxes" data-otp-boxes></div>
+		<p class="sf-otp__note"><span data-otp-note></span> <button type="button" class="sf-link" data-resend hidden>Qayta yuborish</button></p>
+		<div class="sf-otp__botbox" data-otp-botbox hidden>
+			<ol class="sf-otp__steps">
+				<li>Pastdagi tugma <b data-otp-botname>Telegram botimiz</b>ni ochadi</li>
+				<li>Botda <b>«📱 Raqamni yuborish»</b> tugmasini bosing</li>
+				<li>Bot yuborgan kodni shu yerdagi katakchalarga yozing</li>
+			</ol>
+			<a class="sf-btn sf-btn--brand sf-btn--block" data-otp-bot target="_blank" rel="noopener">Telegram'da kodni olish</a>
+		</div>
+		<p class="sf-otp__dev" data-otp-dev hidden></p>
+	</div>
+</div>
+<div class="sf-me" data-auth-user hidden>
+	<span class="sf-me__ok">✓</span>
+	<div><b data-me-name></b><small data-me-phone></small></div>
+	<button type="button" class="sf-link" data-logout>Boshqa raqam</button>
+</div>
+{% endautoescape %}{% endmacro %}
+
+{# "Buyurtmalarim" ro'yxatidagi bitta qator #}
+{% macro order_row(o, base) %}{% autoescape true %}
+<a class="sf-orow" href="{{ base }}/buyurtma/{{ o.name }}">
+	<span class="sf-orow__main">
+		<b>{{ o.name }}</b>
+		<small>{{ o.date }} · {{ o.count }} ta mahsulot</small>
+	</span>
+	<span class="sf-orow__side">
+		<strong>{{ fmt_sum(o.grand_total) }}</strong>
+		<span class="sf-status sf-status--{{ o.state }}">{{ o.state_label }}</span>
+	</span>
+</a>
+{% endautoescape %}{% endmacro %}

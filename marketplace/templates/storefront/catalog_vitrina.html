@@ -1,0 +1,131 @@
+{% from "marketplace/templates/storefront/macros.html" import product_card, shop_avatar %}
+{% autoescape true %}
+<header class="sf-top">
+	<div class="sf-top__inner">
+		<div class="sf-brand">
+			<a href="{{ base }}" aria-label="{{ shop.shop_name }}">{{ shop_avatar(shop) }}</a>
+			<span class="sf-brand__text">
+				<strong><a href="{{ base }}">{{ shop.shop_name }}</a></strong>
+				<small>{% if shop.instagram_handle %}<a class="sf-insta-link" href="https://instagram.com/{{ shop.instagram_handle }}" target="_blank" rel="noopener">@{{ shop.instagram_handle }}</a>{% endif %}{% if shop.instagram_handle and shop.city %} · {% endif %}{{ shop.city or "" }}</small>
+			</span>
+		</div>
+
+		<label class="sf-search sf-search--top">
+			<svg><use href="#i-search"/></svg>
+			<input type="search" placeholder="Ko‘ylak, shim, kurtka…" data-search aria-label="Mahsulot qidirish">
+		</label>
+
+		<div class="sf-top__actions">
+			<a class="sf-icon-btn sf-orders-btn" href="{{ base }}/buyurtmalarim" aria-label="Buyurtmalarim" title="Buyurtmalarim">
+				<svg><use href="#i-receipt"/></svg>
+				<span class="sf-orders-btn__label">Buyurtmalarim</span>
+			</a>
+			<button class="sf-icon-btn sf-only-mobile" type="button" data-focus-search aria-label="Qidirish">
+				<svg><use href="#i-search"/></svg>
+			</button>
+			<a class="sf-icon-btn sf-cart-btn" href="{{ base }}/savat" aria-label="Savat">
+				<svg><use href="#i-bag"/></svg>
+				<span class="sf-cart-btn__label">Savat</span>
+				<span class="sf-count" data-cart-count hidden>0</span>
+			</a>
+		</div>
+	</div>
+</header>
+
+<div class="sf-layout">
+	<aside class="sf-filters" aria-label="Filtrlar">
+		<p class="sf-filters__title">Kategoriyalar</p>
+		<nav class="sf-catlist">
+			<button type="button" class="is-active" data-group="">Hammasi</button>
+			<button type="button" data-group="__fav" data-fav-filter hidden>♥ Sevimlilar</button>
+			{% for g in catalog.groups %}<button type="button" data-group="{{ g }}">{{ g }}</button>{% endfor %}
+		</nav>
+		<p class="sf-filters__title">Narx, so‘m</p>
+		<div class="sf-range">
+			<input type="number" inputmode="numeric" placeholder="dan" data-min aria-label="Narx dan">
+			<input type="number" inputmode="numeric" placeholder="gacha" data-max aria-label="Narx gacha">
+		</div>
+		<button type="button" class="sf-reset" data-reset-filters hidden>Filterni tozalash</button>
+	</aside>
+
+	<main class="sf-main">
+		<div class="sf-info">
+			{% if shop.delivery_short %}<span class="sf-pill"><svg><use href="#i-truck"/></svg>{{ shop.delivery_short }}</span>{% endif %}
+			{% if shop.payment_label %}<span class="sf-pill"><svg><use href="#i-card"/></svg>{{ shop.payment_label }}</span>{% endif %}
+		</div>
+
+		<label class="sf-search sf-search--inline">
+			<svg><use href="#i-search"/></svg>
+			<input type="search" placeholder="Ko‘ylak, shim, kurtka…" data-search aria-label="Mahsulot qidirish">
+		</label>
+
+		{% if shop.banners %}
+		<section class="sf-carousel" data-carousel aria-roledescription="carousel" aria-label="Aksiyalar">
+			<div class="sf-carousel__track" data-carousel-track>
+				{% for b in shop.banners %}
+				<article class="sf-slide{{ ' sf-slide--item' if b.is_item else '' }}" aria-roledescription="slide" aria-label="{{ loop.index }} / {{ shop.banners|length }}">
+					<img src="{{ b.image }}" alt="{{ b.title or '' }}" {{ 'fetchpriority=high' if loop.first else 'loading=lazy' }} decoding="async">
+					{% if b.title or b.label %}
+					<div class="sf-slide__text">
+						{% if b.label %}<small>{{ b.label }}</small>{% endif %}
+						{% if b.title %}<h2>{{ b.title }}</h2>{% endif %}
+						{% if b.url %}<a class="sf-btn sf-btn--dark" href="{{ b.url }}">Ko‘rish</a>
+						{% elif b.item_group %}<button class="sf-btn sf-btn--dark" type="button" data-group-jump="{{ b.item_group }}">Ko‘rish</button>{% endif %}
+					</div>
+					{% endif %}
+				</article>
+				{% endfor %}
+			</div>
+			{% if shop.banners|length > 1 %}
+			<div class="sf-carousel__dots" role="tablist">
+				{% for b in shop.banners %}<button type="button" role="tab" aria-label="{{ loop.index }}-slayd" data-carousel-dot="{{ loop.index0 }}" {{ 'aria-selected=true' if loop.first else '' }}></button>{% endfor %}
+			</div>
+			{% endif %}
+		</section>
+		{% endif %}
+
+		<nav class="sf-chips" aria-label="Kategoriyalar">
+			<button type="button" class="is-active" data-group="">Hammasi</button>
+			<button type="button" data-group="__fav" data-fav-filter hidden>♥ Sevimlilar</button>
+			{% for g in catalog.groups %}<button type="button" data-group="{{ g }}">{{ g }}</button>{% endfor %}
+		</nav>
+
+		<div class="sf-toolbar">
+			<span data-result-count>{{ catalog["items"] | length }} ta mahsulot</span>
+			<label class="sf-sort">Saralash
+				<select data-sort>
+					<option value="new">Yangilari</option>
+					<option value="cheap">Arzonroq</option>
+					<option value="expensive">Qimmatroq</option>
+				</select>
+			</label>
+		</div>
+
+		{% if catalog["items"] %}
+		<div class="sf-grid" data-grid>
+			{% for p in catalog["items"] %}{{ product_card(p, base, loop.index) }}{% endfor %}
+		</div>
+		<p class="sf-empty" data-no-results hidden>Hech narsa topilmadi. Boshqa so‘z bilan qidirib ko‘ring.</p>
+		{% else %}
+		<p class="sf-empty">Hozircha tovarlar yo‘q. Tez orada qo‘shiladi.</p>
+		{% endif %}
+	</main>
+
+	<aside class="sf-side-cart" aria-label="Savat">
+		<div class="sf-panel">
+			<div class="sf-panel__head"><h3>Savat</h3><span data-cart-items-label></span></div>
+			<div class="sf-panel__lines" data-side-lines><p class="sf-muted">Savat bo‘sh</p></div>
+			<div class="sf-panel__total" data-side-total hidden>
+				<div><span>Jami</span><strong data-cart-total></strong></div>
+				<a class="sf-btn sf-btn--brand sf-btn--block" href="{{ base }}/savat">Rasmiylashtirish</a>
+				{% if shop.payment_label %}<p class="sf-muted sf-center">To‘lov: {{ shop.payment_label }}</p>{% endif %}
+			</div>
+		</div>
+	</aside>
+</div>
+
+<a class="sf-cartbar" href="{{ base }}/savat" data-cartbar hidden>
+	<span><small data-cart-items-label></small><strong data-cart-total></strong></span>
+	<span class="sf-cartbar__cta">Savatga o‘tish</span>
+</a>
+{% endautoescape %}

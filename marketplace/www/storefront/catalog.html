@@ -1,0 +1,15 @@
+{% extends "marketplace/templates/storefront/base.html" %}
+{% from "marketplace/templates/storefront/macros.html" import product_card, shop_avatar %}
+
+{% block title %}{% autoescape true %}{{ shop.shop_name }}{% if shop.tagline %} — {{ shop.tagline }}{% endif %}{% endautoescape %}{% endblock %}
+{% block body_class %}page-catalog layout-{{ shop.layout }}{% endblock %}
+
+{% block content %}{% autoescape true %}
+{% if shop.layout == "story" %}
+{% include "marketplace/templates/storefront/catalog_story.html" %}
+{% elif shop.layout == "katalog" %}
+{% include "marketplace/templates/storefront/catalog_katalog.html" %}
+{% else %}
+{% include "marketplace/templates/storefront/catalog_vitrina.html" %}
+{% endif %}
+{% endautoescape %}{% endblock %}

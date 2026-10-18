@@ -1,0 +1,36 @@
+{
+ "actions": [],
+ "autoname": "field:phone",
+ "creation": "2026-10-16 09:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "phone",
+  "chat_id",
+  "full_name",
+  "blocked"
+ ],
+ "fields": [
+  {"fieldname": "phone", "fieldtype": "Data", "in_list_view": 1, "label": "Telefon", "reqd": 1, "unique": 1, "read_only": 1},
+  {"fieldname": "chat_id", "fieldtype": "Data", "in_list_view": 1, "label": "Telegram chat ID", "reqd": 1, "search_index": 1, "read_only": 1},
+  {"fieldname": "full_name", "fieldtype": "Data", "in_list_view": 1, "label": "Telegram'dagi ismi", "read_only": 1},
+  {"default": "0", "description": "Mijoz botni bloklagan bo'lsa belgilanadi", "fieldname": "blocked", "fieldtype": "Check", "label": "Botni bloklagan", "read_only": 1}
+ ],
+ "in_create": 1,
+ "links": [],
+ "modified": "2026-10-16 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Marketplace",
+ "name": "Telegram Contact",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {"delete": 1, "read": 1, "report": 1, "role": "System Manager"},
+  {"read": 1, "report": 1, "role": "Marketplace Manager"}
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "full_name"
+}

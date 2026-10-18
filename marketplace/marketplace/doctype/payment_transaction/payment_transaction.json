@@ -1,0 +1,154 @@
+{
+ "actions": [],
+ "autoname": "autoincrement",
+ "creation": "2026-10-15 23:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "shop",
+  "sales_order",
+  "provider",
+  "state",
+  "cb1",
+  "provider_txn_id",
+  "amount",
+  "reason",
+  "sb_time",
+  "create_time",
+  "perform_time",
+  "cancel_time",
+  "sb_raw",
+  "raw_payload"
+ ],
+ "fields": [
+  {
+   "fieldname": "shop",
+   "fieldtype": "Link",
+   "label": "Do'kon",
+   "options": "Shop",
+   "read_only": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "sales_order",
+   "fieldtype": "Link",
+   "label": "Buyurtma",
+   "options": "Sales Order",
+   "read_only": 1,
+   "in_list_view": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "provider",
+   "fieldtype": "Select",
+   "label": "Provayder",
+   "options": "Payme\nClick",
+   "read_only": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "state",
+   "fieldtype": "Int",
+   "label": "Holat",
+   "read_only": 1,
+   "in_list_view": 1,
+   "description": "1 — yaratilgan, 2 — to'langan, −1 — to'lovdan oldin bekor, −2 — to'lovdan keyin bekor (pul qaytarilgan)"
+  },
+  {
+   "fieldname": "cb1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "provider_txn_id",
+   "fieldtype": "Data",
+   "label": "Provayder tranzaksiya ID",
+   "read_only": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "label": "Summa (so'm)",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "reason",
+   "fieldtype": "Int",
+   "label": "Bekor qilish sababi",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sb_time",
+   "fieldtype": "Section Break",
+   "label": "Vaqtlar (Payme: millisekund)"
+  },
+  {
+   "fieldname": "create_time",
+   "fieldtype": "Data",
+   "label": "Yaratilgan",
+   "read_only": 1
+  },
+  {
+   "fieldname": "perform_time",
+   "fieldtype": "Data",
+   "label": "To'langan",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cancel_time",
+   "fieldtype": "Data",
+   "label": "Bekor qilingan",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sb_raw",
+   "fieldtype": "Section Break",
+   "label": "So'rov",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "raw_payload",
+   "fieldtype": "Code",
+   "label": "Oxirgi so'rov (JSON)",
+   "read_only": 1,
+   "options": "JSON"
+  }
+ ],
+ "in_create": 1,
+ "links": [],
+ "modified": "2026-10-15 23:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Marketplace",
+ "name": "Payment Transaction",
+ "naming_rule": "Autoincrement",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "report": 1,
+   "export": 1,
+   "delete": 1
+  },
+  {
+   "role": "Marketplace Manager",
+   "read": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Shop Seller",
+   "read": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "sales_order",
+ "track_changes": 1
+}
