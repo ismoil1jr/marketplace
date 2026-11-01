@@ -1,0 +1,76 @@
+<!doctype html>
+{% autoescape true %}
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<title>Chek {{ so.name }}</title>
+<style>
+	@page { size: A5; margin: 14mm 12mm; }
+	body { font-family: "DejaVu Sans", sans-serif; font-size: 9.5pt; color: #1a1a1a; }
+	h1 { margin: 0; font-size: 15pt; }
+	.muted { color: #6b6b6b; }
+	.head { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 8px; border-bottom: 1.5px solid #1a1a1a; }
+	.head .no { text-align: right; }
+	.head .no b { display: block; font-size: 11pt; }
+	.seller { margin: 10px 0; line-height: 1.5; }
+	table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+	th { text-align: left; font-size: 8pt; color: #6b6b6b; font-weight: normal; border-bottom: 1px solid #ccc; padding: 4px 0; }
+	td { padding: 6px 0; border-bottom: 1px solid #eee; vertical-align: top; }
+	.num { text-align: right; white-space: nowrap; }
+	td small { display: block; color: #6b6b6b; font-size: 7.5pt; }
+	.total { display: flex; justify-content: space-between; margin-top: 10px; font-size: 13pt; font-weight: bold; }
+	.meta { margin-top: 12px; line-height: 1.6; }
+	.meta span { display: inline-block; width: 42%; color: #6b6b6b; }
+	.paid { display: inline-block; margin-top: 12px; padding: 4px 10px; border: 1.5px solid #15803d; border-radius: 4px; color: #15803d; font-weight: bold; }
+	.foot { margin-top: 18px; font-size: 7.5pt; color: #6b6b6b; }
+</style>
+</head>
+<body>
+	<div class="head">
+		<div>
+			<h1>{{ shop.shop_name }}</h1>
+			<div class="muted">To‘lov cheki</div>
+		</div>
+		<div class="no">
+			<b>{{ so.name }}</b>
+			<span class="muted">{{ so.created }}</span>
+		</div>
+	</div>
+
+	<div class="seller">
+		{% if shop.legal_name %}<div><b>Sotuvchi:</b> {{ shop.legal_name }}</div>{% endif %}
+		{% if shop.stir %}<div><b>STIR:</b> {{ shop.stir }}</div>{% endif %}
+		{% if shop.pickup_address or shop.city %}<div><b>Manzil:</b> {{ shop.pickup_address or shop.city }}</div>{% endif %}
+		{% if shop.phone %}<div><b>Telefon:</b> {{ shop.phone }}</div>{% endif %}
+	</div>
+
+	<table>
+		<thead><tr><th>Tovar</th><th class="num">Soni</th><th class="num">Narxi</th><th class="num">Summa</th></tr></thead>
+		<tbody>
+			{% for i in so["items"] %}
+			<tr>
+				<td>{{ i.item_name }}{% if i.mxik %}<small>MXIK: {{ i.mxik }}</small>{% endif %}</td>
+				<td class="num">{{ i.qty | int }}</td>
+				<td class="num">{{ fmt_sum(i.rate) }}</td>
+				<td class="num">{{ fmt_sum(i.amount) }}</td>
+			</tr>
+			{% endfor %}
+		</tbody>
+	</table>
+
+	<div class="total"><span>Jami</span><span>{{ fmt_sum(so.grand_total) }}</span></div>
+
+	<div class="meta">
+		<div><span>To‘lov usuli</span>{{ so.payment_method or "—" }}</div>
+		{% if paid_at %}<div><span>To‘langan vaqt</span>{{ paid_at }}</div>{% endif %}
+		{% if txn and txn.provider_txn_id %}<div><span>{{ txn.provider }} tranzaksiyasi</span>{{ txn.provider_txn_id }}</div>{% endif %}
+		{% if so.delivery_method %}<div><span>Yetkazish</span>{{ "Kuryer orqali" if so.delivery_method == "Kuryer" else "O‘zi olib ketadi" }}</div>{% endif %}
+		{% if so.delivery_address %}<div><span>Manzil</span>{{ so.delivery_address }}</div>{% endif %}
+	</div>
+
+	<div class="paid">TO‘LANGAN</div>
+
+	<p class="foot">Bu chek xarid va to‘lovni tasdiqlaydi. Fiskal (soliq) cheki to‘lov tizimi tomonidan alohida yuboriladi.</p>
+</body>
+</html>
+{% endautoescape %}

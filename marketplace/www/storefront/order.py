@@ -44,8 +44,9 @@ def get_context(context):
 	card = "Ilova yoki Uzcard / Humo karta"
 	context.methods = [
 		m for m in (
-			{"key": "Payme", "title": "Payme", "sub": card, "icon": "i-card", "on": shop.enable_payme, "ready": bool(gw.get("Payme"))},
-			{"key": "Click", "title": "Click", "sub": card, "icon": "i-phone", "on": shop.enable_click, "ready": bool(gw.get("Click"))},
+			# Payme va Click — o'z logolari (public/images/pay: payme.uz va click.uz rasmiy SVG'lari)
+			{"key": "Payme", "title": "Payme", "sub": card, "logo": "/assets/marketplace/images/pay/payme.svg", "on": shop.enable_payme, "ready": bool(gw.get("Payme"))},
+			{"key": "Click", "title": "Click", "sub": card, "logo": "/assets/marketplace/images/pay/click.svg", "on": shop.enable_click, "ready": bool(gw.get("Click"))},
 			{"key": "Naqd", "title": "Naqd pul", "sub": "Kuryerga yetkazilganda" if order.delivery_method == "Kuryer" else "Mahsulotni olganingizda", "icon": "i-cash", "on": shop.enable_cod, "ready": True},
 		)
 		if m["on"]

@@ -1,45 +1,59 @@
 {
  "actions": [],
- "autoname": "field:rang_nomi",
+ "autoname": "",
  "creation": "2026-10-16 08:00:00.000000",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
   "rang_nomi",
-  "hex"
+  "hex",
+  "shop"
  ],
  "fields": [
   {
+   "description": "Saqlangandan keyin o'zgarmaydi: tovar variantlari shu nom bilan yaratiladi",
    "fieldname": "rang_nomi",
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Rang nomi",
    "reqd": 1,
-   "unique": 1
+   "set_only_once": 1
   },
   {
+   "allow_in_quick_entry": 1,
    "description": "Saytda shu rangdagi doiracha chiqadi",
    "fieldname": "hex",
    "fieldtype": "Color",
    "in_list_view": 1,
    "label": "Rangi"
+  },
+  {
+   "fieldname": "shop",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Do'kon",
+   "options": "Shop",
+   "read_only": 1,
+   "search_index": 1
   }
  ],
  "links": [],
- "modified": "2026-10-16 08:00:00.000000",
+ "modified": "2026-10-28 18:00:00.000000",
  "modified_by": "Administrator",
  "module": "Marketplace",
  "name": "Rang",
- "naming_rule": "By fieldname",
+ "naming_rule": "By script",
  "owner": "Administrator",
  "permissions": [
   {"create": 1, "delete": 1, "read": 1, "write": 1, "export": 1, "report": 1, "role": "System Manager"},
   {"create": 1, "delete": 1, "read": 1, "write": 1, "report": 1, "role": "Marketplace Manager"},
-  {"create": 1, "read": 1, "role": "Shop Seller"}
+  {"create": 1, "delete": 1, "read": 1, "write": 1, "role": "Shop Seller"}
  ],
  "quick_entry": 1,
  "row_format": "Dynamic",
- "sort_field": "rang_nomi",
+ "search_fields": "rang_nomi",
+ "show_title_field_in_link": 1,
+ "sort_field": "creation",
  "sort_order": "ASC",
  "states": [],
  "title_field": "rang_nomi"

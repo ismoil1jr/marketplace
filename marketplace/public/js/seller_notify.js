@@ -1,3 +1,28 @@
+// Do'konim va Kuryer paneli: raqamli kartalar (Kuryerlardagi naqd, Qo'limdagi naqd...) faqat sahifa chizilganda
+// hisoblanadi, Frappe esa ochilgan workspace'ga qaytganda uni qayta chizmaydi ("already shown") — eskirgan raqam
+// turardi. Shu ikki sahifaga qaytilganda — qayta chizamiz. mp.refresh_workspace() — pul harakatidan keyin (kassa).
+window.mp = window.mp || {};
+const MP_LIVE_WORKSPACES = new Set(["Dokonim", "Kuryer"]);
+mp.refresh_workspace = () => {
+	const ws = frappe.workspace;
+	if (!ws?._page) return false;
+	ws._page = null;
+	ws.show();
+	return true;
+};
+$(document).on("app_ready", () => {
+	const proto = frappe.views?.Workspace?.prototype;
+	if (!proto || proto._mp_live) return;
+	proto._mp_live = true;
+	const show = proto.show;
+	proto.show = function (...args) {
+		if (this.workspaces && MP_LIVE_WORKSPACES.has(this._page?.name) && this.get_page_to_show?.()?.name === this._page.name) {
+			this._page = null;
+		}
+		return show.apply(this, args);
+	};
+});
+
 // Yangi buyurtma tushganda sotuvchiga: ovoz + bosilsa buyurtmani ochadigan xabar.
 // Qo'ng'iroqchadagi (bell) yozuvni server Notification Log orqali qo'yadi.
 $(document).on("app_ready", () => {
@@ -19,9 +44,17 @@ window.marketplace_enter_shop = (shop) =>
 		.xcall("marketplace.admin.enter_shop_panel", { shop }, null, { freeze: true })
 		.then((url) => (window.location.href = url));
 
-// Admin do'kon panelida bo'lsa: sahifa tepasida ingichka qator va qaytish tugmasi
+// Admin do'kon panelida bo'lsa: sahifa tepasida ingichka qator va qaytish tugmasi.
+// Admin sahifalariga (Desktop yoki /desk/marketplace/...) o'tsa — do'kon panelidan o'zi chiqadi
 $(document).on("app_ready", () => {
 	if (!frappe.boot.marketplace_shop?.admin_view) return;
+	const in_admin_area = () => {
+		const path = location.pathname.replace(/\/+$/, "");
+		return path === "/desk" || path === "/desk/marketplace" || path.startsWith("/desk/marketplace/");
+	};
+	const leave = () => frappe.xcall("marketplace.admin.leave_shop_panel").then(() => window.location.reload());
+	if (in_admin_area()) return leave();
+	frappe.router.on("change", () => in_admin_area() && leave());
 	const $bar = $(`
 		<div class="mp-admin-view">
 			<span>${frappe.utils.icon("eye", "sm")} <b></b> do'koni paneli — siz admin sifatida ko'ryapsiz</span>

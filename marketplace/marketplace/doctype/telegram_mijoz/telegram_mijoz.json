@@ -1,0 +1,177 @@
+{
+ "actions": [],
+ "autoname": "format:TG-{#####}",
+ "creation": "2026-10-27 18:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "photo",
+  "full_name",
+  "username",
+  "phone",
+  "customer",
+  "doimiy_mijoz",
+  "column_break_1",
+  "last_login",
+  "first_login",
+  "login_count",
+  "device",
+  "shop",
+  "sb_telegram",
+  "telegram_id",
+  "photo_id"
+ ],
+ "fields": [
+  {
+   "fieldname": "photo",
+   "fieldtype": "Attach Image",
+   "label": "Profil rasmi",
+   "hidden": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "full_name",
+   "fieldtype": "Data",
+   "label": "Ism",
+   "bold": 1,
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "username",
+   "fieldtype": "Data",
+   "label": "Username",
+   "in_list_view": 1,
+   "read_only": 1,
+   "description": "Telegram'dagi @username (bo'lmasligi ham mumkin)"
+  },
+  {
+   "fieldname": "phone",
+   "fieldtype": "Data",
+   "label": "Telefon",
+   "options": "Phone",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "label": "Mijoz",
+   "options": "Customer",
+   "read_only": 1
+  },
+  {
+   "fieldname": "doimiy_mijoz",
+   "fieldtype": "Link",
+   "label": "Doimiy mijoz anketasi",
+   "options": "Doimiy Mijoz",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "last_login",
+   "fieldtype": "Datetime",
+   "label": "Oxirgi kirgan",
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "first_login",
+   "fieldtype": "Datetime",
+   "label": "Birinchi kirgan",
+   "read_only": 1
+  },
+  {
+   "fieldname": "login_count",
+   "fieldtype": "Int",
+   "label": "Necha marta kirgan",
+   "read_only": 1
+  },
+  {
+   "fieldname": "device",
+   "fieldtype": "Data",
+   "label": "Oxirgi qurilma",
+   "read_only": 1
+  },
+  {
+   "fieldname": "shop",
+   "fieldtype": "Link",
+   "label": "Do'kon",
+   "options": "Shop",
+   "read_only": 1,
+   "in_standard_filter": 1,
+   "description": "Bo'sh — qaysi do'konga kirgani noma'lum (faqat platforma adminiga ko'rinadi)"
+  },
+  {
+   "fieldname": "sb_telegram",
+   "fieldtype": "Section Break",
+   "label": "Telegram",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "telegram_id",
+   "fieldtype": "Data",
+   "label": "Telegram ID",
+   "read_only": 1,
+   "search_index": 1,
+   "description": "Telegram'i bog'lanmagan (eski usulda kod bilan kirgan) mijozda bo'sh"
+  },
+  {
+   "fieldname": "photo_id",
+   "fieldtype": "Data",
+   "label": "Rasm ID",
+   "hidden": 1,
+   "read_only": 1,
+   "description": "Telegram file_unique_id: rasm o'zgarmagan bo'lsa qayta yuklanmaydi"
+  }
+ ],
+ "image_field": "photo",
+ "in_create": 1,
+ "links": [],
+ "modified": "2026-10-27 20:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Marketplace",
+ "name": "Telegram Mijoz",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Marketplace Manager",
+   "read": 1,
+   "write": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Shop Seller",
+   "read": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Shop Sales Manager",
+   "read": 1,
+   "report": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "search_fields": "username,phone",
+ "show_title_field_in_link": 1,
+ "sort_field": "last_login",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "full_name"
+}

@@ -1,0 +1,372 @@
+{
+ "actions": [],
+ "autoname": "format:QNG-{YYYY}-{#####}",
+ "creation": "2026-10-26 17:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "module": "Sotuv",
+ "name": "Telefon Qongiroq",
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "modified": "2026-10-31 10:00:00.000000",
+ "links": [],
+ "states": [],
+ "row_format": "Dynamic",
+ "sort_field": "boshlandi",
+ "sort_order": "DESC",
+ "title_field": "telefon",
+ "show_title_field_in_link": 1,
+ "search_fields": "telefon,mijoz_ismi",
+ "track_changes": 0,
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Marketplace Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Shop Seller",
+   "read": 1
+  },
+  {
+   "role": "Shop Sales Manager",
+   "read": 1
+  }
+ ],
+ "fields": [
+  {
+   "fieldname": "telefon",
+   "fieldtype": "Data",
+   "label": "Mijoz raqami",
+   "options": "Phone",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "normal_telefon",
+   "fieldtype": "Data",
+   "label": "Raqam (998XXXXXXXXX)",
+   "read_only": 1,
+   "search_index": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "yonalish",
+   "fieldtype": "Select",
+   "label": "Yo'nalish",
+   "options": "Chiquvchi\nKiruvchi",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "boshlandi",
+   "fieldtype": "Datetime",
+   "label": "Qachon",
+   "in_list_view": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "davomiyligi",
+   "fieldtype": "Int",
+   "label": "Davomiyligi (soniya)",
+   "in_list_view": 1,
+   "read_only": 1,
+   "description": "Yozuv uzunligi (ilova bergan, terish vaqti ham kiradi)"
+  },
+  {
+   "fieldname": "natija",
+   "fieldtype": "Select",
+   "label": "Natija",
+   "options": "\nJavob berildi\nJavob yo'q",
+   "read_only": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "Davomiyligi 0 bo'lsa — javob berilmagan"
+  },
+  {
+   "fieldname": "holat",
+   "fieldtype": "Select",
+   "label": "Holat",
+   "options": "Yangi\nYozuv bor\nTranskripsiya\nTahlil qilindi\nXato",
+   "default": "Yangi",
+   "read_only": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break",
+   "label": ""
+  },
+  {
+   "fieldname": "mijoz",
+   "fieldtype": "Link",
+   "label": "Mijoz",
+   "options": "Customer",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "mijoz_ismi",
+   "fieldtype": "Data",
+   "label": "Mijoz ismi",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "buyurtma",
+   "fieldtype": "Link",
+   "label": "Buyurtma",
+   "options": "Sales Order",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "murojaat",
+   "fieldtype": "Link",
+   "label": "Murojaat",
+   "options": "Murojaat",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "shop",
+   "fieldtype": "Link",
+   "label": "Do'kon",
+   "options": "Shop",
+   "read_only": 1,
+   "search_index": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "menejer",
+   "fieldtype": "Link",
+   "label": "Menejer",
+   "options": "User",
+   "read_only": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "sb_yozuv",
+   "fieldtype": "Section Break",
+   "label": "Yozuv"
+  },
+  {
+   "fieldname": "yozuv",
+   "fieldtype": "Attach",
+   "label": "Audio yozuv",
+   "read_only": 1
+  },
+  {
+   "fieldname": "yozuv_html",
+   "fieldtype": "HTML",
+   "label": "Tinglash"
+  },
+  {
+   "fieldname": "yozuv_bor",
+   "fieldtype": "Check",
+   "label": "Yozuv bor",
+   "read_only": 1
+  },
+  {
+   "fieldname": "fayl_hajmi",
+   "fieldtype": "Int",
+   "label": "Fayl hajmi (bayt)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "yozuv_ochirildi",
+   "fieldtype": "Check",
+   "label": "Yozuv o'chirilgan",
+   "read_only": 1,
+   "description": "Saqlash muddati tugab, fayl o'chirilgan. Qo'ng'iroq ma'lumoti va transkript qoladi."
+  },
+  {
+   "fieldname": "izoh",
+   "fieldtype": "Small Text",
+   "label": "Izoh"
+  },
+  {
+   "fieldname": "sb_ai",
+   "fieldtype": "Section Break",
+   "label": "AI: qisqa tahlil va transkript"
+  },
+  {
+   "fieldname": "ai_xulosa",
+   "fieldtype": "Small Text",
+   "label": "Qisqa tahlil",
+   "read_only": 1,
+   "description": "Suhbatning eng muhim joylari: oladimi, sababi, kelishilgan narsa, keyingi qadam"
+  },
+  {
+   "fieldname": "transkript",
+   "fieldtype": "Long Text",
+   "label": "Transkript (nutq → matn)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_ai",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "stt_model",
+   "fieldtype": "Data",
+   "label": "Model",
+   "read_only": 1
+  },
+  {
+   "fieldname": "transkripsiya_vaqti",
+   "fieldtype": "Datetime",
+   "label": "Transkripsiya vaqti",
+   "read_only": 1
+  },
+  {
+   "fieldname": "transkript_sozlar",
+   "fieldtype": "Int",
+   "label": "So'z soni",
+   "read_only": 1
+  },
+  {
+   "fieldname": "stt_urinish",
+   "fieldtype": "Int",
+   "label": "Urinishlar",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "xato_matni",
+   "fieldtype": "Small Text",
+   "label": "Xato",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sb_ilova",
+   "fieldtype": "Section Break",
+   "label": "Ilova ma'lumotlari",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "manba",
+   "fieldtype": "Select",
+   "label": "Manba",
+   "options": "Android\nQo'lda",
+   "default": "Android",
+   "read_only": 1,
+   "description": "Android — sotuvchi telefonidagi ilova (ASMIZ Call Agent)"
+  },
+  {
+   "fieldname": "xodim_id",
+   "fieldtype": "Data",
+   "label": "Xodim ID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ish_raqami",
+   "fieldtype": "Data",
+   "label": "Ish SIM raqami",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sim_slot",
+   "fieldtype": "Data",
+   "label": "SIM",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_2",
+   "fieldtype": "Column Break",
+   "label": ""
+  },
+  {
+   "fieldname": "kontakt_ism",
+   "fieldtype": "Data",
+   "label": "Telefondagi kontakt nomi",
+   "read_only": 1
+  },
+  {
+   "fieldname": "qurilma",
+   "fieldtype": "Data",
+   "label": "Qurilma",
+   "read_only": 1
+  },
+  {
+   "fieldname": "client_call_id",
+   "fieldtype": "Data",
+   "label": "Ilovadagi ID",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "yozuv_hash",
+   "fieldtype": "Data",
+   "label": "Fayl hash",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "ilova_xom",
+   "fieldtype": "Code",
+   "label": "Ilova yuborgan ma'lumot",
+   "options": "JSON",
+   "read_only": 1
+  }
+ ],
+ "field_order": [
+  "telefon",
+  "normal_telefon",
+  "yonalish",
+  "boshlandi",
+  "davomiyligi",
+  "natija",
+  "holat",
+  "column_break_1",
+  "mijoz",
+  "mijoz_ismi",
+  "buyurtma",
+  "murojaat",
+  "shop",
+  "menejer",
+  "sb_yozuv",
+  "yozuv",
+  "yozuv_html",
+  "yozuv_bor",
+  "fayl_hajmi",
+  "yozuv_ochirildi",
+  "izoh",
+  "sb_ai",
+  "ai_xulosa",
+  "transkript",
+  "column_break_ai",
+  "stt_model",
+  "transkripsiya_vaqti",
+  "transkript_sozlar",
+  "stt_urinish",
+  "xato_matni",
+  "sb_ilova",
+  "manba",
+  "xodim_id",
+  "ish_raqami",
+  "sim_slot",
+  "column_break_2",
+  "kontakt_ism",
+  "qurilma",
+  "client_call_id",
+  "yozuv_hash",
+  "ilova_xom"
+ ]
+}

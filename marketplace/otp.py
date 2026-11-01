@@ -16,7 +16,6 @@ import re
 import secrets
 
 import frappe
-import requests
 from frappe import _
 from frappe.utils import add_to_date, cint, get_datetime, now_datetime
 
@@ -90,7 +89,8 @@ def send_code(phone, return_path=None):
 		if chat_id and deliver_bot_code(otp.name, chat_id):
 			out["bot_sent"] = True
 		else:
-			out["bot_link"] = telegram_bot.bot_link(start="kod")
+			# Havolada so'rov ID'si: bot Start'da qaysi raqam uchun kod so'ralganini biladi (telegram_bot.on_start)
+			out["bot_link"] = telegram_bot.bot_link(start=f"k{otp.name}")
 			if not out["bot_link"]:
 				frappe.log_error("Telegram bot sozlanmagan (token/username yo'q)", "Marketplace OTP")
 				frappe.throw(_("Kod yuborib bo‘lmadi. Birozdan keyin urinib ko‘ring."))
@@ -222,7 +222,9 @@ def _send_telegram(cfg, phone, code, ttl):
 		frappe.log_error("Telegram Gateway token kiritilmagan", "Marketplace OTP")
 		frappe.throw(_("Kod yuborib bo‘lmadi. Birozdan keyin urinib ko‘ring."))
 	try:
-		resp = requests.post(
+		from marketplace.telegram_bot import http  # faqat IPv4: IPv6 yo'li yo'q tarmoqda 10 s qotmasin
+
+		resp = http.post(
 			GATEWAY_URL,
 			headers={"Authorization": f"Bearer {token}"},
 			json={"phone_number": phone, "code": code, "ttl": max(30, min(ttl, 3600))},

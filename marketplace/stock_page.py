@@ -1,17 +1,14 @@
 """Sotuvchining "Ombor" sahifasi (Desk → /desk/ombor): barcha tovarlar rasmi, nomi va qoldig'i bir joyda.
 
-ERPNext'ning Stock Reconciliation formasi o'rniga: sotuvchi umumiy sonni yozadi, saqlashda
-o'zgarganlari seller_desk.set_item_stock orqali (Stock Reconciliation bilan) yangilanadi.
+Sahifa faqat ko'rish uchun: kirim tovar formasining "Ombor" tabida qilinadi, kamayish faqat sotuvdan.
+"Kirim tarixi" bo'limida do'konning barcha kirimlari: kimdan, nechta, necha puldan.
 """
 
 import frappe
-from frappe import _
 from frappe.utils import cint, flt
 
-from marketplace.permissions import get_user_shop
-from marketplace.seller_desk import set_item_stock
-
-LOW_STOCK = 3  # shundan kam yoki teng qolsa "Kam qolgan"
+from marketplace.inventory import low_threshold, status_of
+from marketplace.permissions import get_user_shop, group_title
 
 
 def _resolve_shop(shop=None):
@@ -24,14 +21,6 @@ def _resolve_shop(shop=None):
 	return None
 
 
-def _status(available):
-	if available <= 0:
-		return "Tugagan"
-	if available <= LOW_STOCK:
-		return "Kam qolgan"
-	return ""
-
-
 @frappe.whitelist()
 def get_stock_overview(search: str | None = None, only_low: int = 0, shop: str | None = None):
 	"""Do'kon tovarlari (andoza va oddiy) qoldig'i bilan. Andozalarda variantlar ro'yxati."""
@@ -40,16 +29,21 @@ def get_stock_overview(search: str | None = None, only_low: int = 0, shop: str |
 	shops = frappe.get_all("Shop", fields=["name", "shop_name"], order_by="shop_name") if is_admin else []
 	if not shop:
 		return {"shop": None, "shops": shops, "products": []}
+	data = shop_products(shop, search, only_low)
+	return {"shop": shop, "shops": shops, **data}
 
+
+def shop_products(shop, search=None, only_low=0):
+	"""Do'kon tovarlari qoldig'i bilan (Desk'dagi Ombor, Telegram bot va ertalabki hisobot uchun).
+	Ruxsat chaqiruvchida tekshiriladi: bu yerda faqat shu do'konning yozuvlari o'qiladi."""
 	warehouse = frappe.db.get_value("Shop", shop, "warehouse")
+	threshold = low_threshold(shop)
+	_status = lambda available: status_of(available, threshold)  # noqa: E731
 	fields = ["name", "item_name", "item_group", "image", "has_variants", "variant_of", "variant_price", "is_published"]
-	# get_list: ruxsatlar (User Permission) hisobga olinadi
-	items = frappe.get_list(
-		"Item", filters={"shop": shop, "disabled": 0}, fields=fields, order_by="item_name asc", limit_page_length=0
-	)
+	items = frappe.get_all("Item", filters={"shop": shop, "disabled": 0}, fields=fields, order_by="item_name asc")
 	codes = [i.name for i in items]
 	if not codes:
-		return {"shop": shop, "shops": shops, "warehouse": warehouse, "products": []}
+		return {"warehouse": warehouse, "low_stock": threshold, "products": []}
 
 	# Bitta so'rov: do'kon omboridagi barcha qoldiqlar
 	bins = {
@@ -131,7 +125,7 @@ def get_stock_overview(search: str | None = None, only_low: int = 0, shop: str |
 			"code": i.name,
 			"name": i.item_name,
 			"picture": pictures.get(i.name) or i.image,
-			"category": i.item_group,
+			"category": group_title(i.item_group),
 			"price": price,
 			"is_template": cint(i.has_variants),
 			"is_published": cint(i.is_published),
@@ -149,30 +143,14 @@ def get_stock_overview(search: str | None = None, only_low: int = 0, shop: str |
 			continue
 		products.append(product)
 
-	return {"shop": shop, "shops": shops, "warehouse": warehouse, "low_stock": LOW_STOCK, "products": products}
+	return {"warehouse": warehouse, "low_stock": threshold, "products": products}
 
 
 @frappe.whitelist()
-def save_stock(rows, shop: str | None = None):
-	"""[{item_code, qty}] — har biri do'kon omboridagi umumiy son. Qaytaradi: nechtasi o'zgardi."""
+def get_movements(shop: str | None = None):
+	"""Do'konning kirim tarixi (eng yangisi birinchi). Sotuvlar bu yerda yo'q: ular qoldiqni o'zi kamaytiradi."""
+	from marketplace.reports import journal
+
 	shop = _resolve_shop(shop)
-	if not shop:
-		frappe.throw(_("Do'kon tanlanmagan"))
-	rows = frappe.parse_json(rows) or []
-
-	# Avval hammasini tekshiramiz: birortasi begona bo'lsa, hech narsa o'zgarmaydi
-	clean = []
-	for row in rows:
-		code, qty = row.get("item_code"), flt(row.get("qty"))
-		if not code or not frappe.db.exists("Item", code):
-			frappe.throw(_("Tovar topilmadi: {0}").format(code))
-		if frappe.db.get_value("Item", code, "shop") != shop or not frappe.has_permission("Item", "write", code):
-			frappe.throw(_("Bu tovar sizning do'koningizniki emas: {0}").format(code), frappe.PermissionError)
-		if qty < 0 or qty != int(qty):
-			frappe.throw(_("Soni 0 yoki undan katta butun son bo'lishi kerak"))
-		clean.append((code, qty))
-
-	changed = 0
-	for code, qty in clean:
-		changed += bool(set_item_stock(code, qty).get("changed"))
-	return changed
+	warehouse = shop and frappe.db.get_value("Shop", shop, "warehouse")
+	return journal([warehouse], limit=200, kinds={"kirim"}) if warehouse else []

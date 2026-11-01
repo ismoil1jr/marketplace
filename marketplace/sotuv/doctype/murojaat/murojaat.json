@@ -1,0 +1,240 @@
+{
+ "actions": [],
+ "autoname": "format:MRJ-{YYYY}-{#####}",
+ "creation": "2026-10-31 10:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "module": "Sotuv",
+ "name": "Murojaat",
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "modified": "2026-10-31 10:00:00.000000",
+ "links": [],
+ "states": [],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "title_field": "mijoz_ismi",
+ "show_title_field_in_link": 1,
+ "search_fields": "telefon,tovar_nomi,kampaniya",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Marketplace Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Shop Seller",
+   "read": 1,
+   "write": 1
+  },
+  {
+   "role": "Shop Sales Manager",
+   "read": 1,
+   "write": 1
+  }
+ ],
+ "fields": [
+  {
+   "fieldname": "mijoz_ismi",
+   "fieldtype": "Data",
+   "label": "Mijoz",
+   "in_list_view": 1,
+   "read_only": 1,
+   "bold": 1
+  },
+  {
+   "fieldname": "ism",
+   "fieldtype": "Data",
+   "label": "Ism"
+  },
+  {
+   "fieldname": "familiya",
+   "fieldtype": "Data",
+   "label": "Familiya"
+  },
+  {
+   "fieldname": "telefon",
+   "fieldtype": "Data",
+   "label": "Telefon",
+   "options": "Phone",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "normal_telefon",
+   "fieldtype": "Data",
+   "label": "Raqam (998XXXXXXXXX)",
+   "read_only": 1,
+   "hidden": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "shahar",
+   "fieldtype": "Data",
+   "label": "Shahar",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "izoh",
+   "fieldtype": "Small Text",
+   "label": "Mijoz izohi"
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break",
+   "label": ""
+  },
+  {
+   "fieldname": "tovar",
+   "fieldtype": "Link",
+   "label": "Qaysi tovar (kitob) bo'yicha",
+   "options": "Item",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "tovar_nomi",
+   "fieldtype": "Data",
+   "label": "Tovar nomi",
+   "read_only": 1
+  },
+  {
+   "fieldname": "manba",
+   "fieldtype": "Select",
+   "label": "Manba",
+   "options": "Instagram\nFacebook\nTelegram\nSayt\nBoshqa",
+   "default": "Instagram",
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "kampaniya",
+   "fieldtype": "Data",
+   "label": "Kampaniya / reklama",
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "shop",
+   "fieldtype": "Link",
+   "label": "Do'kon",
+   "options": "Shop",
+   "read_only": 1,
+   "reqd": 1,
+   "search_index": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "sb_ish",
+   "fieldtype": "Section Break",
+   "label": "Menejer"
+  },
+  {
+   "fieldname": "holat",
+   "fieldtype": "Select",
+   "label": "Holat",
+   "options": "Yangi\nOladi\nOlmaydi\nJavob bermadi\nKeyinroq\nBuyurtma berdi",
+   "default": "Yangi",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "keyingi_qongiroq",
+   "fieldtype": "Date",
+   "label": "Qayta qo'ng'iroq sanasi",
+   "search_index": 1
+  },
+  {
+   "fieldname": "column_break_2",
+   "fieldtype": "Column Break",
+   "label": ""
+  },
+  {
+   "fieldname": "menejer",
+   "fieldtype": "Link",
+   "label": "Menejer",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "aloqa_vaqt",
+   "fieldtype": "Datetime",
+   "label": "Oxirgi aloqa",
+   "read_only": 1
+  },
+  {
+   "fieldname": "buyurtma",
+   "fieldtype": "Link",
+   "label": "Saytdagi buyurtmasi",
+   "options": "Sales Order",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sb_tashqi",
+   "fieldtype": "Section Break",
+   "label": "Reklama ma'lumotlari",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "tashqi_id",
+   "fieldtype": "Data",
+   "label": "Lead ID (Instagram/Facebook)",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "forma",
+   "fieldtype": "Data",
+   "label": "Forma nomi",
+   "read_only": 1
+  },
+  {
+   "fieldname": "xom",
+   "fieldtype": "Code",
+   "label": "Kelgan ma'lumot (xom)",
+   "read_only": 1,
+   "options": "JSON"
+  }
+ ],
+ "field_order": [
+  "mijoz_ismi",
+  "ism",
+  "familiya",
+  "telefon",
+  "normal_telefon",
+  "shahar",
+  "izoh",
+  "column_break_1",
+  "tovar",
+  "tovar_nomi",
+  "manba",
+  "kampaniya",
+  "shop",
+  "sb_ish",
+  "holat",
+  "keyingi_qongiroq",
+  "column_break_2",
+  "menejer",
+  "aloqa_vaqt",
+  "buyurtma",
+  "sb_tashqi",
+  "tashqi_id",
+  "forma",
+  "xom"
+ ]
+}

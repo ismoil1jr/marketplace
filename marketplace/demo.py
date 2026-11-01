@@ -74,6 +74,8 @@ def setup_shop():
 		shop.cover_image = _save_svg("cover-nafis.svg", banner_svg(bg="#3A4A40"), "Shop", shop.name)
 	if not shop.banner_image:
 		shop.banner_image = _save_svg("banner-kuzgi-koylaklar.svg", banner_svg(), "Shop", shop.name)
+	# Demo do'konda egasining Telegram ID'si bo'lmasligi mumkin
+	shop.flags.ignore_mandatory = True
 	shop.save()
 	return shop
 
@@ -240,6 +242,8 @@ def seed_mebel():
 		"delivery_short": "O‘zbekiston bo‘ylab", "delivery_info": "O‘zbekiston bo‘ylab 3–5 kunda, Namanganda 1 kunda",
 		"enable_payme": 1, "enable_click": 1, "enable_cod": 1,
 	})
+	# Demo do'konda egasining Telegram ID'si bo'lmasligi mumkin
+	shop.flags.ignore_mandatory = True
 	shop.save()
 	frappe.db.set_value("Item", {"shop": MEBEL_SHOP, "name": ["like", "%futbolka%"]}, "disabled", 1)
 

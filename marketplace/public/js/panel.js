@@ -1,4 +1,5 @@
-/* Sotuvchi paneli: tovarlar ro'yxati va tovar formasi (rasm, narx, rang/o'lcham, qoldiq).
+/* Sotuvchi paneli: tovarlar ro'yxati va tovar formasi (rasm, narx, rang/o'lcham, qoldiq — faqat ko'rish).
+   Kirim (kimdan olindi, nechta, necha puldan) — Desk'dagi tovar formasining Ombor tabida.
    Kutubxonasiz. Server: marketplace.panel.* */
 (() => {
 	"use strict";
@@ -171,7 +172,7 @@
 			</section>
 
 			<section class="p-card">
-				<h2>Omborda nechta bor? <small data-total></small></h2>
+				<h2>Omborda hozir <small data-total></small></h2>
 				<div data-stock></div>
 			</section>
 
@@ -254,8 +255,9 @@
 			renderVariants();
 		}));
 
-		// ---- qoldiq: oddiy tovar — bitta son; variantli — rang × o'lcham jadvali ----
+		// ---- qoldiq (faqat ko'rish): oddiy tovar — bitta son; variantli — rang × o'lcham jadvali ----
 		const stockBox = $("[data-stock]");
+		const KIRIM_HINT = "Yangi tovar kelsa — kompyuterda tovarni oching, <b>Ombor</b> tabida kimdan olganingizni, nechta kelganini va necha puldan olganingizni yozing. Sotilganda qoldiq o‘zi kamayadi.";
 		function renderStock() {
 			const cols = state.useSizes ? state.sizes : [""];
 			const rows = state.useColors ? state.colors : [""];
@@ -263,12 +265,12 @@
 			const cell = (r, c) => {
 				const k = `${r}|${c}`;
 				const res = state.reserved[k] || 0;
-				return `<label class="p-cell"><input inputmode="numeric" value="${state.stock[k] ?? 0}" data-cell="${esc(k)}">${res ? `<small>${res} band</small>` : ""}</label>`;
+				return `<span class="p-cell"><input value="${state.stock[k] ?? 0}" readonly tabindex="-1">${res ? `<small>${res} band</small>` : ""}</span>`;
 			};
 			if (!variant) {
 				const res = state.reserved["|"] || 0;
-				stockBox.innerHTML = `<div class="p-qty"><button data-q="-1">−</button><input inputmode="numeric" value="${state.stock["|"] ?? 0}" data-cell="|"><button data-q="1">+</button></div>
-					<p class="p-hint">${res ? `Shundan ${res} tasi mijozlar buyurtmasida (band). ` : ""}Sotilganda qoldiq avtomatik kamayadi.</p>`;
+				stockBox.innerHTML = `<div class="p-qty"><input value="${state.stock["|"] ?? 0}" readonly tabindex="-1"></div>
+					<p class="p-hint">${res ? `Shundan ${res} tasi mijozlar buyurtmasida (band). ` : ""}${KIRIM_HINT}</p>`;
 			} else if ((state.useColors && !rows.length) || (state.useSizes && !cols.length)) {
 				stockBox.innerHTML = `<p class="p-hint">Avval ${state.useColors && !rows.length ? "rang" : "o‘lcham"}ni tanlang.</p>`;
 			} else {
@@ -277,8 +279,7 @@
 						${state.useSizes ? `<tr><th></th>${cols.map((c) => `<th>${esc(c)}</th>`).join("")}</tr>` : ""}
 						${rows.map((r) => `<tr><th>${r ? `<i style="background:${esc(hexOf[r] || "#ccc")}"></i>${esc(r)}` : "Soni"}</th>${cols.map((c) => `<td>${cell(r, c)}</td>`).join("")}</tr>`).join("")}
 					</table></div>
-					<div class="p-fill"><span>Hammasiga:</span><input inputmode="numeric" placeholder="masalan 5" data-fillall><button class="p-btn p-btn--ghost" data-fill>Qo‘llash</button></div>
-					<p class="p-hint">Har bir katakka shu rang va o‘lchamdan nechta borligini yozing. 0 — tugagan.</p>`;
+					<p class="p-hint">Har bir katakda — shu rang va o‘lchamdan omborda nechta bor. 0 — tugagan, yangi rang/o‘lcham — hali kelmagan. ${KIRIM_HINT}</p>`;
 			}
 			updateTotal();
 		}
@@ -288,22 +289,6 @@
 			for (const r of rows) for (const c of cols) total += +(state.stock[`${r}|${c}`] || 0);
 			$("[data-total]").textContent = `· jami ${total} ta`;
 		}
-		stockBox.addEventListener("input", (e) => {
-			const inp = e.target.closest("[data-cell]");
-			if (!inp) return;
-			inp.value = inp.value.replace(/\D/g, "").slice(0, 6);
-			state.stock[inp.dataset.cell] = +inp.value || 0;
-			updateTotal();
-		});
-		stockBox.addEventListener("click", (e) => {
-			const q = e.target.closest("[data-q]");
-			if (q) { state.stock["|"] = Math.max(0, (+state.stock["|"] || 0) + +q.dataset.q); renderStock(); }
-			if (e.target.closest("[data-fill]")) {
-				const v = num(stockBox.querySelector("[data-fillall]").value);
-				stockBox.querySelectorAll("[data-cell]").forEach((inp) => (state.stock[inp.dataset.cell] = v));
-				renderStock();
-			}
-		});
 		renderVariants();
 
 		// pul maydonlari: "189000" -> "189 000"
@@ -321,9 +306,6 @@
 		$("[data-save]").addEventListener("click", async () => {
 			if (state.images.some((i) => i.uploading)) return toast("Rasmlar yuklanmoqda, biroz kuting", true);
 			const val = (k) => app.querySelector(`[data-k="${k}"]`);
-			const cols = state.useSizes ? state.sizes : [""], rows = state.useColors ? state.colors : [""];
-			const stock = {};
-			for (const r of rows) for (const c of cols) stock[`${r}|${c}`] = +(state.stock[`${r}|${c}`] || 0);
 			const payload = {
 				code,
 				name: val("name").value, group: val("group").value,
@@ -334,7 +316,6 @@
 				published: val("published").checked ? 1 : 0,
 				images: state.images.map((i) => ({ image: i.image })),
 				colors: state.useColors ? state.colors : [], sizes: state.useSizes ? state.sizes : [],
-				stock,
 			};
 			if (state.useColors && !payload.colors.length) return toast("Kamida bitta rang tanlang", true);
 			if (state.useSizes && !payload.sizes.length) return toast("Kamida bitta o‘lcham tanlang", true);

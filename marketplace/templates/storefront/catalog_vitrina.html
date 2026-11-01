@@ -1,4 +1,4 @@
-{% from "marketplace/templates/storefront/macros.html" import product_card, shop_avatar %}
+{% from "marketplace/templates/storefront/macros.html" import product_card, shop_avatar, carousel %}
 {% autoescape true %}
 <header class="sf-top">
 	<div class="sf-top__inner">
@@ -59,30 +59,7 @@
 			<input type="search" placeholder="Ko‘ylak, shim, kurtka…" data-search aria-label="Mahsulot qidirish">
 		</label>
 
-		{% if shop.banners %}
-		<section class="sf-carousel" data-carousel aria-roledescription="carousel" aria-label="Aksiyalar">
-			<div class="sf-carousel__track" data-carousel-track>
-				{% for b in shop.banners %}
-				<article class="sf-slide{{ ' sf-slide--item' if b.is_item else '' }}" aria-roledescription="slide" aria-label="{{ loop.index }} / {{ shop.banners|length }}">
-					<img src="{{ b.image }}" alt="{{ b.title or '' }}" {{ 'fetchpriority=high' if loop.first else 'loading=lazy' }} decoding="async">
-					{% if b.title or b.label %}
-					<div class="sf-slide__text">
-						{% if b.label %}<small>{{ b.label }}</small>{% endif %}
-						{% if b.title %}<h2>{{ b.title }}</h2>{% endif %}
-						{% if b.url %}<a class="sf-btn sf-btn--dark" href="{{ b.url }}">Ko‘rish</a>
-						{% elif b.item_group %}<button class="sf-btn sf-btn--dark" type="button" data-group-jump="{{ b.item_group }}">Ko‘rish</button>{% endif %}
-					</div>
-					{% endif %}
-				</article>
-				{% endfor %}
-			</div>
-			{% if shop.banners|length > 1 %}
-			<div class="sf-carousel__dots" role="tablist">
-				{% for b in shop.banners %}<button type="button" role="tab" aria-label="{{ loop.index }}-slayd" data-carousel-dot="{{ loop.index0 }}" {{ 'aria-selected=true' if loop.first else '' }}></button>{% endfor %}
-			</div>
-			{% endif %}
-		</section>
-		{% endif %}
+		{{ carousel(shop) }}
 
 		<nav class="sf-chips" aria-label="Kategoriyalar">
 			<button type="button" class="is-active" data-group="">Hammasi</button>

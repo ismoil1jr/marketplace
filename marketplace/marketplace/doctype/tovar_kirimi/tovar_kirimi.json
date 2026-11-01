@@ -1,0 +1,60 @@
+{
+ "actions": [],
+ "creation": "2026-10-21 16:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "rang",
+  "olcham",
+  "soni",
+  "narx"
+ ],
+ "fields": [
+  {
+   "columns": 3,
+   "fieldname": "rang",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Rang",
+   "options": "Rang"
+  },
+  {
+   "columns": 2,
+   "fieldname": "olcham",
+   "fieldtype": "Autocomplete",
+   "in_list_view": 1,
+   "label": "O'lcham",
+   "description": "Ro'yxatdan tanlang yoki yangisini yozing (masalan 42)"
+  },
+  {
+   "columns": 2,
+   "fieldname": "soni",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Nechta keldi",
+   "non_negative": 1,
+   "reqd": 1
+  },
+  {
+   "columns": 3,
+   "fieldname": "narx",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "1 donasi necha puldan olindi",
+   "non_negative": 1
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-10-24 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Marketplace",
+ "name": "Tovar Kirimi",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

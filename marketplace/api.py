@@ -8,49 +8,49 @@ import json
 import frappe
 from frappe.rate_limiter import rate_limit
 
-from marketplace import customers, orders, otp, storefront
+from marketplace import customers, orders, otp, storefront, tg_login
 
 
 @frappe.whitelist(allow_guest=True, methods=["GET", "POST"])
 @rate_limit(limit=120, seconds=60)
-def get_cart(shop, lines):
+def get_cart(shop, lines, pending=None):
 	"""Savat: brauzer faqat {code, qty} yuboradi, narx va qoldiq serverdan olinadi.
 
 	lines: '[{"code": "nafis-tekstil-00001", "qty": 2}, ...]'
+	pending: shu brauzerda "To'lovga o'tish" bosilgan, hali savatdan olinmagan buyurtma — holati qaytadi
 	"""
 	if isinstance(lines, str):
 		lines = json.loads(lines)
 	shop_doc = storefront.get_shop(shop)
-	cart = storefront.get_cart_lines(shop_doc, lines)
-	return {"lines": cart, "total": sum(line["amount"] for line in cart)}
+	customer = customers.current_customer()
+	pend = orders.pending_state(shop_doc.name, pending, customer) if pending else None
+	held = orders.held_by(pend["name"]) if pend and pend["state"] == "pending" else None
+	cart = storefront.get_cart_lines(shop_doc, lines, held)
+	return {
+		"lines": cart,
+		"total": sum(line["amount"] for line in cart),
+		# Majburiy tovar (masalan, ruchka) olinmagan bo'lsa — savatda ogohlantirish va "Savatga qo'shish"
+		"mandatory": orders.mandatory_status(shop_doc, customer, [line["code"] for line in cart]) if cart else {"required": False},
+		"pending": pend,
+	}
 
 
-# ---------------- Rasmiylashtirish: Telegram kodi, mijoz, buyurtma ----------------
+# ---------------- Rasmiylashtirish: Telegram orqali kirish, mijoz, buyurtma ----------------
 # Cookie (mp_sid) SameSite=Lax: boshqa saytdan yashirin POST yuborilganda brauzer uni qo'shmaydi.
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
-@rate_limit(limit=10, seconds=600)
-def request_code(phone):
-	"""Telegram'ga tasdiqlash kodi yuboradi. Qaysi sahifadan so'ralgani botdagi "Saytga qaytish" uchun saqlanadi."""
-	from urllib.parse import urlparse
-
-	referer = urlparse(frappe.get_request_header("Referer") or "").path
-	return otp.send_code(otp.normalize_phone(phone), return_path=referer)
+@rate_limit(limit=20, seconds=600)
+def telegram_login(shop, path=""):
+	"""Telegram orqali kirish: bot havolasi (t.me/<bot>?start=l<id>) va faqat shu brauzerdagi secret (tg_login.py)."""
+	return tg_login.start(storefront.get_shop(shop).name, path)
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
-@rate_limit(limit=20, seconds=600)
-def verify_code(phone, code, first_name, last_name=""):
-	"""Kod to'g'ri bo'lsa: Customer topiladi/yaratiladi va sessiya ochiladi."""
-	if not (first_name or "").strip():
-		frappe.throw(frappe._("Ismingizni yozing"))
-	phone = otp.normalize_phone(phone)
-	otp.verify_code(phone, code)
-	customer = customers.get_or_create_customer(phone, first_name, last_name)
-	customers.start_session(customer, phone)
-	# Yangi cookie javob bilan ketadi, shu so'rovda hali yo'q — shuning uchun to'g'ridan-to'g'ri qaytaramiz
-	return {"name": frappe.db.get_value("Customer", customer, "customer_name"), "phone_masked": otp.mask_phone(phone)}
+@rate_limit(limit=400, seconds=600)
+def telegram_login_status(login, secret):
+	"""Sayt har 2 soniyada so'raydi: botda raqam yuborilgach — sessiya ochiladi (cookie shu javob bilan ketadi)."""
+	return tg_login.status(login, secret)
 
 
 @frappe.whitelist(allow_guest=True, methods=["GET"])
@@ -73,13 +73,35 @@ def place_order(shop, lines, delivery_method, address=""):
 	if isinstance(lines, str):
 		lines = json.loads(lines)
 	so = orders.place_order(storefront.get_shop(shop), lines, delivery_method, address, customer)
+	try:
+		tg_login.remember_order(so.shop, customer)  # boshqa do'konda kirgan mijoz — shu do'kon ro'yxatiga ham
+	except Exception:
+		frappe.log_error(f"Mijoz do'kon ro'yxatiga yozilmadi: {so.name}", "Marketplace Telegram mijozlar")
 	return {"order": so.name, "total": so.grand_total, "url": f"/s/{shop}/buyurtma/{so.name}"}
+
+
+@frappe.whitelist(allow_guest=True, methods=["POST"])
+@rate_limit(limit=20, seconds=600)
+def update_address(order, address):
+	return orders.update_address(order, address, _require_customer())
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 @rate_limit(limit=30, seconds=600)
 def choose_payment(order, method):
 	return orders.choose_payment(order, method, _require_customer())
+
+
+@frappe.whitelist(allow_guest=True, methods=["GET"])
+@rate_limit(limit=30, seconds=600)
+def receipt_pdf(order):
+	"""To'langan buyurtma cheki — PDF fayl bo'lib yuklanadi."""
+	from marketplace.receipts import receipt_pdf as build
+
+	filename, content = build(order, _require_customer())
+	frappe.local.response.filename = filename
+	frappe.local.response.filecontent = content
+	frappe.local.response.type = "download"
 
 
 def _require_customer():

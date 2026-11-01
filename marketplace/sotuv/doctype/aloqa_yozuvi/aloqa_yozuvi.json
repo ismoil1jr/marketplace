@@ -1,0 +1,167 @@
+{
+ "actions": [],
+ "autoname": "format:ALQ-{YYYY}-{#####}",
+ "creation": "2026-10-26 17:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "module": "Sotuv",
+ "name": "Aloqa Yozuvi",
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "modified": "2026-10-31 10:00:00.000000",
+ "links": [],
+ "states": [],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "title_field": "mijoz_ismi",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Marketplace Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Shop Seller",
+   "read": 1
+  },
+  {
+   "role": "Shop Sales Manager",
+   "read": 1
+  }
+ ],
+ "fields": [
+  {
+   "fieldname": "buyurtma",
+   "fieldtype": "Link",
+   "label": "Buyurtma",
+   "options": "Sales Order",
+   "reqd": 0,
+   "read_only": 1,
+   "in_list_view": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "murojaat",
+   "fieldtype": "Link",
+   "label": "Murojaat",
+   "options": "Murojaat",
+   "read_only": 1,
+   "search_index": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "mijoz_ismi",
+   "fieldtype": "Data",
+   "label": "Mijoz",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "telefon",
+   "fieldtype": "Data",
+   "label": "Telefon",
+   "options": "Phone",
+   "read_only": 1
+  },
+  {
+   "fieldname": "shop",
+   "fieldtype": "Link",
+   "label": "Do'kon",
+   "options": "Shop",
+   "read_only": 1,
+   "search_index": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break",
+   "label": ""
+  },
+  {
+   "fieldname": "kanal",
+   "fieldtype": "Select",
+   "label": "Kanal",
+   "options": "Qo‘ng‘iroq\nSMS",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "natija",
+   "fieldtype": "Select",
+   "label": "Natija",
+   "options": "Oladi\nOlmaydi\nJavob bermadi\nKeyinroq",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "keyingi_qongiroq",
+   "fieldtype": "Date",
+   "label": "Qayta qo'ng'iroq sanasi",
+   "in_list_view": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "eslatildi",
+   "fieldtype": "Check",
+   "label": "Eslatma yuborildi",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "menejer",
+   "fieldtype": "Link",
+   "label": "Menejer",
+   "options": "User",
+   "read_only": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "sb_izoh",
+   "fieldtype": "Section Break",
+   "label": ""
+  },
+  {
+   "fieldname": "izoh",
+   "fieldtype": "Small Text",
+   "label": "Izoh"
+  },
+  {
+   "fieldname": "bekor_qilindi",
+   "fieldtype": "Check",
+   "label": "Buyurtma bekor qilindi",
+   "read_only": 1
+  }
+ ],
+ "field_order": [
+  "buyurtma",
+  "murojaat",
+  "mijoz_ismi",
+  "telefon",
+  "shop",
+  "column_break_1",
+  "kanal",
+  "natija",
+  "keyingi_qongiroq",
+  "eslatildi",
+  "menejer",
+  "sb_izoh",
+  "izoh",
+  "bekor_qilindi"
+ ]
+}

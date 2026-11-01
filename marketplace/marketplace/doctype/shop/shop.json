@@ -12,6 +12,8 @@
   "status",
   "tagline",
   "city",
+  "telegram_ids",
+  "low_stock_qty",
   "cb_main",
   "logo",
   "cover_image",
@@ -30,6 +32,9 @@
   "instagram",
   "phone",
   "delivery_info",
+  "pickup_address",
+  "pickup_hours",
+  "pickup_map",
   "cb_contact",
   "legal_name",
   "stir",
@@ -37,6 +42,7 @@
   "enable_payme",
   "enable_click",
   "enable_cod",
+  "enable_pickup",
   "sb_payme",
   "payme_merchant_id",
   "payme_key",
@@ -49,10 +55,11 @@
   "cb_click",
   "click_merchant_user_id",
   "click_secret_key",
+  "sb_murojaat",
+  "murojaat_kaliti",
   "sb_team",
   "warehouse",
-  "members",
-  "telegram_ids"
+  "members"
  ],
  "fields": [
   {
@@ -101,6 +108,21 @@
    "permlevel": 1
   },
   {
+   "fieldname": "telegram_ids",
+   "fieldtype": "Small Text",
+   "label": "Do'kon egasining Telegram ID'si",
+   "permlevel": 1,
+   "description": "Ixtiyoriy. Kiritilsa, yangi buyurtma, \"kam qoldi / tugadi\" xabarlari va botdagi Ombor shu ID'ga ishlaydi. Bir nechta bo'lsa vergul bilan. Egasi botni ochib /id yozsa, bot ID'ni ko'rsatadi. Bir ID faqat bitta do'konga biriktiriladi"
+  },
+  {
+   "fieldname": "low_stock_qty",
+   "fieldtype": "Int",
+   "label": "\"Kam qoldi\" chegarasi (dona)",
+   "default": "3",
+   "non_negative": 1,
+   "description": "Tovar (yoki variant) qoldig'i shu songa tushsa, egasiga Telegram'da xabar boradi"
+  },
+  {
    "fieldname": "cb_main",
    "fieldtype": "Column Break"
   },
@@ -138,8 +160,8 @@
   {
    "fieldname": "delivery_short",
    "fieldtype": "Data",
-   "label": "Delivery (qisqa)",
-   "description": "Sahifa tepasidagi belgi, masalan: 1–2 kunda yetkazish"
+   "label": "Kuryer: narxi va muddati (saytda ko'rinadi)",
+   "description": "Savatda «Kuryer orqali» ostida va sahifa tepasida chiqadi, masalan: 30 000 so'mdan, 1–2 kunda"
   },
   {
    "fieldname": "banner_label",
@@ -197,7 +219,7 @@
   },
   {
    "fieldname": "instagram",
-   "fieldtype": "Data",
+   "fieldtype": "Small Text",
    "label": "Instagram"
   },
   {
@@ -210,6 +232,24 @@
    "fieldname": "delivery_info",
    "fieldtype": "Small Text",
    "label": "Delivery Info"
+  },
+  {
+   "fieldname": "pickup_address",
+   "fieldtype": "Small Text",
+   "label": "Do'kon manzili (o'zi olib ketish uchun)",
+   "description": "\"O'zim olaman\" tanlagan mijozga savatda va buyurtmada ko'rsatiladi. Masalan: Toshkent, Chilonzor 9-kvartal, 12-uy (mo'ljal: Korzinka)"
+  },
+  {
+   "fieldname": "pickup_hours",
+   "fieldtype": "Data",
+   "label": "Ish vaqti",
+   "description": "Masalan: Har kuni 9:00–20:00"
+  },
+  {
+   "fieldname": "pickup_map",
+   "fieldtype": "Small Text",
+   "label": "Xaritadagi havola",
+   "description": "Yandex yoki Google xaritadagi do'kon havolasi (ixtiyoriy, uzunligi cheklanmagan)"
   },
   {
    "fieldname": "cb_contact",
@@ -252,6 +292,14 @@
    "fieldtype": "Check",
    "label": "Enable COD (naqd)",
    "permlevel": 1
+  },
+  {
+   "fieldname": "enable_pickup",
+   "fieldtype": "Check",
+   "label": "«O'zim olib ketaman» yoqilgan",
+   "default": "1",
+   "permlevel": 1,
+   "description": "O'chirilsa, mijoz faqat kuryer orqali buyurtma bera oladi"
   },
   {
    "fieldname": "sb_payme",
@@ -329,6 +377,23 @@
    "permlevel": 2
   },
   {
+   "fieldname": "sb_murojaat",
+   "fieldtype": "Section Break",
+   "label": "Instagram murojaatlari (SMM)",
+   "permlevel": 2,
+   "collapsible": 1,
+   "description": "Reklama lead-formasi murojaatlarni shu kalit bilan yuboradi. Har bir tovar uchun havola — tovar formasidagi «SMM havolasi» tugmasida"
+  },
+  {
+   "fieldname": "murojaat_kaliti",
+   "fieldtype": "Data",
+   "label": "Murojaat API kaliti",
+   "permlevel": 2,
+   "read_only": 1,
+   "no_copy": 1,
+   "description": "Do'kon yaratilganda o'zi beriladi (sotuv/murojaat.ensure_key)"
+  },
+  {
    "fieldname": "sb_team",
    "fieldtype": "Section Break",
    "label": "Ombor va a'zolar",
@@ -349,20 +414,13 @@
    "label": "Members",
    "options": "Shop Member",
    "permlevel": 1
-  },
-  {
-   "fieldname": "telegram_ids",
-   "fieldtype": "Small Text",
-   "label": "Sotuvchi Telegram ID(lar)i",
-   "permlevel": 1,
-   "description": "Yangi buyurtma xabari shu ID'larga boradi (vergul bilan). Sotuvchi botni bir marta ochib /start bosishi kerak. ID'ni @userinfobot ko'rsatadi"
   }
  ],
  "grid_page_length": 50,
  "image_field": "logo",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-10-16 10:10:00.000000",
+ "modified": "2026-10-31 11:00:00.000000",
  "modified_by": "Administrator",
  "module": "Marketplace",
  "name": "Shop",

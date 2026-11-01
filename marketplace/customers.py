@@ -15,8 +15,19 @@ from frappe.utils import add_to_date, cint, get_datetime, now_datetime
 COOKIE = "mp_sid"
 
 
-def get_or_create_customer(phone, first_name, last_name):
-	full_name = " ".join(p.strip() for p in (first_name, last_name) if p and p.strip())
+def loyal_name(phone, shop=None):
+	"""Do'kon "Doimiy mijoz" anketasida yozgan ism: avval shu do'konniki, bo'lmasa istalgan do'konniki."""
+	for filters in ([{"phone": phone, "shop": shop}] if shop else []) + [{"phone": phone}]:
+		name = frappe.db.get_value("Doimiy Mijoz", filters, "mijoz_ismi", order_by="modified desc")
+		if name:
+			return name
+	return None
+
+
+def get_or_create_customer(phone, first_name, last_name, shop=None):
+	"""Ism Telegram'dan keladi. Lekin do'kon mijozni doimiy mijoz qilib ismini yozgan bo'lsa — o'sha qoladi,
+	Telegram'dagi ism uni almashtirmaydi."""
+	full_name = loyal_name(phone, shop) or " ".join(p.strip() for p in (first_name, last_name) if p and p.strip())
 	name = frappe.db.get_value("Customer", {"mp_phone": phone})
 	if name:
 		if full_name and frappe.db.get_value("Customer", name, "customer_name") != full_name:

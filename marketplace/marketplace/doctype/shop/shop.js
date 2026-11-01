@@ -2,6 +2,12 @@
 // For license information, please see license.txt
 
 frappe.ui.form.on("Shop", {
+	setup(frm) {
+		// Reklama slaydi faqat shu do'konning saytdagi tovariga olib boradi
+		frm.set_query("item", "banners", () => ({
+			filters: { shop: frm.doc.name, is_published: 1, disabled: 0, variant_of: ["is", "not set"] },
+		}));
+	},
 	refresh(frm) {
 		if (frm.is_new()) return;
 

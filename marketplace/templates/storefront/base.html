@@ -26,6 +26,7 @@
 			shop: {{ shop.name | tojson }},
 			base: "/s/" + {{ shop.name | tojson }},
 			catalog: {{ (catalog_json or {}) | tojson }},
+			cats: {{ (cat_tree or {}) | tojson }},
 			preview: {{ shop.preview | tojson }},
 			csrf: {{ (csrf_token or "") | tojson }},
 		};

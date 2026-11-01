@@ -1,6 +1,6 @@
 {% macro product_card(p, base, loop_index) %}{% autoescape true %}
-<article class="sf-card" data-code="{{ p.code }}" data-group="{{ p.group }}" data-price="{{ p.price }}"
-	data-name="{{ p.name | lower }}" data-created="{{ p.created }}">
+<article class="sf-card{% if p.coming_soon %} is-soon{% endif %}" data-code="{{ p.code }}" data-group="{{ p.group }}" data-groups="{{ p.groups or p.group }}" data-price="{{ p.price }}"
+	data-name="{{ p.name | lower }}" data-created="{{ p.created }}" data-instock="{{ 1 if p.in_stock else 0 }}">
 	<a class="sf-card__media" href="{{ base }}/p/{{ p.code }}" aria-label="{{ p.name }}">
 		{% if p.thumb %}
 		<img src="{{ p.thumb }}" alt="{{ p.name }}" width="480" height="600"
@@ -9,7 +9,7 @@
 		<svg class="sf-card__ph"><use href="#i-image"/></svg>
 		{% endif %}
 		{% if p.discount %}<span class="sf-badge">−{{ p.discount }}%</span>{% endif %}
-		{% if not p.in_stock %}<span class="sf-badge sf-badge--muted">Tugagan</span>{% endif %}
+		{% if p.coming_soon %}<span class="sf-badge sf-badge--soon">Tez kunda</span>{% elif not p.in_stock %}<span class="sf-badge sf-badge--muted">Tugagan</span>{% endif %}
 	</a>
 	<button class="sf-fav" type="button" data-fav="{{ p.code }}" aria-label="Sevimlilarga qo‘shish">
 		<svg><use href="#i-heart"/></svg>
@@ -18,7 +18,7 @@
 		<a class="sf-card__name" href="{{ base }}/p/{{ p.code }}">{{ p.name }}</a>
 		<div class="sf-card__row">
 			<div class="sf-price">
-				<span class="sf-price__now">{{ fmt_sum(p.price) }}</span>
+				<span class="sf-price__now">{% if p.price %}{{ fmt_sum(p.price) }}{% if p.price_from %}dan{% endif %}{% else %}Narxi tez kunda{% endif %}</span>
 				{% if p.old_price %}<s class="sf-price__old">{{ fmt_sum(p.old_price) }}</s>{% endif %}
 			</div>
 			{% if p.in_stock and p.has_variants %}
@@ -40,7 +40,7 @@
 {% endautoescape %}{% endmacro %}
 
 {% macro story_card(p, base, loop_index) %}{% autoescape true %}
-<article class="sf-card st-card" data-code="{{ p.code }}" data-group="{{ p.group }}" data-price="{{ p.price }}"
+<article class="sf-card st-card{% if p.coming_soon %} is-soon{% endif %}" data-code="{{ p.code }}" data-group="{{ p.group }}" data-groups="{{ p.groups or p.group }}" data-price="{{ p.price }}"
 	data-name="{{ p.name | lower }}" data-created="{{ p.created }}"
 	data-new="{{ 1 if p.is_new else '' }}" data-sale="{{ 1 if p.discount else '' }}">
 	<div class="st-card__media">
@@ -54,14 +54,14 @@
 		</div>
 		{% if (p.images | length) > 1 %}<span class="st-counter" data-counter>1 / {{ p.images | length }}</span>{% endif %}
 		{% if p.discount %}<span class="sf-badge">−{{ p.discount }}%</span>{% endif %}
-		{% if not p.in_stock %}<span class="sf-badge sf-badge--muted">Tugagan</span>{% endif %}
+		{% if p.coming_soon %}<span class="sf-badge sf-badge--soon">Tez kunda</span>{% elif not p.in_stock %}<span class="sf-badge sf-badge--muted">Tugagan</span>{% endif %}
 		<button class="sf-fav" type="button" data-fav="{{ p.code }}" aria-label="Sevimlilarga qo‘shish"><svg><use href="#i-heart"/></svg></button>
 	</div>
 	<div class="st-card__body">
 		<div>
 			<a class="st-card__name" href="{{ base }}/p/{{ p.code }}">{{ p.name }}</a>
 			<div class="st-card__price">
-				<strong>{{ fmt_sum(p.price) }}</strong>
+				<strong>{% if p.price %}{{ fmt_sum(p.price) }}{% if p.price_from %}dan{% endif %}{% else %}Narxi tez kunda{% endif %}</strong>
 				{% if p.old_price %}<s>{{ fmt_sum(p.old_price) }}</s>{% endif %}
 			</div>
 		</div>
@@ -78,31 +78,21 @@
 
 {# Telefon → Telegram kodi → tasdiqlash. JS: storefront.js initAuth(). Savat, "Buyurtmalarim" va buyurtma sahifasida. #}
 {% macro auth_form(intro="Bir marta ro‘yxatdan o‘tasiz.") %}{% autoescape true %}
+{# Telegram orqali kirish (tg_login.py): telefon, ism va familiya Telegram'dan keladi — mijoz hech narsa yozmaydi #}
 <div data-auth-guest>
-	<p class="sf-muted">{{ intro }} Kod <b>Telegram</b>ga keladi.</p>
-	<div class="sf-fields">
-		<label class="sf-field"><span>Ism</span><input name="first_name" autocomplete="given-name" placeholder="Ismingiz" data-first></label>
-		<label class="sf-field"><span>Familiya</span><input name="last_name" autocomplete="family-name" placeholder="Familiyangiz" data-last></label>
-	</div>
-	<span class="sf-label">Telefon raqam</span>
-	<div class="sf-phone">
-		<span class="sf-phone__prefix">+998</span>
-		<input type="tel" inputmode="numeric" autocomplete="tel-national" placeholder="90 123 45 67" maxlength="12" data-phone>
-		<button type="button" class="sf-btn sf-btn--outline" data-send-code>Kod olish</button>
-	</div>
-	<div class="sf-otp" data-otp hidden>
-		<span class="sf-label">Telegram kod</span>
-		<div class="sf-otp__boxes" data-otp-boxes></div>
-		<p class="sf-otp__note"><span data-otp-note></span> <button type="button" class="sf-link" data-resend hidden>Qayta yuborish</button></p>
-		<div class="sf-otp__botbox" data-otp-botbox hidden>
-			<ol class="sf-otp__steps">
-				<li>Pastdagi tugma <b data-otp-botname>Telegram botimiz</b>ni ochadi</li>
-				<li>Botda <b>«📱 Raqamni yuborish»</b> tugmasini bosing</li>
-				<li>Bot yuborgan kodni shu yerdagi katakchalarga yozing</li>
-			</ol>
-			<a class="sf-btn sf-btn--brand sf-btn--block" data-otp-bot target="_blank" rel="noopener">Telegram'da kodni olish</a>
-		</div>
-		<p class="sf-otp__dev" data-otp-dev hidden></p>
+	<p class="sf-muted">{{ intro }} Telefon raqamingiz va ismingiz <b>Telegram</b>dan olinadi — hech narsa yozish shart emas.</p>
+	<a class="sf-btn sf-btn--tg sf-btn--block" data-tg-login target="_blank" rel="noopener" aria-disabled="true">
+		<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z"/></svg>
+		Telegram orqali tasdiqlash
+	</a>
+	<div class="sf-tg" data-tg-wait hidden>
+		<div class="sf-tg__code"><span>Kirish kodi</span><b data-tg-code></b></div>
+		<ol class="sf-otp__steps">
+			<li>Telegram'da botimiz ochiladi — <b>Start</b> bosing</li>
+			<li>Botdagi kod shu kod bilan bir xil bo‘lsa — <b>«Ha, kirish»</b> bosing</li>
+			<li>Shu sahifaga qayting — o‘zi davom etadi</li>
+		</ol>
+		<p class="sf-tg__wait"><span class="sf-tg__spin" aria-hidden="true"></span>Tasdiqlash kutilmoqda…</p>
 	</div>
 </div>
 <div class="sf-me" data-auth-user hidden>
@@ -114,6 +104,7 @@
 
 {# "Buyurtmalarim" ro'yxatidagi bitta qator #}
 {% macro order_row(o, base) %}{% autoescape true %}
+<div class="sf-orow-wrap">
 <a class="sf-orow" href="{{ base }}/buyurtma/{{ o.name }}">
 	<span class="sf-orow__main">
 		<b>{{ o.name }}</b>
@@ -124,4 +115,38 @@
 		<span class="sf-status sf-status--{{ o.state }}">{{ o.state_label }}</span>
 	</span>
 </a>
+{% if o.payment_status == "To'langan" and o.docstatus == 1 %}{{ receipt_link(o.name) }}{% endif %}
+</div>
+{% endautoescape %}{% endmacro %}
+
+{% macro receipt_link(name) %}{% autoescape true %}
+<a class="sf-pdf" href="/api/method/marketplace.api.receipt_pdf?order={{ name | urlencode }}" download><svg><use href="#i-receipt"/></svg>Chekni yuklab olish (PDF)</a>
+{% endautoescape %}{% endmacro %}
+
+{# Aksiya karuseli: Shop formasidagi slaydlar + "Karuselga qo'shish" belgilangan tovarlar (vitrina va katalog) #}
+{% macro carousel(shop) %}{% autoescape true %}
+{% if shop.banners %}
+<section class="sf-carousel" data-carousel aria-roledescription="carousel" aria-label="Aksiyalar">
+	<div class="sf-carousel__track" data-carousel-track>
+		{% for b in shop.banners %}
+		<article class="sf-slide{{ ' sf-slide--item' if b.is_item else '' }}" aria-roledescription="slide" aria-label="{{ loop.index }} / {{ shop.banners|length }}">
+			<img src="{{ b.image }}" alt="{{ b.title or '' }}" {{ 'fetchpriority=high' if loop.first else 'loading=lazy' }} decoding="async">
+			{% if b.title or b.label or b.url or b.item_group %}
+			<div class="sf-slide__text">
+				{% if b.label %}<small>{{ b.label }}</small>{% endif %}
+				{% if b.title %}<h2>{{ b.title }}</h2>{% endif %}
+				{% if b.url %}<a class="sf-btn sf-btn--dark" href="{{ b.url }}">{{ b.button or 'Ko‘rish' }}</a>
+				{% elif b.item_group %}<button class="sf-btn sf-btn--dark" type="button" data-group-jump="{{ b.item_group }}">{{ b.button_label or 'Ko‘rish' }}</button>{% endif %}
+			</div>
+			{% endif %}
+		</article>
+		{% endfor %}
+	</div>
+	{% if shop.banners|length > 1 %}
+	<div class="sf-carousel__dots" role="tablist">
+		{% for b in shop.banners %}<button type="button" role="tab" aria-label="{{ loop.index }}-slayd" data-carousel-dot="{{ loop.index0 }}" {{ 'aria-selected=true' if loop.first else '' }}></button>{% endfor %}
+	</div>
+	{% endif %}
+</section>
+{% endif %}
 {% endautoescape %}{% endmacro %}

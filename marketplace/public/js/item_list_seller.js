@@ -6,11 +6,14 @@
 
 	const settings = (frappe.listview_settings["Item"] ||= {});
 	const prev_onload = settings.onload;
-	settings.add_fields = [...(settings.add_fields || []), "image", "has_variants", "variant_of"];
+	settings.add_fields = [...(settings.add_fields || []), "image", "has_variants", "variant_of", "mp_tez_kunda", "mp_majburiy"];
 	settings.filters = [["variant_of", "is", "not set"]];
 	// ERPNext'ning "Template / Variant" o'rniga tushunarli holat
 	settings.get_indicator = (doc) => {
 		if (doc.disabled) return ["Sotuvda emas", "gray", "disabled,=,1"];
+		// Saytdagi holat: bosilsa — ro'yxat shu belgi bo'yicha filtrlanadi
+		if (doc.mp_tez_kunda) return ["Tez kunda", "orange", "mp_tez_kunda,=,1"];
+		if (doc.mp_majburiy) return ["Majburiy", "purple", "mp_majburiy,=,1"];
 		if (doc.has_variants) return ["Rang/o'lchamli", "blue", "has_variants,=,1"];
 		return ["Sotuvda", "green", "disabled,=,0"];
 	};

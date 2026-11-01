@@ -13,6 +13,8 @@ def get_context(context):
 	context.base = f"/s/{shop.name}"
 	context.catalog = catalog
 	context.highlights = storefront.get_highlights(catalog) if shop.layout == "story" else []
+	# Ustma-ust kategoriyalar: papka -> ichidagilar (storefront.js ostida tugmalar chizadi)
+	context.cat_tree = catalog.get("tree") or {}
 	# JS savat paneli uchun: kod -> nom, narx, rasm
 	context.catalog_json = {
 		p["code"]: {

@@ -1,0 +1,122 @@
+{
+ "actions": [],
+ "autoname": "hash",
+ "creation": "2026-10-24 16:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "kontragent_name",
+  "telefon",
+  "column_break_1",
+  "joyi",
+  "nima_sotadi",
+  "izoh",
+  "shop",
+  "sb_xaridlar",
+  "xaridlar_html"
+ ],
+ "fields": [
+  {
+   "allow_in_quick_entry": 1,
+   "bold": 1,
+   "fieldname": "kontragent_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Ismi",
+   "reqd": 1,
+   "description": "Masalan: Ibrohim"
+  },
+  {
+   "allow_in_quick_entry": 1,
+   "fieldname": "telefon",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Telefon",
+   "options": "Phone"
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "allow_in_quick_entry": 1,
+   "fieldname": "joyi",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Qayerda",
+   "description": "Masalan: O'rikzor bozori, 3-qator"
+  },
+  {
+   "allow_in_quick_entry": 1,
+   "fieldname": "nima_sotadi",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Nima sotadi",
+   "description": "Masalan: ko'ylak, shim"
+  },
+  {
+   "fieldname": "izoh",
+   "fieldtype": "Small Text",
+   "label": "Izoh"
+  },
+  {
+   "fieldname": "shop",
+   "fieldtype": "Link",
+   "options": "Shop",
+   "label": "Do'kon",
+   "read_only": 1,
+   "search_index": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "sb_xaridlar",
+   "fieldtype": "Section Break",
+   "label": "Xaridlar"
+  },
+  {
+   "fieldname": "xaridlar_html",
+   "fieldtype": "HTML",
+   "label": "Xaridlar"
+  }
+ ],
+ "links": [],
+ "modified": "2026-10-24 16:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Marketplace",
+ "name": "Kontragent",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Marketplace Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1
+  },
+  {
+   "role": "Shop Seller",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1
+  }
+ ],
+ "quick_entry": 1,
+ "row_format": "Dynamic",
+ "search_fields": "telefon,joyi,nima_sotadi",
+ "show_title_field_in_link": 1,
+ "sort_field": "kontragent_name",
+ "sort_order": "ASC",
+ "states": [],
+ "title_field": "kontragent_name"
+}

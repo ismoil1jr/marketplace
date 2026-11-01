@@ -22,8 +22,8 @@ def get_shops_overview():
 
 	names = [s.name for s in shops]
 	items = _count_by("Item", names, {"disabled": 0, "is_published": 1})
-	orders = _count_by("Sales Order", names, {"docstatus": ["<", 2]})
-	orders_week = _count_by("Sales Order", names, {"docstatus": ["<", 2], "transaction_date": [">=", add_days(today(), -7)]})
+	orders = _count_by("Sales Order", names, {"docstatus": ["<", 2], "mp_placed": 1})
+	orders_week = _count_by("Sales Order", names, {"docstatus": ["<", 2], "mp_placed": 1, "transaction_date": [">=", add_days(today(), -7)]})
 	revenue = {
 		r.shop: flt(r.total)
 		for r in frappe.get_all(
@@ -71,8 +71,8 @@ def _count_by(doctype, shops, filters):
 
 
 def has_app_permission():
-	"""Desk bosh ekranidagi ikonka: admin va sotuvchiga (sotuvchida u o'z do'koni nomi bilan chiqadi)."""
-	return bool({"System Manager", "Marketplace Manager", "Shop Seller"} & set(frappe.get_roles()))
+	"""Desk bosh ekranidagi ikonka: admin, sotuvchi va sotuv menejeriga (do'konchida u o'z do'koni nomi bilan chiqadi)."""
+	return bool({"System Manager", "Marketplace Manager", "Shop Seller", "Shop Sales Manager"} & set(frappe.get_roles()))
 
 
 @frappe.whitelist()
@@ -93,6 +93,56 @@ def leave_shop_panel():
 	return "/desk/shops-overview"
 
 
+# ---------- User formasi: foydalanuvchini do'konga biriktirish (public/js/user_admin.js) ----------
+
+# Do'kon a'zosi roli -> nima ochiladi (User formasida va dialogda tushuntirish)
+MEMBER_ROLES = {
+	"Ega": "Do'kon paneli: tovarlar, ombor, buyurtmalar, kassa, hisobot, sotuv paneli",
+	"Menejer": "Do'kon paneli (ega bilan bir xil)",
+	"Xodim": "Do'kon paneli (ega bilan bir xil)",
+	"Kuryer": "Faqat yetkazish: o'ziga tegishli buyurtmalar, qo'lidagi naqd, doimiy mijoz anketasi",
+	"Sotuv menejer": "Faqat Sotuv paneli: to'lanmagan buyurtmalar, qo'ng'iroqlar, aloqa natijalari",
+}
+
+
+@frappe.whitelist()
+def user_shop(user: str):
+	"""User formasi: foydalanuvchi qaysi do'konda va qanday rolda (bo'lmasa None)."""
+	frappe.only_for(("System Manager", "Marketplace Manager"))
+	m = frappe.db.get_value("Shop Member", {"user": user, "parenttype": "Shop"}, ["parent", "role"], as_dict=True)
+	if not m:
+		return {"roles": MEMBER_ROLES}
+	return {"shop": m.parent, "shop_name": frappe.db.get_value("Shop", m.parent, "shop_name"), "role": m.role,
+	        "access": MEMBER_ROLES.get(m.role), "roles": MEMBER_ROLES}
+
+
+@frappe.whitelist(methods=["POST"])
+def attach_user_to_shop(user: str, shop: str, role: str):
+	"""Foydalanuvchini do'kon a'zolariga qo'shadi (yoki rolini o'zgartiradi). Rol, User Permission va menyular
+	Shop.sync_member_permissions bilan o'zi qo'yiladi. Bitta foydalanuvchi — bitta do'kon: boshqasidan olib tashlanadi."""
+	frappe.only_for(("System Manager", "Marketplace Manager"))
+	from marketplace.permissions import is_admin
+
+	if role not in MEMBER_ROLES:
+		frappe.throw(_("Rolni tanlang"))
+	if user in ("Administrator", "Guest") or is_admin(user):
+		frappe.throw(_("Admin (System Manager / Marketplace Manager) do'kon a'zosi bo'lmaydi: u do'konini emas, hammasini ko'radi. "
+		               "Avval admin rolini olib tashlang."))
+	old = frappe.db.get_value("Shop Member", {"user": user, "parenttype": "Shop"}, "parent")
+	if old and old != shop:
+		old_doc = frappe.get_doc("Shop", old)
+		old_doc.set("members", [m for m in old_doc.members if m.user != user])
+		old_doc.save()
+	doc = frappe.get_doc("Shop", shop)
+	row = next((m for m in doc.members if m.user == user), None)
+	if row:
+		row.role = role
+	else:
+		doc.append("members", {"user": user, "role": role})
+	doc.save()
+	return user_shop(user)
+
+
 def _set_view_shop(shop):
 	session = frappe.local.session_obj
 	session.data.data.mp_view_shop = shop
@@ -105,12 +155,12 @@ ADMIN_WORKSPACE = "Marketplace"
 # (nom, doctype, funksiya, maydon, filtrlar, dinamik filtrlar, rang)
 ADMIN_CARDS = [
 	("Marketplace: Faol do'konlar", "Shop", "Count", None, [["status", "=", "Active"]], None, "#2563eb"),
-	("Marketplace: Bugungi buyurtmalar", "Sales Order", "Count", None, [["docstatus", "=", 1]],
+	("Marketplace: Bugungi buyurtmalar", "Sales Order", "Count", None, [["docstatus", "=", 1], ["mp_placed", "=", 1]],
 		[["Sales Order", "transaction_date", "=", "frappe.datetime.get_today()"]], "#7c3aed"),
 	("Marketplace: Tushum (to'langan)", "Sales Order", "Sum", "grand_total",
 		[["docstatus", "=", 1], ["payment_status", "=", "To'langan"]], None, "#16a34a"),
 	("Marketplace: To'lov kutilmoqda", "Sales Order", "Count", None,
-		[["docstatus", "=", 1], ["payment_status", "=", "Kutilmoqda"]], None, "#d97706"),
+		[["docstatus", "=", 1], ["mp_placed", "=", 1], ["payment_status", "=", "Kutilmoqda"]], None, "#d97706"),
 ]
 
 
@@ -134,6 +184,9 @@ def setup_admin_workspace():
 				"module": "Marketplace",
 				"color": color,
 				"currency": "UZS" if function == "Sum" else None,
+				"show_full_number": 1,
+				# "0 % since yesterday" — ma'nosiz shovqin
+				"show_percentage_stats": 0,
 			}
 		)
 		if card.is_new():
@@ -141,12 +194,12 @@ def setup_admin_workspace():
 			card.flags.name_set = True
 		card.save(ignore_permissions=True)
 
+	# Admin tovar, ombor, buyurtma va mijozlar bilan ishlamaydi (ular — do'konniki): do'konlar, hisobot va to'lovlar
 	shortcuts = [
 		("Do'konlar paneli", "Page", "shops-overview", None, "Blue"),
+		("Hisobot", "Page", "hisobot", None, "Green"),
 		("Savdo hisoboti", "Report", "Marketplace Savdo Hisoboti", None, "Green"),
-		("Buyurtmalar", "DocType", "Sales Order", "List", "Orange"),
 		("To'lovlar (Payme/Click)", "DocType", "Payment Transaction", "List", "Purple"),
-		("Tovarlar", "DocType", "Item", "List", "Grey"),
 		("Marketplace sozlamalari", "DocType", "Marketplace Settings", None, "Grey"),
 	]
 	ws = frappe.get_doc("Workspace", ADMIN_WORKSPACE) if frappe.db.exists("Workspace", ADMIN_WORKSPACE) else frappe.new_doc("Workspace")
@@ -167,9 +220,9 @@ def setup_admin_workspace():
 		return {"id": frappe.generate_hash(length=10), "type": type_, "data": data}
 
 	content = [block("header", {"text": '<span class="h4"><b>Umumiy holat</b></span>', "col": 12})]
-	content += [block("number_card", {"number_card_name": c[0], "col": 3}) for c in ADMIN_CARDS]
+	content += [block("number_card", {"number_card_name": c[0].split(": ", 1)[1], "col": 3}) for c in ADMIN_CARDS]
 	content.append(block("spacer", {"col": 12}))
-	content.append(block("header", {"text": '<span class="h4"><b>Hisobotlar va boshqaruv</b></span>', "col": 12}))
+	content.append(block("header", {"text": '<span class="h4"><b>Do\'konlar, hisobotlar va to\'lovlar</b></span>', "col": 12}))
 	content += [block("shortcut", {"shortcut_name": s[0], "col": 4}) for s in shortcuts]
 	ws.content = json.dumps(content)
 	if ws.is_new():

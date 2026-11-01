@@ -1,10 +1,12 @@
 {% extends "marketplace/templates/storefront/base.html" %}
-{% from "marketplace/templates/storefront/macros.html" import auth_form %}
+{% from "marketplace/templates/storefront/macros.html" import auth_form, receipt_link %}
 
 {% block title %}{% autoescape true %}{% if show_receipt %}Chek{% else %}To‘lov{% endif %} — {{ shop.shop_name }}{% endautoescape %}{% endblock %}
 {% block body_class %}page-order layout-{{ shop.layout }}{% endblock %}
 
 {% block content %}{% autoescape true %}
+{# storefront.js: buyurtma yakunlansa (to'langan / naqd tasdiqlangan) — uning tovarlari savatdan olinadi #}
+{% if order %}<span hidden data-order-state="{{ 'cancelled' if order.state == 'cancelled' else ('done' if (order.mp_placed or order.payment_status == "To'langan") else 'pending') }}" data-order-name="{{ order.name }}"></span>{% endif %}
 <div class="sf-narrow">
 	<header class="sf-pagehead">
 		<a class="sf-round" href="{{ base }}" aria-label="Do‘konga qaytish"><svg><use href="#i-back"/></svg></a>
@@ -55,10 +57,15 @@
 			<div><dt>To‘lov holati</dt><dd>{{ order.pay_status_title }}</dd></div>
 			{% if order.delivery_method %}<div><dt>Yetkazish</dt><dd>{{ order.delivery_title }}</dd></div>{% endif %}
 			{% if order.delivery_address %}<div><dt>Manzil</dt><dd>{{ order.delivery_address }}</dd></div>{% endif %}
+			{% if order.delivery_method == "O'zim olaman" %}
+			<div><dt>Olib ketish</dt><dd>{{ shop.pickup_address or "Manzilni do‘kon telefon orqali aytadi" }}{% if shop.pickup_hours %}<br><small>{{ shop.pickup_hours }}</small>{% endif %}{% if shop.pickup_map %}<br><a class="sf-link" href="{{ shop.pickup_map }}" target="_blank" rel="noopener">Xaritada ochish ↗</a>{% endif %}</dd></div>
+			{% if shop.phone %}<div><dt>Telefon</dt><dd><a href="tel:{{ shop.phone }}">{{ shop.phone }}</a></dd></div>{% endif %}
+			{% endif %}
 		</dl>
 	</section>
 
 	<div class="sf-actions">
+		{% if order.payment_status == "To'langan" and order.state != "cancelled" %}{{ receipt_link(order.name) }}{% endif %}
 		<a class="sf-btn sf-btn--brand sf-btn--block" href="{{ base }}">Xaridni davom ettirish</a>
 		<a class="sf-btn sf-btn--block" href="{{ base }}/buyurtmalarim">Buyurtmalarim</a>
 	</div>
@@ -70,6 +77,25 @@
 			<span>{{ shop.shop_name }} · {{ order.count }} ta mahsulot</span>
 			<b>{{ fmt_sum(order.grand_total) }}</b>
 		</div>
+		{% if order.delivery_method == "O'zim olaman" %}
+		<small class="sf-muted">Olib ketish: {{ shop.pickup_address or "manzilni do‘kon telefon orqali aytadi" }}{% if shop.pickup_hours %} · {{ shop.pickup_hours }}{% endif %}</small>
+		{% elif order.delivery_method == "Kuryer" %}
+		{# Manzil xato yozilgan bo'lsa — to'lovdan oldin shu yerda tuzatiladi (api.update_address) #}
+		<div class="sf-addr" data-addr data-order="{{ order.name }}">
+			<div class="sf-addr__view" data-addr-view>
+				<span class="sf-addr__text"><small class="sf-muted">Yetkazish manzili</small><span data-addr-text>{{ order.delivery_address or "—" }}</span></span>
+				<button type="button" class="sf-btn sf-btn--ghost sf-addr__edit" data-addr-edit>O‘zgartirish</button>
+			</div>
+			<div data-addr-form hidden>
+				<label class="sf-field"><span>Yetkazish manzili</span>
+					<textarea rows="2" placeholder="Tuman, ko‘cha, uy, xonadon" autocomplete="street-address" data-addr-input>{{ order.delivery_address or "" }}</textarea></label>
+				<div class="sf-addr__btns">
+					<button type="button" class="sf-btn sf-btn--brand" data-addr-save>Saqlash</button>
+					<button type="button" class="sf-btn" data-addr-cancel>Bekor qilish</button>
+				</div>
+			</div>
+		</div>
+		{% endif %}
 	</section>
 
 	<h2 class="sf-h2">To‘lov usulini tanlang</h2>
@@ -77,7 +103,8 @@
 		{% for m in methods %}
 		<label class="sf-pay__opt {{ '' if m.ready else 'is-soon' }}">
 			<input type="radio" name="pay" value="{{ m.key }}" {{ 'checked' if m.key == first_ready else '' }} {{ '' if m.ready else 'disabled' }}>
-			<span class="sf-pay__icon sf-pay__icon--{{ m.key | lower }}"><svg><use href="#{{ m.icon }}"/></svg></span>
+			{% if m.logo %}<span class="sf-pay__icon sf-pay__icon--logo"><img src="{{ m.logo }}" alt="{{ m.title }}" width="60" height="22"></span>
+			{% else %}<span class="sf-pay__icon sf-pay__icon--{{ m.key | lower }}"><svg><use href="#{{ m.icon }}"/></svg></span>{% endif %}
 			<span class="sf-pay__text"><b>{{ m.title }}</b><small>{{ m.sub }}</small></span>
 			<span class="sf-pay__radio"></span>
 		</label>

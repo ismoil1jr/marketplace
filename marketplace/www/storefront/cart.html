@@ -12,18 +12,26 @@
 		<span class="sf-muted">{{ shop.shop_name }}</span>
 	</header>
 
+	{# To'lov sahifasidan qaytgan: boshlangan buyurtma to'lanmagan (storefront.js initCart) #}
+	<p class="sf-pending" data-cart-pending hidden></p>
+
 	<div data-cart-lines>
 		<p class="sf-muted sf-center sf-pad">Yuklanmoqda…</p>
 	</div>
 
 	<template id="sf-line-tpl">
-		<article class="sf-line">
+		<div class="sf-swipe">
+		<button class="sf-swipe__del" type="button" data-remove tabindex="-1" aria-hidden="true"><svg><use href="#i-trash"/></svg><span>O‘chirish</span></button>
+		<article class="sf-line" data-swipe-card>
 			<a class="sf-line__img" data-link><img alt="" data-img></a>
 			<div class="sf-line__body">
-				<a class="sf-line__name" data-link data-name></a>
+				<div class="sf-line__top">
+					<a class="sf-line__name" data-link data-name></a>
+					<button class="sf-line__trash" type="button" data-remove aria-label="Savatdan olib tashlash"><svg><use href="#i-trash"/></svg></button>
+				</div>
 				<small class="sf-line__variant" data-variant hidden></small>
 				<div class="sf-line__row">
-					<strong data-price></strong>
+					<span class="sf-line__price"><strong data-price></strong><s data-old hidden></s></span>
 					<div class="sf-stepper sf-stepper--sm">
 						<button type="button" data-line-step="-1" aria-label="Kamaytirish"><svg><use href="#i-minus"/></svg></button>
 						<output data-qty></output>
@@ -33,7 +41,11 @@
 				<small class="sf-line__note" data-note hidden></small>
 			</div>
 		</article>
+		</div>
 	</template>
+
+	{# Majburiy tovar olinmagan: ogohlantirish, tovar va call-center (storefront.js renderMust) #}
+	<section class="sf-box sf-must" data-must hidden></section>
 
 	<section class="sf-box" data-checkout-form hidden>
 		<h2>Buyurtma uchun ma’lumot</h2>
@@ -44,13 +56,21 @@
 		<h2>Yetkazib berish</h2>
 		<div class="sf-choice">
 			<label><input type="radio" name="delivery" value="Kuryer" checked><span><b>Kuryer orqali</b><small>{{ shop.delivery_short or "Kelishiladi" }}</small></span></label>
-			<label><input type="radio" name="delivery" value="O'zim olaman"><span><b>O‘zim olaman</b><small>Do‘kon manzilidan</small></span></label>
+			{% if shop.enable_pickup %}<label><input type="radio" name="delivery" value="O'zim olaman"><span><b>O‘zim olaman</b><small>Do‘kon manzilidan</small></span></label>{% endif %}
 		</div>
 		<label class="sf-field" data-address-field><span>Manzil</span><textarea rows="2" placeholder="Tuman, ko‘cha, uy, xonadon" data-address autocomplete="street-address"></textarea></label>
+		<div class="sf-pickup" data-pickup hidden>
+			<b>Do‘kon manzili</b>
+			{% if shop.pickup_address %}<p>{{ shop.pickup_address }}</p>{% else %}<p class="sf-muted">Manzilni do‘kon buyurtmadan keyin telefon orqali aytadi{% if shop.city %} ({{ shop.city }}){% endif %}</p>{% endif %}
+			{% if shop.pickup_hours %}<small>Ish vaqti: {{ shop.pickup_hours }}</small>{% endif %}
+			{% if shop.phone %}<small>Telefon: <a href="tel:{{ shop.phone }}">{{ shop.phone }}</a></small>{% endif %}
+			{% if shop.pickup_map %}<a class="sf-link" href="{{ shop.pickup_map }}" target="_blank" rel="noopener">Xaritada ochish ↗</a>{% endif %}
+		</div>
 	</section>
 
 	<section class="sf-summary" data-summary hidden>
 		<div><span data-summary-label></span><span data-summary-amount></span></div>
+		<div class="sf-summary__save" data-summary-save hidden><span>Chegirma</span><span data-summary-save-amount></span></div>
 		<div class="sf-summary__total"><span>Jami</span><strong data-summary-total></strong></div>
 	</section>
 

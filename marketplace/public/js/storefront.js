@@ -32,6 +32,9 @@
 	const CART_KEY = `mp_cart:${SF.shop}`;
 	const META_KEY = `mp_meta:${SF.shop}`;
 	const FAV_KEY = `mp_fav:${SF.shop}`;
+	// "To'lovga o'tish" bosilgan buyurtma: {order, lines}. Savat buyurtma yakunlangandagina (to'langan / naqd
+	// tasdiqlangan) bo'shaydi — to'lov sahifasidan chiqib ketsa yoki orqaga qaytsa, savat joyida turadi
+	const PENDING_KEY = `mp_pending:${SF.shop}`;
 
 	// meta: savat paneli darhol chizilishi uchun nom/narx/rasm nusxasi
 	const meta = Object.assign(store.get(META_KEY, {}), SF.catalog || {});
@@ -131,7 +134,7 @@
 			$$("[data-row-step]", box).forEach((b) =>
 				b.addEventListener("click", () => {
 					const next = cart.qty(code) + +b.dataset.rowStep;
-					if (next > max) return toast(`Omborda ${max} ta bor`);
+					if (next > max) return toast(`Faqat ${max} ta qolgan`);
 					cart.set(code, next);
 				})
 			);
@@ -175,7 +178,7 @@
 		const grid = $("[data-grid]");
 		if (!grid) return;
 		const cards = $$(".sf-card", grid);
-		const state = { group: "", q: "", min: 0, max: Infinity, sort: "new" };
+		const state = { group: "", q: "", min: 0, max: Infinity, sort: "new", instock: false };
 
 		function matchesGroup(card) {
 			switch (state.group) {
@@ -183,7 +186,8 @@
 				case "__fav": return favs.has(card.dataset.code);
 				case "__new": return !!card.dataset.new;
 				case "__sale": return !!card.dataset.sale;
-				default: return card.dataset.group === state.group;
+				// Ustma-ust: "Telefonlar" tanlansa — Telefonlar › Xiaomi, Telefonlar › Apple ham
+				default: return (card.dataset.groups || card.dataset.group || "").split("|").includes(state.group);
 			}
 		}
 
@@ -194,7 +198,8 @@
 				const ok =
 					matchesGroup(card) &&
 					(!state.q || card.dataset.name.includes(state.q)) &&
-					price >= state.min && price <= state.max;
+					price >= state.min && price <= state.max &&
+					(!state.instock || card.dataset.instock === "1");
 				card.hidden = !ok;
 				if (ok) shown++;
 			}
@@ -207,8 +212,12 @@
 			const counter = $("[data-result-count]");
 			if (counter) counter.textContent = `${shown} ta mahsulot`;
 			$("[data-no-results]").hidden = shown > 0;
-			const active = state.group || state.q || state.min > 0 || state.max !== Infinity;
+			const filters = (state.min > 0 || state.max !== Infinity ? 1 : 0) + (state.instock ? 1 : 0);
+			const active = state.group || state.q || filters;
 			$$("[data-reset-filters]").forEach((b) => (b.hidden = !active));
+			// Katalog: "Filtr" tugmasidagi raqam — nechta filtr yoqilgan
+			const badge = $("[data-filter-count]");
+			if (badge) { badge.hidden = !filters; badge.textContent = filters; }
 		}
 
 		onFavChange.push(() => {
@@ -216,9 +225,43 @@
 			else if (state.group === "__fav") apply();
 		});
 
+		// Ustma-ust kategoriyalar: {papka: [ichidagilar]} (storefront._category_tree)
+		const cats = SF.cats || {};
+		const parentOf = {};
+		Object.entries(cats).forEach(([p, kids]) => kids.forEach((k) => (parentOf[k] = p)));
+		const pathOf = (g) => { const path = []; for (let x = g; x; x = parentOf[x]) path.unshift(x); return path; };
+		// Bosh kategoriyalar tugmalari ostida: yo'l (Telefonlar › Xiaomi) va ichki kategoriyalar
+		const sub = document.createElement("nav");
+		sub.className = "sf-subcats";
+		sub.setAttribute("aria-label", "Ichki kategoriyalar");
+		sub.hidden = true;
+		const anchor = $(".sf-main .sf-chips") || $(".st-highlights") || $(".kt-tabs") || grid;
+		anchor.parentNode.insertBefore(sub, anchor.nextSibling);
+
+		function renderSub(group) {
+			const path = group && !group.startsWith("__") ? pathOf(group) : [];
+			// Papka tanlangan bo'lsa — uning ichidagilar; oxirgi kategoriya bo'lsa — qo'shnilari
+			const folder = cats[group] ? group : parentOf[group];
+			const kids = folder ? cats[folder] || [] : [];
+			if (!kids.length && path.length < 2) { sub.hidden = true; sub.innerHTML = ""; return; }
+			const esc = (t) => String(t).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+			const crumbs = path.map((p, i) => i < path.length - 1
+				? `<button type="button" data-subgroup="${esc(p)}">${esc(p)}</button><span>›</span>`
+				: `<b>${esc(p)}</b>`).join("");
+			const chips = kids.length
+				? `<div class="sf-subcats__chips"><button type="button" class="${group === folder ? "is-active" : ""}" data-subgroup="${esc(folder)}">Hammasi</button>${
+					kids.map((k) => `<button type="button" class="${k === group ? "is-active" : ""}" data-subgroup="${esc(k)}">${esc(k)}${cats[k] ? " ›" : ""}</button>`).join("")}</div>`
+				: "";
+			sub.innerHTML = `<div class="sf-subcats__path">${crumbs}</div>${chips}`;
+			sub.hidden = false;
+			sub.querySelectorAll("[data-subgroup]").forEach((b) => b.addEventListener("click", () => setGroup(b.dataset.subgroup)));
+		}
+
 		function setGroup(group) {
 			state.group = group;
-			$$("button[data-group]").forEach((b) => b.classList.toggle("is-active", b.dataset.group === group));
+			const top = group && !group.startsWith("__") ? pathOf(group)[0] : group;
+			$$("button[data-group]").forEach((b) => b.classList.toggle("is-active", b.dataset.group === top));
+			renderSub(group);
 			apply();
 		}
 
@@ -272,10 +315,18 @@
 		};
 		min?.addEventListener("input", onRange);
 		max?.addEventListener("input", onRange);
+		const instock = $("[data-instock]");
+		instock?.addEventListener("change", () => { state.instock = instock.checked; apply(); });
+		const filterBtn = $("[data-filter-toggle]"), filterPanel = $("[data-filter-panel]");
+		filterBtn?.addEventListener("click", () => {
+			filterPanel.hidden = !filterPanel.hidden;
+			filterBtn.setAttribute("aria-expanded", String(!filterPanel.hidden));
+		});
 		// Narx, kategoriya ("Hammasi"), qidiruv va sevimlilar filtri — hammasi boshlang'ich holatga
 		$$("[data-reset-filters]").forEach((b) =>
 			b.addEventListener("click", () => {
-				Object.assign(state, { q: "", min: 0, max: Infinity });
+				Object.assign(state, { q: "", min: 0, max: Infinity, instock: false });
+				if (instock) instock.checked = false;
 				if (min) min.value = "";
 				if (max) max.value = "";
 				$$("[data-search]").forEach((input) => (input.value = ""));
@@ -296,16 +347,106 @@
 		);
 	}
 
+	// ---------- Rasmni to'liq ekranda ko'rish ----------
+	function initLightbox(getImgs, getIndex, onClose) {
+		const box = $("[data-lightbox]");
+		const track = $("[data-lightbox-track]");
+		if (!box || !getImgs().length) return;
+		const count = $("[data-lightbox-count]");
+		const index = () => Math.round(track.scrollLeft / (track.clientWidth || 1));
+		const step = (d) => {
+			const n = track.children.length;
+			track.scrollTo({ left: ((index() + d + n) % n) * track.clientWidth, behavior: "smooth" });
+		};
+		const update = () => { count.textContent = `${index() + 1} / ${track.children.length}`; };
+		track.addEventListener("scroll", update, { passive: true });
+
+		function open(start) {
+			const imgs = getImgs();
+			track.innerHTML = imgs
+				.map((i) => `<figure><img src="${i.dataset.full || i.getAttribute("src")}" alt="${i.alt.replace(/"/g, "&quot;")}" decoding="async"></figure>`)
+				.join("");
+			box.hidden = false;
+			box.classList.toggle("is-single", imgs.length < 2);
+			document.documentElement.classList.add("sf-noscroll");
+			track.scrollLeft = start * track.clientWidth;
+			update();
+			// Telefondagi "orqaga" tugmasi sahifadan chiqib ketmasin — avval rasmni yopadi
+			history.pushState({ sfLightbox: 1 }, "");
+		}
+		function close() {
+			if (box.hidden) return;
+			const i = index();
+			box.hidden = true;
+			document.documentElement.classList.remove("sf-noscroll");
+			onClose(i);
+		}
+		const closeByUser = () => (history.state?.sfLightbox ? history.back() : close());
+
+		$("[data-gallery]").addEventListener("click", (e) => {
+			if (e.target.tagName === "IMG") open(getImgs().indexOf(e.target));
+		});
+		$("[data-lightbox-close]").addEventListener("click", closeByUser);
+		$$("[data-lightbox-step]").forEach((b) => b.addEventListener("click", () => step(+b.dataset.lightboxStep)));
+		// Rasm atrofidagi bo'sh joy bosilsa ham yopiladi
+		track.addEventListener("click", (e) => { if (e.target.tagName !== "IMG") closeByUser(); });
+		window.addEventListener("popstate", close);
+		document.addEventListener("keydown", (e) => {
+			if (box.hidden) return;
+			if (e.key === "Escape") closeByUser();
+			if (e.key === "ArrowRight") step(1);
+			if (e.key === "ArrowLeft") step(-1);
+		});
+	}
+
 	// ---------- Mahsulot sahifasi ----------
 	function initProduct() {
 		const track = $("[data-gallery]");
-		const dots = $$("[data-dots] span");
-		if (track && dots.length) {
-			track.addEventListener("scroll", () => {
-				const i = Math.round(track.scrollLeft / track.clientWidth);
-				dots.forEach((d, k) => d.classList.toggle("is-active", k === i));
-			}, { passive: true });
-		}
+		const dotsBox = $("[data-dots]");
+		const imgs = track ? [...track.querySelectorAll("img")] : [];
+		const thumbs = $$("[data-thumbs] button");
+		const shownImgs = () => imgs.filter((i) => !i.hidden);
+		const currentIndex = () => (track ? Math.round(track.scrollLeft / (track.clientWidth || 1)) : 0);
+		const goTo = (i, smooth = true) => {
+			const n = shownImgs().length;
+			if (!n) return;
+			track.scrollTo({ left: ((i + n) % n) * track.clientWidth, behavior: smooth ? "smooth" : "auto" });
+		};
+		// Nuqtalar va chapdagi kichik rasmlar joriy rasmga ergashadi
+		const syncActive = () => {
+			const cur = shownImgs()[currentIndex()];
+			if (dotsBox) [...dotsBox.children].forEach((d, k) => d.classList.toggle("is-active", k === currentIndex()));
+			thumbs.forEach((t, k) => t.classList.toggle("is-active", imgs[k] === cur));
+		};
+		if (track) track.addEventListener("scroll", syncActive, { passive: true });
+		thumbs.forEach((t, k) => {
+			const pick = () => goTo(shownImgs().indexOf(imgs[k]));
+			t.addEventListener("click", pick);
+			t.addEventListener("mouseenter", pick);
+		});
+		$$("[data-gallery-step]").forEach((b) => b.addEventListener("click", () => goTo(currentIndex() + +b.dataset.galleryStep)));
+
+		// Rang tanlansa — faqat shu rangga bog'langan rasmlar; rang tanlanmagan bo'lsa — hammasi
+		const filterGallery = (color, fallback) => {
+			if (!imgs.length) return;
+			const own = color ? imgs.filter((i) => i.dataset.color === color) : [];
+			imgs.forEach((i, k) => {
+				i.hidden = own.length > 0 && i.dataset.color !== color;
+				if (thumbs[k]) thumbs[k].hidden = i.hidden;
+			});
+			const shown = shownImgs();
+			// Rangga bog'langan rasm yo'q (eski tovarlar): rang rasmiga aylantiramiz
+			const idx = own.length ? 0 : Math.max(shown.findIndex((i) => fallback && i.getAttribute("src") === fallback), 0);
+			track.scrollTo({ left: idx * track.clientWidth, behavior: own.length ? "auto" : "smooth" });
+			if (dotsBox) {
+				dotsBox.hidden = shown.length < 2;
+				dotsBox.innerHTML = shown.map((_, k) => `<span class="${k === idx ? "is-active" : ""}"></span>`).join("");
+			}
+			$$("[data-gallery-step]").forEach((b) => (b.hidden = shown.length < 2));
+			syncActive();
+		};
+
+		initLightbox(shownImgs, () => currentIndex(), (i) => goTo(i, false));
 
 		$("[data-share]")?.addEventListener("click", async () => {
 			const data = { title: document.title, url: location.href };
@@ -314,6 +455,14 @@
 				else { await navigator.clipboard.writeText(location.href); toast("Havola nusxalandi"); }
 			} catch { /* foydalanuvchi bekor qildi */ }
 		});
+
+		// Pastdagi "O'xshash mahsulotlar" kartalaridagi "+" tugmasi
+		$$("[data-related] [data-add]").forEach((btn) =>
+			btn.addEventListener("click", () => {
+				cart.add(btn.dataset.add);
+				toast(`Savatga qo‘shildi · ${cart.count()} ta mahsulot`);
+			})
+		);
 
 		const buy = $("[data-buy]");
 		if (!buy) return;
@@ -324,6 +473,7 @@
 		let code = buy.dataset.code; // variantli mahsulotda: tanlangan variant kodi
 		const productCode = buy.dataset.code;
 		let variantLabel = "";
+		let variantPrice = null;
 
 		// ---- Rang va o'lcham (PDF 4-sahifa) ----
 		const box = $("[data-variants]");
@@ -333,9 +483,22 @@
 			const sel = { color: "", size: "" };
 			const key = (c, s) => `${c}|${s}`;
 			const avail = (c, s) => (opt.variants[key(c, s)]?.qty || 0) > 0;
-			// birinchi mavjud kombinatsiyani oldindan tanlaymiz
-			const first = Object.entries(opt.variants).find(([, v]) => v.qty > 0);
-			if (first) [sel.color, sel.size] = first[0].split("|");
+			// Tanlov bitta bo'lsa — oldindan tanlaymiz. Ranglar ko'p bo'lsa, mijoz bosmaguncha barcha rasmlar ko'rinadi
+			if (opt.colors.length === 1) sel.color = opt.colors[0].value;
+			if (opt.sizes.length === 1) sel.size = opt.sizes[0];
+
+			// Narx rang/o'lcham bo'yicha har xil bo'lishi mumkin: tanlanmaguncha "…so'mdan", tanlanganda — o'sha
+			// variant narxi va chegirma foizi (eski narx shu variantnikidan katta bo'lsagina)
+			const nowEl = $("[data-price-now]"), oldEl = $("[data-price-old]"), badgeEl = $("[data-price-badge]");
+			const baseText = nowEl?.textContent;
+			function showPrice(price) {
+				if (!nowEl) return;
+				nowEl.textContent = price ? fmt(price) : baseText;
+				if (!oldEl) return;
+				const old = +oldEl.dataset.priceOld, now = price || +nowEl.dataset.priceNow;
+				oldEl.hidden = badgeEl.hidden = !(old > now);
+				if (old > now) badgeEl.textContent = `−${Math.round((1 - now / old) * 100)}%`;
+			}
 
 			function render() {
 				$$("[data-color]", box).forEach((b) => {
@@ -350,19 +513,30 @@
 				if (lab) lab.textContent = sel.color || "tanlang";
 				const v = opt.variants[key(hasColors ? sel.color : "", hasSizes ? sel.size : "")];
 				const ready = (!hasColors || sel.color) && (!hasSizes || sel.size);
+				showPrice(ready && v ? v.price : null);
 				const stockEl = $("[data-variant-stock]", box);
+				// Tez kunda / tugagan: tugma yo'q — rang faqat rasmlarni ko'rsatadi
+				if (!addBtn) { stockEl.textContent = ""; return; }
 				if (!ready) { stockEl.textContent = "Rang va o‘lchamni tanlang"; addBtn.disabled = true; return; }
 				if (!v || v.qty <= 0) { stockEl.textContent = "Bu variant tugagan"; addBtn.disabled = true; return; }
 				code = v.code;
+				variantPrice = v.price;
 				max = v.qty;
 				variantLabel = [hasColors && sel.color, hasSizes && sel.size].filter(Boolean).join(" · ");
-				stockEl.textContent = v.qty <= 5 ? `Omborda ${v.qty} ta qoldi` : "Omborda bor";
+				stockEl.textContent = v.qty <= 5 ? `${v.qty} ta qolgan` : "Sotuvda bor";
 				addBtn.disabled = false;
 				if (qty > max) { qty = max; out.textContent = qty; }
 			}
-			$$("[data-color]", box).forEach((b) => b.addEventListener("click", () => { sel.color = b.dataset.color; render(); }));
+			const showColor = (color) => filterGallery(color, opt.colors.find((c) => c.value === color)?.image);
+			// Tanlangan rangni yana bossa — tanlov olinadi va yana barcha ranglar rasmi chiqadi
+			$$("[data-color]", box).forEach((b) => b.addEventListener("click", () => {
+				sel.color = sel.color === b.dataset.color && opt.colors.length > 1 ? "" : b.dataset.color;
+				render();
+				showColor(sel.color);
+			}));
 			$$("[data-size]", box).forEach((b) => b.addEventListener("click", () => { sel.size = b.dataset.size; render(); }));
 			render();
+			if (sel.color) filterGallery(sel.color);
 		}
 
 		$$("[data-step]", buy).forEach((b) =>
@@ -373,8 +547,8 @@
 		);
 		addBtn?.addEventListener("click", () => {
 			if (code !== productCode) {
-				// variant uchun savat paneli ma'lumoti (nom, narx, rasm asosiy mahsulotdan)
-				meta[code] = { ...meta[productCode], variant: variantLabel };
+				// variant uchun savat paneli ma'lumoti (nom, rasm asosiy mahsulotdan; narx — variantning o'zi)
+				meta[code] = { ...meta[productCode], variant: variantLabel, ...(variantPrice ? { price: variantPrice } : {}) };
 				store.set(META_KEY, meta);
 			}
 			cart.add(code, qty);
@@ -383,19 +557,94 @@
 	}
 
 	// ---------- Savat sahifasi: narxlar serverdan ----------
+	// Majburiy tovar (masalan, o'qiydigan ruchka) olinmagan: savatda ogohlantirish, "To'lovga o'tish" yopiq.
+	// Kirgandan keyin savat qayta tekshiriladi — mijoz uni avval olgan bo'lishi mumkin
+	let mustBlock = false;
+	let reloadCart = () => {};
+	let flushRemovals = () => {};
+
+	// Buyurtma yakunlandi: faqat o'sha buyurtmadagi tovarlar savatdan olinadi (keyin qo'shilganlari qoladi)
+	function settleOrder(p) {
+		const c = cart.all();
+		for (const [code, q] of Object.entries(p?.lines || {})) {
+			const left = (c[code] || 0) - q;
+			if (left > 0) c[code] = left; else delete c[code];
+		}
+		store.set(CART_KEY, c);
+		store.set(PENDING_KEY, null);
+		renderCartSummary();
+	}
+
+	// Buyurtma sahifasi: yakunlangan bo'lsa savatni tozalaymiz, bekor qilingan bo'lsa — savat qoladi
+	function initOrderState() {
+		const el = $("[data-order-state]");
+		const p = store.get(PENDING_KEY, null);
+		if (!el || !p || p.order !== el.dataset.orderName) return;
+		if (el.dataset.orderState === "done") settleOrder(p);
+		else if (el.dataset.orderState === "cancelled") store.set(PENDING_KEY, null);
+	}
+
+	function renderMust(m) {
+		const box = $("[data-must]");
+		if (!box) return;
+		mustBlock = !!(m && m.required);
+		box.hidden = !mustBlock;
+		const btn = $("[data-checkout-btn]"), hint = $("[data-checkout-hint]");
+		if (btn && mustBlock) {
+			btn.disabled = true;
+			hint.hidden = false;
+			hint.textContent = "Avval majburiy tovarni savatga qo‘shing";
+		}
+		if (!mustBlock) return;
+		const esc = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+		const card = (i) => `
+			<div class="sf-must__item">
+				${i.thumb ? `<img src="${esc(i.thumb)}" alt="">` : ""}
+				<div class="sf-must__info">
+					<b>${esc(i.name)}</b>
+					<div class="sf-price"><span class="sf-price__now">${fmt(i.price || 0)}</span>${i.old_price ? `<s class="sf-price__old">${fmt(i.old_price)}</s>` : ""}</div>
+					${i.discount ? `<span class="sf-must__deal">Siz uchun −${i.discount}% chegirma</span>` : ""}
+				</div>
+				${!i.in_stock ? `<span class="sf-muted">Hozircha mavjud emas</span>`
+					: i.has_variants ? `<a class="sf-btn sf-btn--brand" href="${withPreview(`${SF.base}/p/${encodeURIComponent(i.code)}`)}">Tanlash</a>`
+					: `<button class="sf-btn sf-btn--brand" type="button" data-must-add="${esc(i.code)}">Savatga qo‘shish</button>`}
+			</div>`;
+		box.innerHTML = `
+			<h2>${m.items.length > 1 ? "Avval shu tovarlarni xarid qiling" : "Avval shu tovarni xarid qiling"}</h2>
+			<p class="sf-muted">Bu do‘kondan buyurtma berish uchun quyidagi ${m.items.length > 1 ? "tovarlarning har biri" : "tovar"} kerak. Savatga qo‘shsangiz — buyurtma beriladi.</p>
+			${m.items.map(card).join("")}
+			<p class="sf-must__call">Avval boshqa raqam bilan sotib olganmisiz?${m.call_center ? ` Call-center: <a href="tel:${esc(m.call_center)}">${esc(m.call_center)}</a> — eski raqamingizni ayting, tasdiqlab beramiz.` : " Do‘konga qo‘ng‘iroq qiling — eski raqamingizni ayting."}
+				${m.logged_in ? "" : " Yoki pastda raqamingizni tasdiqlang: avval olgan bo‘lsangiz, o‘zi taniydi."}</p>`;
+		$$("[data-must-add]", box).forEach((b) =>
+			b.addEventListener("click", () => {
+				cart.add(b.dataset.mustAdd, 1);
+				toast("Savatga qo‘shildi");
+				reloadCart();
+			})
+		);
+	}
+
 	async function initCart() {
 		const box = $("[data-cart-lines]");
 		if (!box) return;
 		const tpl = $("#sf-line-tpl");
 
+		const pendingBox = $("[data-cart-pending]");
+
 		async function load() {
 			const lines = Object.entries(cart.all()).map(([code, qty]) => ({ code, qty }));
 			if (!lines.length) return render({ lines: [], total: 0 });
-			const url = `/api/method/marketplace.api.get_cart?shop=${encodeURIComponent(SF.shop)}&lines=${encodeURIComponent(JSON.stringify(lines))}`;
+			const p = store.get(PENDING_KEY, null);
+			const url = `/api/method/marketplace.api.get_cart?shop=${encodeURIComponent(SF.shop)}&lines=${encodeURIComponent(JSON.stringify(lines))}`
+				+ (p?.order ? `&pending=${encodeURIComponent(p.order)}` : "");
 			try {
 				const res = await fetch(url, { headers: { Accept: "application/json" } });
 				if (!res.ok) throw new Error(res.status);
-				render((await res.json()).message);
+				const data = (await res.json()).message;
+				// Buyurtma boshqa sahifada yakunlangan (masalan, Payme ilovasida to'langan) — o'sha tovarlar savatdan olinadi
+				if (data.pending?.state === "done") { settleOrder(p); toast("Buyurtmangiz qabul qilingan"); return load(); }
+				if (data.pending && data.pending.state !== "pending") store.set(PENDING_KEY, null);
+				render(data);
 			} catch {
 				box.innerHTML = '<p class="sf-muted sf-center sf-pad">Savatni yuklab bo‘lmadi. Internetni tekshirib, sahifani yangilang.</p>';
 			}
@@ -426,32 +675,168 @@
 				const vEl = $("[data-variant]", node);
 				if (l.variant) { vEl.textContent = l.variant; vEl.hidden = false; }
 				$("[data-price]", node).textContent = fmt(l.price);
+				if (l.list_price > l.price) {
+					const oldEl = $("[data-old]", node);
+					oldEl.textContent = fmt(l.list_price);
+					oldEl.hidden = false;
+				}
 				$("[data-qty]", node).textContent = l.qty;
 				const note = $("[data-note]", node);
-				if (l.max_qty < 99 && l.qty >= l.max_qty) { note.hidden = false; note.textContent = `Omborda ${l.max_qty} ta qoldi`; }
-				$$("[data-line-step]", node).forEach((b) =>
+				if (l.max_qty < 99 && l.qty >= l.max_qty) { note.hidden = false; note.textContent = `${l.max_qty} ta qolgan`; }
+				// Minus 1 dan pastga tushirmaydi: o'chirish faqat savatcha tugmasi yoki surish bilan (5 soniya qaytarish bor)
+				$$("[data-line-step]", node).forEach((b) => {
+					if (+b.dataset.lineStep < 0 && l.qty <= 1) b.disabled = true;
 					b.addEventListener("click", () => {
 						const next = l.qty + +b.dataset.lineStep;
-						if (next > l.max_qty) return toast(`Omborda ${l.max_qty} ta bor`);
+						if (next < 1) return;
+						if (next > l.max_qty) return toast(`Faqat ${l.max_qty} ta qolgan`);
 						cart.set(l.code, next);
 						load();
-					})
-				);
+					});
+				});
+				const wrap = $(".sf-swipe", node);
+				wrap.dataset.code = l.code;
+				const remove = () => startRemoval(l.code, wrap);
+				$$("[data-remove]", node).forEach((b) => b.addEventListener("click", remove));
+				swipeToDelete(wrap, remove);
+				if (removing.has(l.code)) showUndo(l.code, wrap);
 				box.append(node);
+			}
+			if (pendingBox) {
+				const p = data.pending?.state === "pending" ? data.pending : null;
+				pendingBox.hidden = !p || !data.lines.length;
+				if (p) pendingBox.innerHTML = `Bu savat bilan boshlangan buyurtma hali to‘lanmagan.
+					<a class="sf-link" href="${withPreview(p.url)}">To‘lovni davom ettirish →</a>
+					<small>Savatni o‘zgartirsangiz — «To‘lovga o‘tish» yangi buyurtma yaratadi, eskisi bekor bo‘ladi.</small>`;
 			}
 			if (removed) toast("Ba’zi tovarlar tugagani uchun savatdan olindi");
 
-			const count = data.lines.reduce((s, l) => s + l.qty, 0);
+			lastData = data;
+			summary();
+			renderMust(data.lines.length ? data.mandatory : null);
+		}
+
+		// Jami: o'chirilayotgan (5 soniya kutilayotgan) tovar hisobga kirmaydi. Uzum'dagidek: mahsulotlar chegirmasiz
+		// narxda, ostida "Chegirma: −X so'm" (aksiya va ulgurji narx farqi), keyin Jami
+		let lastData = null;
+		function summary() {
+			const live = lastData.lines.filter((l) => !removing.has(l.code));
+			const count = live.reduce((s, l) => s + l.qty, 0);
+			const total = live.reduce((s, l) => s + l.amount, 0);
+			const full = live.reduce((s, l) => s + Math.max(l.list_price || 0, l.price) * l.qty, 0);
+			const save = Math.round(full - total);
 			for (const sel of ["[data-summary]", "[data-checkout]", "[data-checkout-form]", "[data-delivery]"]) {
 				const el = $(sel);
 				if (el) el.hidden = !count;
 			}
 			$("[data-summary-label]").textContent = `Mahsulotlar (${count})`;
-			$("[data-summary-amount]").textContent = fmt(data.total);
-			$("[data-summary-total]").textContent = fmt(data.total);
+			$("[data-summary-amount]").textContent = fmt(save > 0 ? full : total);
+			const saveRow = $("[data-summary-save]");
+			if (saveRow) {
+				saveRow.hidden = !(save > 0);
+				$("[data-summary-save-amount]").textContent = `−${fmt(save)}`;
+			}
+			$("[data-summary-total]").textContent = fmt(total);
 		}
 
+		// ---- O'chirish: Uzum'dagidek 5 soniya "Qaytarish", keyin tovar savatdan ketadi ----
+		const UNDO_MS = 5000;
+		const removing = new Map(); // kod -> {until, timer}
+		function startRemoval(code, wrap) {
+			if (removing.has(code)) return;
+			const until = Date.now() + UNDO_MS;
+			removing.set(code, {
+				until,
+				timer: setTimeout(() => {
+					if (!removing.has(code)) return;
+					box.querySelector(`.sf-swipe[data-code="${CSS.escape(code)}"]`)?.classList.add("is-gone");
+					setTimeout(() => { if (removing.has(code)) { commitRemoval(code); load(); } }, 200);
+				}, UNDO_MS),
+			});
+			showUndo(code, wrap);
+			summary();
+		}
+		function showUndo(code, wrap) {
+			const left = Math.max(0, removing.get(code).until - Date.now());
+			wrap.classList.add("is-removing");
+			wrap.querySelector(".sf-undo")?.remove();
+			const el = document.createElement("div");
+			el.className = "sf-undo";
+			el.setAttribute("role", "status");
+			el.innerHTML = `<span>Savatdan olib tashlandi</span><button type="button" class="sf-undo__btn">Qaytarish</button><i class="sf-undo__bar" style="animation-duration:${left}ms"></i>`;
+			el.querySelector("button").addEventListener("click", () => {
+				clearTimeout(removing.get(code)?.timer);
+				removing.delete(code);
+				el.remove();
+				wrap.classList.remove("is-removing", "is-open", "is-gone");
+				const card = $("[data-swipe-card]", wrap);
+				if (card) card.style.transform = "";
+				summary();
+			});
+			wrap.append(el);
+		}
+		function commitRemoval(code) {
+			const r = removing.get(code);
+			if (!r) return;
+			clearTimeout(r.timer);
+			removing.delete(code);
+			cart.set(code, 0);
+		}
+		// "To'lovga o'tish" bosilsa yoki sahifadan chiqilsa — kutilayotgan o'chirishlar darhol bajariladi
+		flushRemovals = () => [...removing.keys()].forEach(commitRemoval);
+		window.addEventListener("pagehide", () => flushRemovals());
+		// To'lov sahifasidan "orqaga": brauzer eski sahifani xotiradan ko'rsatadi ("Buyurtma yaratilmoqda…" tugmasi
+		// bilan) — yangidan yuklaymiz
+		window.addEventListener("pageshow", (e) => e.persisted && location.reload());
+
+		reloadCart = load;
 		load();
+	}
+
+	// Savat qatorini chapga surish: qizil "O'chirish" ochiladi; oxirigacha surilsa — darhol o'chadi
+	function swipeToDelete(wrap, onDelete) {
+		const card = $("[data-swipe-card]", wrap);
+		const OPEN = 88;
+		let x0 = 0, y0 = 0, dx = 0, base = 0, dragging = false, decided = false;
+		const move = (x, animate) => {
+			card.style.transition = animate ? "" : "none";
+			card.style.transform = x ? `translateX(${x}px)` : "";
+			wrap.classList.toggle("is-open", x < 0);
+		};
+		card.addEventListener("pointerdown", (e) => {
+			if (e.pointerType === "mouse" || e.target.closest("button")) return;
+			x0 = e.clientX; y0 = e.clientY; dx = 0; dragging = true; decided = false;
+			base = wrap.classList.contains("is-open") ? -OPEN : 0;
+		});
+		card.addEventListener("pointermove", (e) => {
+			if (!dragging) return;
+			const mx = e.clientX - x0, my = e.clientY - y0;
+			if (!decided) {
+				if (Math.abs(mx) < 8 && Math.abs(my) < 8) return;
+				decided = true;
+				if (Math.abs(my) > Math.abs(mx)) { dragging = false; return; } // sahifani aylantirish
+				card.setPointerCapture(e.pointerId);
+			}
+			dx = Math.min(0, base + mx);
+			move(dx, false);
+		});
+		const end = () => {
+			if (!dragging) return;
+			dragging = false;
+			if (!decided) return;
+			if (dx < -card.offsetWidth * 0.55) { move(-card.offsetWidth, true); onDelete(); }
+			else move(dx < -OPEN / 2 ? -OPEN : 0, true);
+		};
+		card.addEventListener("pointerup", end);
+		card.addEventListener("pointercancel", end);
+		// Surilgandan keyingi "click" havolani ochmasin; ochiq qatorga bosilsa — yopiladi
+		card.addEventListener("click", (e) => {
+			if (decided || wrap.classList.contains("is-open")) {
+				e.preventDefault();
+				if (!decided) move(0, true);
+				decided = false;
+			}
+		}, true);
 	}
 
 	// ---------- Server bilan ishlash ----------
@@ -477,146 +862,92 @@
 		return body.message;
 	}
 
-	// ---------- Kirish: telefon → Telegram kodi → tasdiqlash ----------
+	// ---------- Kirish: Telegram orqali (telefon, ism va familiya Telegram'dan keladi) ----------
 	// Belgilash: macros.html auth_form(). Savat, "Buyurtmalarim" va buyurtma sahifasida ishlatiladi.
+	// Tugma botni t.me/<bot>?start=l<id> bilan ochadi; botda shu sahifadagi kirish kodi va «Ha, kirish» chiqadi (Pont kabi).
+	// Mijoz bosgach, shu sahifa har 2 soniyada so'rab turgan telegram_login_status sessiyani ochadi (tg_login.py).
 	// onUser(me) — kirgandan/chiqqandan keyin (me = null — chiqdi). Qaytaradi: setUser (tashqaridan holatni berish uchun).
 	function initAuth(root, onUser = () => {}) {
 		const guest = $("[data-auth-guest]", root), user = $("[data-auth-user]", root);
-		const phoneIn = $("[data-phone]", root), sendBtn = $("[data-send-code]", root);
-		const otpBox = $("[data-otp]", root), boxes = $("[data-otp-boxes]", root);
-		const note = $("[data-otp-note]", root), resend = $("[data-resend]", root), dev = $("[data-otp-dev]", root);
-		const botBtn = $("[data-otp-bot]", root), botBox = $("[data-otp-botbox]", root);
-		// Kod kutilayotgan holat: mijoz Telegram'ga o'tib qaytsa yoki sahifa yangilansa ham saqlanadi
-		const PENDING_KEY = "sf_auth_pending";
-		const first = $("[data-first]", root), last = $("[data-last]", root);
-		let timer, verifying = false;
+		const btn = $("[data-tg-login]", root), wait = $("[data-tg-wait]", root);
+		// So'rov Telegram'ga o'tib qaytganda (yoki sahifa yangilansa) ham saqlanadi: {id, secret, link, code, until, started}
+		const LOGIN_KEY = `sf_tg_login:${SF.shop}`;
+		let login = null, timer = null, busy = false;
+
+		const save = () => { try { localStorage.setItem(LOGIN_KEY, JSON.stringify(login)); } catch (e) {} };
+		const forget = () => { try { localStorage.removeItem(LOGIN_KEY); } catch (e) {} };
+		const stop = () => { clearInterval(timer); timer = null; wait.hidden = true; };
 
 		const setUser = (me) => {
 			guest.hidden = !!me;
 			user.hidden = !me;
 			if (me) {
+				stop();
 				$("[data-me-name]", user).textContent = me.name;
 				$("[data-me-phone]", user).textContent = me.phone_masked;
 			} else {
-				restorePending();
+				prepare();
 			}
 			onUser(me);
 		};
 
-		// telefon: "901234567" -> "90 123 45 67"
-		phoneIn.addEventListener("input", () => {
-			const d = phoneIn.value.replace(/\D/g, "").slice(0, 9);
-			phoneIn.value = [d.slice(0, 2), d.slice(2, 5), d.slice(5, 7), d.slice(7, 9)].filter(Boolean).join(" ");
-		});
-
-		function buildBoxes(n) {
-			boxes.innerHTML = "";
-			for (let i = 0; i < n; i++) {
-				const inp = document.createElement("input");
-				// maxLength qo'yilmaydi: aks holda paste va telefonning "kodni qo'yish" avtoto'ldirishi 1 raqamga kesiladi
-				Object.assign(inp, { inputMode: "numeric", autocomplete: i === 0 ? "one-time-code" : "off" });
-				inp.setAttribute("aria-label", `Kod, ${i + 1}-raqam`);
-				boxes.append(inp);
+		// Bot havolasi oldindan olinadi: tugma bosilganda Telegram darhol ochilsin (brauzer yangi oynani to'smasin)
+		async function prepare(fresh = false) {
+			let saved = null;
+			try { saved = JSON.parse(localStorage.getItem(LOGIN_KEY) || "null"); } catch (e) {}
+			if (!fresh && saved && saved.code && saved.until > Date.now() + 60000) {
+				login = saved;
+			} else {
+				btn.setAttribute("aria-disabled", "true");
+				try {
+					const r = await api("telegram_login", { shop: SF.shop, path: location.pathname });
+					login = { id: r.id, secret: r.secret, link: r.link, code: r.code, until: Date.now() + r.ttl * 1000 };
+					save();
+				} catch (e) {
+					return toast(e.message);
+				}
 			}
-			const all = $$("input", boxes);
-			all.forEach((inp, i) => {
-				inp.addEventListener("input", () => {
-					const digits = inp.value.replace(/\D/g, "");
-					if (digits.length > 1) { // paste yoki SMS/Telegram avtoto'ldirish
-						digits.split("").slice(0, n - i).forEach((d, k) => (all[i + k].value = d));
-					} else inp.value = digits.slice(-1);
-					const next = all.find((x) => !x.value);
-					(next || all[n - 1]).focus();
-					if (all.every((x) => x.value)) verify(all.map((x) => x.value).join(""));
-				});
-				inp.addEventListener("keydown", (e) => {
-					if (e.key === "Backspace" && !inp.value && i > 0) all[i - 1].focus();
-				});
-			});
-			all[0].focus();
+			btn.href = login.link;
+			btn.removeAttribute("aria-disabled");
+			$("[data-tg-code]", root).textContent = login.code || "";
+			if (login.started) poll();
 		}
 
-		function countdown(sec, masked, bot) {
+		function poll() {
+			wait.hidden = false;
 			clearInterval(timer);
-			resend.hidden = true;
-			const where = bot.username ? `@${bot.username} Telegram botiga` : "Telegram'ga";
-			const tick = () => {
-				const m = Math.floor(sec / 60), s = String(sec % 60).padStart(2, "0");
-				note.textContent = bot.link
-					? `Kod ${where} keladi · ${m}:${s}`
-					: `Kod ${masked} raqamiga, ${where} yuborildi · ${m}:${s}`;
-				if (sec-- <= 0) { clearInterval(timer); note.textContent = `Kod ${masked} raqamiga yuborildi.`; resend.hidden = false; }
-			};
-			tick();
-			timer = setInterval(tick, 1000);
+			timer = setInterval(check, 2000);
+			check();
 		}
 
-		async function sendCode() {
-			if (!first.value.trim()) return toast("Ismingizni yozing");
-			if (phoneIn.value.replace(/\D/g, "").length !== 9) return toast("Telefon raqamini to‘liq yozing");
-			sendBtn.disabled = true;
+		async function check() {
+			if (busy || !login) return;
+			busy = true;
 			try {
-				const r = await api("request_code", { phone: phoneIn.value });
-				showPending({
-					phone: phoneIn.value, first: first.value, last: last.value, length: r.length, masked: r.masked,
-					link: r.bot_link || null, username: r.bot_username || null,
-					resend_at: Date.now() + r.resend_after * 1000, until: Date.now() + r.ttl * 1000,
-				});
-				dev.hidden = !r.dev_code;
-				if (r.dev_code) dev.textContent = `TEST rejimi (Telegram token kiritilmagan): kod ${r.dev_code}`;
-			} catch (e) {
-				toast(e.message);
-			} finally {
-				sendBtn.disabled = false;
+				const r = await api("telegram_login_status", { login: login.id, secret: login.secret });
+				if (r.status === "ok") {
+					forget();
+					toast("Telefon tasdiqlandi ✓");
+					setUser({ name: r.name, phone_masked: r.phone_masked });
+				} else if (r.status === "expired" || r.status === "cancelled") {
+					stop();
+					forget();
+					toast(r.status === "cancelled" ? "Kirish bekor qilindi" : "Vaqt tugadi — tugmani qaytadan bosing");
+					prepare(true);
+				}
+			} catch (e) { /* tarmoq uzilsa — keyingi safar yana so'raladi */ } finally {
+				busy = false;
 			}
 		}
 
-		// Bot bu raqamni hali tanimasa: mijoz botni ochib, raqamini bir marta yuboradi (yo'riqnoma bilan)
-		function showPending(p) {
-			try { localStorage.setItem(PENDING_KEY, JSON.stringify(p)); } catch (e) {}
-			otpBox.hidden = false;
-			buildBoxes(p.length);
-			if (botBox) {
-				botBox.hidden = !p.link;
-				if (p.link) botBtn.href = p.link;
-				const nameEl = $("[data-otp-botname]", root);
-				if (nameEl && p.username) nameEl.textContent = `@${p.username}`;
-			}
-			countdown(Math.max(0, Math.round((p.resend_at - Date.now()) / 1000)), p.masked, p);
-		}
-
-		function restorePending() {
-			let p = null;
-			try { p = JSON.parse(localStorage.getItem(PENDING_KEY) || "null"); } catch (e) {}
-			if (!p || p.until < Date.now()) return;
-			phoneIn.value = p.phone || "";
-			first.value = first.value || p.first || "";
-			last.value = last.value || p.last || "";
-			showPending(p);
-		}
-
-		async function verify(code) {
-			if (verifying) return;
-			verifying = true;
-			try {
-				const me = await api("verify_code", {
-					phone: phoneIn.value, code, first_name: first.value, last_name: last.value,
-				});
-				clearInterval(timer);
-				try { localStorage.removeItem(PENDING_KEY); } catch (e) {}
-				toast("Telefon tasdiqlandi ✓");
-				setUser(me);
-			} catch (e) {
-				toast(e.message);
-				$$("input", boxes).forEach((x) => (x.value = ""));
-				$("input", boxes)?.focus();
-			} finally {
-				verifying = false;
-			}
-		}
-
-		sendBtn.addEventListener("click", sendCode);
-		resend.addEventListener("click", sendCode);
+		btn.addEventListener("click", (e) => {
+			if (!login || btn.hasAttribute("aria-disabled")) return e.preventDefault();
+			login.started = true;
+			save();
+			poll();
+		});
+		// Telefonda Telegram'dan qaytilganda darhol tekshiriladi (fonda taymerlar to'xtab turadi)
+		document.addEventListener("visibilitychange", () => !document.hidden && timer && check());
 		$("[data-logout]", root).addEventListener("click", async () => {
 			await api("logout", {}).catch(() => {});
 			setUser(null);
@@ -624,21 +955,40 @@
 		return setUser;
 	}
 
-	// ---------- Rasmiylashtirish: Telegram kodi → buyurtma ----------
+	// ---------- Rasmiylashtirish: Telegram orqali kirish → buyurtma ----------
 	function initCheckout() {
 		const form = $("[data-checkout-form]");
 		if (!form) return;
 		const btn = $("[data-checkout-btn]"), hint = $("[data-checkout-hint]");
 		const addressField = $("[data-address-field]"), address = $("[data-address]");
 
+		let wasIn = null;
 		const setUser = initAuth(form, (me) => {
-			btn.disabled = !me;
-			hint.hidden = !!me;
+			btn.disabled = !me || mustBlock;
+			hint.hidden = !!me && !mustBlock;
+			hint.textContent = mustBlock ? "Avval majburiy tovarni savatga qo‘shing" : "Avval telefon raqamingizni tasdiqlang";
+			// Kirdi: majburiy tovarni avval olganmi — savat qayta tekshiriladi
+			if (me && wasIn === false) reloadCart();
+			wasIn = !!me;
 		});
 
-		$$("input[name=delivery]").forEach((r) =>
-			r.addEventListener("change", () => (addressField.hidden = r.value !== "Kuryer" || !r.checked))
-		);
+		// Manzil va tanlangan usul eslab qolinadi: "O'zim olaman"ga o'tib qaytsa ham, keyingi buyurtmada ham
+		const pickup = $("[data-pickup]");
+		const ADDRESS_KEY = "sf_delivery";
+		const saved = store.get(ADDRESS_KEY, {});
+		if (saved.address) address.value = saved.address;
+		const radio = saved.method && $(`input[name=delivery][value="${saved.method}"]`);
+		if (radio) radio.checked = true;
+		const remember = () =>
+			store.set(ADDRESS_KEY, { method: $("input[name=delivery]:checked").value, address: address.value });
+		const showDelivery = () => {
+			const courier = $("input[name=delivery]:checked").value === "Kuryer";
+			addressField.hidden = !courier;
+			if (pickup) pickup.hidden = courier;
+		};
+		$$("input[name=delivery]").forEach((r) => r.addEventListener("change", () => { showDelivery(); remember(); }));
+		address.addEventListener("input", remember);
+		showDelivery();
 
 		btn.addEventListener("click", async () => {
 			const delivery = $("input[name=delivery]:checked").value;
@@ -649,9 +999,11 @@
 			btn.disabled = true;
 			btn.textContent = "Buyurtma yaratilmoqda…";
 			try {
+				flushRemovals();
 				const lines = Object.entries(cart.all()).map(([code, qty]) => ({ code, qty }));
 				const r = await api("place_order", { shop: SF.shop, lines, delivery_method: delivery, address: address.value });
-				store.set(CART_KEY, {}); // buyurtma yaratildi — savat tozalanadi
+				// Savat hozir tozalanmaydi: to'lov sahifasidan qaytsa joyida bo'lsin. Yakunlanganda — settleOrder
+				store.set(PENDING_KEY, { order: r.order, lines: Object.fromEntries(lines.map((l) => [l.code, l.qty])) });
 				location.href = withPreview(r.url);
 			} catch (e) {
 				toast(e.message);
@@ -667,7 +1019,7 @@
 	// Sahifa serverda chiziladi: kirilgach yoki chiqilgach shunchaki qayta yuklanadi.
 	function initAccount() {
 		const box = $("[data-auth-page]");
-		if (box) initAuth(box, (me) => me && setTimeout(() => location.reload(), 400));
+		if (box) initAuth(box, (me) => me && setTimeout(() => location.reload(), 400))(null);
 		$("[data-orders-logout]")?.addEventListener("click", async (e) => {
 			e.currentTarget.disabled = true;
 			await api("logout", {}).catch(() => {});
@@ -697,6 +1049,42 @@
 			} catch (e) {
 				toast(e.message);
 				btn.disabled = false;
+			}
+		});
+	}
+
+	// To'lov sahifasida manzilni tuzatish (buyurtma hali do'konga bormagan) — keyingi buyurtma uchun ham eslab qolinadi
+	function initAddressEdit() {
+		const box = $("[data-addr]");
+		if (!box) return;
+		const view = $("[data-addr-view]", box), form = $("[data-addr-form]", box);
+		const input = $("[data-addr-input]", box), save = $("[data-addr-save]", box);
+		const toggle = (editing) => {
+			view.hidden = editing;
+			form.hidden = !editing;
+			if (editing) input.focus();
+		};
+		$("[data-addr-edit]", box).addEventListener("click", () => toggle(true));
+		$("[data-addr-cancel]", box).addEventListener("click", () => {
+			input.value = $("[data-addr-text]", box).textContent;
+			toggle(false);
+		});
+		save.addEventListener("click", async () => {
+			if (input.value.trim().length < 5) {
+				input.focus();
+				return toast("Yetkazib berish manzilini yozing");
+			}
+			save.disabled = true;
+			try {
+				const r = await api("update_address", { order: box.dataset.order, address: input.value });
+				$("[data-addr-text]", box).textContent = r.address;
+				store.set("sf_delivery", { ...store.get("sf_delivery", {}), method: "Kuryer", address: r.address });
+				toggle(false);
+				toast("Manzil saqlandi ✓");
+			} catch (e) {
+				toast(e.message);
+			} finally {
+				save.disabled = false;
 			}
 		});
 	}
@@ -744,11 +1132,13 @@
 	initFavorites();
 	initCatalog();
 	initProduct();
+	initOrderState();
 	initCart();
 	initRowSteppers();
 	initCheckout();
 	initAccount();
 	initPayment();
+	initAddressEdit();
 
 	// Boshqa tabda savat o'zgarsa, bu yerda ham yangilansin
 	window.addEventListener("storage", (e) => e.key === CART_KEY && renderCartSummary());

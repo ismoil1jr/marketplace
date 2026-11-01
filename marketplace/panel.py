@@ -1,4 +1,5 @@
-"""Sotuvchi paneli (/panel) API: telefondan tovar qo'shish, rasm, narx, rang/o'lcham va qoldiq.
+"""Sotuvchi paneli (/panel) API: telefondan tovar qo'shish, rasm, narx, rang/o'lcham; qoldiq — faqat ko'rish.
+Kirim (kimdan olindi, nechta, necha puldan) faqat Desk'dagi tovar formasida (inventory.receive).
 
 Sotuvchi ERPNext tushunchalarini (Item, Variant, Item Price, Stock Reconciliation) ko'rmaydi:
 u bitta forma to'ldiradi, bu yerda esa shularning hammasi yaratiladi.
@@ -16,6 +17,7 @@ from frappe import _
 from frappe.utils import cint, flt
 
 from marketplace import storefront
+from marketplace.marketplace.doctype.rang.rang import shop_colors, sync_attribute_value
 from marketplace.orders import as_system
 from marketplace.permissions import clean_mxik, get_user_shop, group_fiscal_codes
 from marketplace.setup import COLOR_ATTR, SIZE_ATTR
@@ -46,8 +48,10 @@ def bootstrap(shop=None):
 	s = frappe.db.get_value("Shop", shop, ["name", "shop_name", "brand_color", "logo", "status"], as_dict=True)
 	s.initials = "".join(w[0] for w in s.shop_name.split()[:2]).upper()
 	s.url = f"/s/{shop}"
-	groups = frappe.get_all("Item Group", filters={"is_group": 0, "name": ["not in", ["Services", "Raw Material", "Sub Assemblies", "Consumable", "Products"]]}, fields=["name", "parent_item_group"], order_by="lft")
-	colors = frappe.get_all("Item Attribute Value", filters={"parent": COLOR_ATTR}, fields=["attribute_value as value", "color_hex as hex"], order_by="idx")
+	# Faqat shu do'kon kategoriyalari (boshqa do'konlarniki ko'rinmaydi)
+	groups = frappe.get_all("Item Group", filters={"is_group": 0, "shop": shop}, fields=["name", "parent_item_group"], order_by="lft")
+	# Faqat shu do'kon ranglari (yon menyu → Ranglar)
+	colors = [{"value": c.rang_nomi, "hex": c.hex} for c in shop_colors(shop)]
 	sizes = frappe.get_all("Item Attribute Value", filters={"parent": SIZE_ATTR}, pluck="attribute_value", order_by="idx")
 	return {
 		"shop": s,
@@ -115,7 +119,8 @@ def get_product(code, shop=None):
 		"code": item.name,
 		"name": item.item_name,
 		"group": item.item_group,
-		"price": storefront._get_prices([item.name]).get(item.name),
+		# Variantli tovarda — standart narx (eng arzon variant emas: ba'zilarida alohida narx bo'lishi mumkin)
+		"price": (item.has_variants and flt(item.variant_price)) or storefront._get_prices([item.name]).get(item.name),
 		"old_price": item.old_price or None,
 		"wholesale_price": item.wholesale_price or None,
 		"wholesale_min": item.wholesale_min_qty or 10,
@@ -165,21 +170,18 @@ def save_product(data, shop=None):
 			if (COLOR_ATTR in dims) != bool(colors) or (SIZE_ATTR in dims) != bool(sizes):
 				frappe.throw(_("Rang yoki o'lcham turini olib tashlab/qo'shib bo'lmaydi. Yangi tovar sifatida qo'shing."))
 
-		_ensure_attribute_values(colors, sizes)
+		_ensure_attribute_values(colors, sizes, shop)
 		item = _upsert_template(item, data, shop, colors, sizes)
-		warehouse = frappe.db.get_value("Shop", shop, "warehouse")
 
-		stock = data.get("stock") or {}
 		if has_variants:
-			# ERPNext template'ga narx qo'yishga ruxsat bermaydi — narx har variantda (hammasida bir xil)
-			targets = _sync_variants(item, colors, sizes)
-			for code in targets.values():
-				_upsert_price(code, flt(data.price))
-			wanted = {targets[k]: cint(v) for k, v in stock.items() if k in targets}
+			# ERPNext template'ga narx qo'yishga ruxsat bermaydi — narx har variantda. Desk'da alohida narx
+			# qo'yilgan rang/o'lchamlarga (mp_own_price) tegilmaydi, qolganlari — standart narx
+			own = set(frappe.get_all("Item", filters={"variant_of": item.name, "mp_own_price": 1}, pluck="name"))
+			for code in _sync_variants(item, colors, sizes).values():
+				if code not in own:
+					_upsert_price(code, flt(data.price))
 		else:
 			_upsert_price(item.name, flt(data.price))
-			wanted = {item.name: cint(stock.get("|", 0))}
-		_set_stock(wanted, warehouse)
 
 	frappe.cache.delete_value(storefront._cache_key(shop))
 	return {"code": item.name}
@@ -241,16 +243,15 @@ def _validate(d):
 			frappe.throw(_("O'lcham noto'g'ri: {0}").format(size))
 	if len(d.get("images") or []) > 10:
 		frappe.throw(_("Ko'pi bilan 10 ta rasm"))
-	for qty in (d.get("stock") or {}).values():
-		if cint(qty) < 0 or cint(qty) > 100000:
-			frappe.throw(_("Qoldiq soni noto'g'ri"))
 
 
-def _ensure_attribute_values(colors, sizes):
-	known = set(frappe.get_all("Item Attribute Value", filters={"parent": COLOR_ATTR}, pluck="attribute_value"))
+def _ensure_attribute_values(colors, sizes, shop):
+	known = {c.rang_nomi for c in shop_colors(shop)}
 	unknown = [c for c in colors if c not in known]
 	if unknown:
 		frappe.throw(_("Noma'lum rang: {0}").format(", ".join(unknown)))
+	for c in colors:
+		sync_attribute_value(c)
 	known_sizes = set(frappe.get_all("Item Attribute Value", filters={"parent": SIZE_ATTR}, pluck="attribute_value"))
 	new_sizes = [s for s in sizes if s not in known_sizes]
 	if new_sizes:
@@ -273,6 +274,9 @@ def _upsert_template(item, d, shop, colors, sizes):
 		"package_code": (d.get("package_code") or "").strip(),
 		"is_published": cint(d.get("published")),
 	}
+	if colors or sizes:
+		# Desk'dagi "Sotish narxi (barcha variantlarga)" bilan bir xil standart narx
+		fields["variant_price"] = flt(d.price)
 	if not item:
 		item = frappe.new_doc("Item")
 		item.update(fields)
@@ -366,23 +370,6 @@ def _sync_variants(template, colors, sizes):
 		if key not in wanted:
 			frappe.db.set_value("Item", code, {"disabled": 1, "is_published": 0})
 	return result
-
-
-def _set_stock(wanted, warehouse):
-	"""Sotuvchi "omborda nechta bor" deb yozadi — farq bo'lsa Stock Reconciliation qilinadi."""
-	current = _stock_with_reserved(list(wanted), warehouse)
-	rows = []
-	for code, qty in wanted.items():
-		have = current.get(code, {}).get("actual", 0)
-		if qty == have or (qty == 0 and code not in current):
-			continue
-		rows.append({"item_code": code, "warehouse": warehouse, "qty": qty, "valuation_rate": 1})
-	if rows:
-		sr = frappe.get_doc(
-			{"doctype": "Stock Reconciliation", "company": frappe.defaults.get_global_default("company"), "purpose": "Stock Reconciliation", "items": rows}
-		)
-		sr.insert()
-		sr.submit()
 
 
 def _stock_with_reserved(codes, warehouse):

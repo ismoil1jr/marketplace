@@ -13,8 +13,12 @@ from marketplace.admin import setup_admin_workspace
 from marketplace.seller_desk import setup_seller_workspace
 
 SELLER_ROLE = "Shop Seller"
+# Do'kon kuryeri: yetkaziladigan buyurtmalar, naqd pulni olish va doimiy mijozlar anketasi
+COURIER_ROLE = "Shop Courier"
 # Platforma xodimi: barcha do'konlarni boshqaradi, lekin tizim sozlamalariga (System Manager) kirmaydi
 MANAGER_ROLE = "Marketplace Manager"
+# Do'konning sotuv menejeri: Sotuv paneli (to'lanmagan buyurtmalar, qo'ng'iroqlar, natija). Faqat o'z do'koni
+SALES_ROLE = "Shop Sales Manager"
 
 SHOP_FIELD = {
 	"fieldname": "shop",
@@ -36,21 +40,60 @@ CUSTOM_FIELDS = {
 			"insert_after": "shop",
 		},
 		{
+			# Do'konda majburiy tovar bo'lsa: mijoz uni hech olmagan (va savatida ham yo'q) bo'lsa — boshqa buyurtma bera
+			# olmaydi (orders.mandatory_status). Masalan: kitoblar faqat o'qiydigan ruchka bilan
+			"fieldname": "mp_majburiy",
+			"label": "Majburiy tovar",
+			"fieldtype": "Check",
+			"default": "0",
+			"in_standard_filter": 1,
+			"insert_after": "is_published",
+			"description": "Belgilansa: bu tovarni bir marta ham olmagan mijoz do'kondan boshqa narsa buyurtma qila olmaydi (savatida shu tovar bo'lsa — mumkin). Majburiy tovarlar bir nechta bo'lsa — har birini olishi kerak",
+		},
+		{
+			# Saytda ko'rinadi (rasm, tavsif, sevimlilar), lekin sotilmaydi: savat va buyurtma uni qabul qilmaydi
+			"fieldname": "mp_tez_kunda",
+			"label": "Tez kunda",
+			"fieldtype": "Check",
+			"default": "0",
+			"in_standard_filter": 1,
+			"insert_after": "mp_majburiy",
+			"description": "Belgilansa: saytda och rangda «Tez kunda» bo'lib chiqadi, mijoz ko'radi va sevimlilarga qo'shadi, lekin sotib ololmaydi",
+		},
+		{
 			"fieldname": "variant_price",
 			"label": "Sotish narxi (barcha variantlarga)",
 			"fieldtype": "Currency",
 			"insert_after": "standard_rate",
 			"depends_on": "eval:doc.has_variants",
-			"description": "Rang/o'lchamli tovarda narx har bir variantga shu yerdan avtomatik qo'yiladi",
+			"description": "Standart narx: alohida narx qo'yilmagan har bir rang/o'lchamga shu narx qo'yiladi",
+		},
+		{
+			# Standart narx tagida: "Rang/o'lcham bo'yicha narx" tugmasi (item_seller.js, seller_desk.set_variant_prices)
+			"fieldname": "mp_narxlar_html",
+			"label": "Rang/o'lcham bo'yicha narx",
+			"fieldtype": "HTML",
+			"insert_after": "variant_price",
+			"depends_on": "eval:doc.has_variants",
+		},
+		{
+			# Variantda: narx standartdan farqli qo'yilgan — standart narx o'zgarsa ham o'z narxida qoladi
+			"fieldname": "mp_own_price",
+			"label": "Alohida narx (standartdan farqli)",
+			"fieldtype": "Check",
+			"insert_after": "mp_narxlar_html",
+			"read_only": 1,
+			"hidden": 1,
+			"no_copy": 1,
 		},
 		{
 			"fieldname": "ranglar",
 			"label": "Ranglar",
 			"fieldtype": "Table MultiSelect",
 			"options": "Tovar Rangi",
-			"insert_after": "variant_price",
+			"insert_after": "mp_own_price",
 			"depends_on": "eval:doc.has_variants",
-			"description": "Ro'yxatdan tanlang. Yo'q rang bo'lsa, yozib \"+ Create a new Rang\" bosing",
+			"description": "Rasmlarni rang bo'yicha belgilash uchun. \"Ombor\" tabidagi kirimda yangi rang yozilsa, bu yerga o'zi qo'shiladi",
 		},
 		{
 			# Ichki: ranglar jadvalidan yig'iladi (seller_desk.item_default_attributes)
@@ -61,19 +104,20 @@ CUSTOM_FIELDS = {
 			"hidden": 1,
 		},
 		{
+			# Ichki: o'lchamlar "Ombor" tabidagi kirim qatorlaridan yig'iladi (seller_desk._check_kirim)
 			"fieldname": "variant_sizes",
 			"label": "O'lchamlar",
 			"fieldtype": "Small Text",
 			"insert_after": "variant_colors",
-			"depends_on": "eval:doc.has_variants",
-			"description": "Vergul bilan: S, M, L yoki 42, 44, 46 yoki 110 sm. Yangi nomlar avtomatik qo'shiladi",
+			"hidden": 1,
 		},
 		{
+			# Eski: hammasiga bir xil son. Endi formadagi rang × o'lcham kirim jadvali ishlatiladi
 			"fieldname": "variant_qty",
 			"label": "Har bir variantdan nechta (omborga)",
 			"fieldtype": "Int",
 			"insert_after": "variant_sizes",
-			"depends_on": "eval:doc.has_variants",
+			"hidden": 1,
 			"description": "Yangi yaratilgan har bir rang/o'lcham uchun omborga shuncha yoziladi. Keyin Ombor sahifasida alohida o'zgartirsa bo'ladi",
 		},
 		{
@@ -146,13 +190,73 @@ CUSTOM_FIELDS = {
 			"label": "MXIK kodi",
 			"fieldtype": "Data",
 			"insert_after": "sb_fiscal",
-			"description": "tasnif.soliq.uz dagi 17 xonali kod. Bo'sh qolsa, kategoriyadagi kod olinadi",
+			"description": "Kategoriyadan avtomatik olinadi (permissions.item_validate)",
 		},
 		{
 			"fieldname": "package_code",
 			"label": "Qadoq kodi",
 			"fieldtype": "Data",
 			"insert_after": "mxik_code",
+			"description": "Kategoriyadan avtomatik olinadi",
+		},
+		# "Ombor" tabi (Accounting'dan keyin): hozirgi qoldiq, yangi kirim (qaysi kontragentdan, nechta, necha puldan) va kirim tarixi.
+		# Kirim qatorlari saqlashda omborga yoziladi va tozalanadi (seller_desk.item_on_update)
+		{
+			"fieldname": "mp_ombor_tab",
+			"label": "Ombor",
+			"fieldtype": "Tab Break",
+			"insert_after": "no_of_months",
+		},
+		{
+			"fieldname": "mp_ombor_html",
+			"label": "Omborda hozir",
+			"fieldtype": "HTML",
+			"insert_after": "mp_ombor_tab",
+		},
+		{
+			"fieldname": "mp_sb_kirim",
+			"label": "Yangi kirim",
+			"fieldtype": "Section Break",
+			"insert_after": "mp_ombor_html",
+		},
+		{
+			# Do'konning kontragentlari (item_seller.js set_query); ro'yxatda yo'q bo'lsa — shu yerdan yangisi
+			"fieldname": "mp_kirim_kontragent",
+			"label": "Kimdan olindi (kontragent)",
+			"fieldtype": "Link",
+			"options": "Kontragent",
+			"insert_after": "mp_sb_kirim",
+			"no_copy": 1,
+			"description": "Kontragentlar ro'yxatidan tanlang. Yangi odam bo'lsa — ro'yxat oxiridagi «+ yangi» orqali shu yerning o'zida qo'shing",
+		},
+		{
+			"fieldname": "mp_kirim",
+			"label": "Qaysi rang, qaysi o'lcham, nechta keldi",
+			"fieldtype": "Table",
+			"options": "Tovar Kirimi",
+			"insert_after": "mp_kirim_kontragent",
+			"no_copy": 1,
+			"description": "Har bir rang/o'lcham — alohida qator. Saqlaganda omborga qo'shiladi va pastdagi tarixga yoziladi",
+		},
+		{
+			"fieldname": "mp_kirim_izoh",
+			"label": "Izoh",
+			"fieldtype": "Data",
+			"insert_after": "mp_kirim",
+			"no_copy": 1,
+			"description": "Ixtiyoriy — bo'sh qoldirsa ham bo'ladi. Masalan: «qarzga olindi» yoki «2-partiya»",
+		},
+		{
+			"fieldname": "mp_sb_log",
+			"label": "Kirim tarixi",
+			"fieldtype": "Section Break",
+			"insert_after": "mp_kirim_izoh",
+		},
+		{
+			"fieldname": "mp_ombor_log",
+			"label": "Kirimlar",
+			"fieldtype": "HTML",
+			"insert_after": "mp_sb_log",
 		},
 	],
 	"Item Price": [
@@ -160,6 +264,20 @@ CUSTOM_FIELDS = {
 	],
 	"Warehouse": [
 		{**SHOP_FIELD, "insert_after": "warehouse_name", "read_only": 1},
+	],
+	# Kirim hujjati (Material Receipt): tovar qaysi kontragentdan olingani. Narxi — qatorlarning basic_rate'ida
+	# (inventory.receive). Kontragent formasidagi "Xaridlar" shu maydon bo'yicha yig'iladi
+	"Stock Entry": [
+		{
+			"fieldname": "mp_kontragent",
+			"label": "Kimdan olindi (kontragent)",
+			"fieldtype": "Link",
+			"options": "Kontragent",
+			"insert_after": "stock_entry_type",
+			"read_only": 1,
+			"in_list_view": 1,
+			"in_standard_filter": 1,
+		},
 	],
 	"Sales Order": [
 		{**SHOP_FIELD, "insert_after": "customer", "in_list_view": 1},
@@ -169,6 +287,7 @@ CUSTOM_FIELDS = {
 			"fieldtype": "Data",
 			"options": "Phone",
 			"insert_after": "shop",
+			"in_list_view": 1,
 		},
 		{
 			"fieldname": "payment_method",
@@ -194,24 +313,91 @@ CUSTOM_FIELDS = {
 			"options": "\nInstagram\nTelegram\nWeb",
 			"insert_after": "payment_status",
 		},
+		{
+			# Saytdagi buyurtma mijoz to'lov usulini tanlamaguncha (naqd) yoki to'lamaguncha (Payme/Click) 0:
+			# sotuvchiga ko'rinmaydi va xabar bormaydi (orders.confirm_order). Qo'lda kiritilgan buyurtma — 1
+			"fieldname": "mp_placed",
+			"label": "Buyurtma berilgan",
+			"fieldtype": "Check",
+			"default": "1",
+			"read_only": 1,
+			"hidden": 1,
+			"no_copy": 1,
+			"insert_after": "order_source",
+		},
+		# Sotuv menejerining oxirgi natijasi (sotuv/api.save_result — Aloqa Yozuvi'dan), panel ro'yxati uchun
+		{
+			"fieldname": "mp_aloqa_natija",
+			"label": "Menejer natijasi",
+			"fieldtype": "Select",
+			"options": "\nOladi\nOlmaydi\nJavob bermadi\nKeyinroq",
+			"insert_after": "mp_placed",
+			"read_only": 1,
+			"allow_on_submit": 1,
+			"no_copy": 1,
+			"in_standard_filter": 1,
+		},
+		{
+			"fieldname": "mp_aloqa_kanal",
+			"label": "Aloqa kanali",
+			"fieldtype": "Select",
+			"options": "\nQo‘ng‘iroq\nSMS",
+			"insert_after": "mp_aloqa_natija",
+			"read_only": 1,
+			"allow_on_submit": 1,
+			"no_copy": 1,
+		},
+		{
+			"fieldname": "mp_aloqa_vaqt",
+			"label": "Oxirgi aloqa",
+			"fieldtype": "Datetime",
+			"insert_after": "mp_aloqa_kanal",
+			"read_only": 1,
+			"allow_on_submit": 1,
+			"no_copy": 1,
+		},
+		{
+			"fieldname": "mp_keyingi_qongiroq",
+			"label": "Qayta qo'ng'iroq sanasi",
+			"fieldtype": "Date",
+			"insert_after": "mp_aloqa_vaqt",
+			"read_only": 1,
+			"allow_on_submit": 1,
+			"no_copy": 1,
+		},
 	],
 	"Delivery Note": [
 		{**SHOP_FIELD, "insert_after": "customer"},
 	],
 	"Item Group": [
+		{
+			# Ko'rinadigan nom. ID (item_group_name) butun tizimda bitta va ERPNext uni nom bilan bir xil saqlaydi;
+			# boshqa do'konda shu nom bo'lsa ID "Kiyimlar (clothes)" bo'ladi, bu yerda esa "Kiyimlar" (title_field)
+			"fieldname": "mp_title",
+			"label": "Nomi",
+			"fieldtype": "Data",
+			"insert_after": "item_group_name",
+			"in_list_view": 1,
+			"bold": 1,
+		},
 		{**SHOP_FIELD, "insert_after": "parent_item_group", "description": "Bo'sh bo'lsa, sotuvchilarga ko'rinmaydi"},
 		{
 			"fieldname": "mxik_code",
 			"label": "MXIK kodi",
 			"fieldtype": "Data",
 			"insert_after": "shop",
-			"description": "tasnif.soliq.uz dagi 17 xonali kod. Shu kategoriyadagi MXIK'siz tovarlarga o'zi qo'yiladi",
+			"allow_in_quick_entry": 1,
+			"mandatory_depends_on": "eval:!doc.is_group && (doc.shop || frappe.boot.marketplace_shop)",
+			"description": "tasnif.soliq.uz dagi 17 xonali kod. Shu kategoriyadagi barcha tovarlarga o'zi qo'yiladi (Payme/Click chekida soliqqa boradi)",
 		},
 		{
 			"fieldname": "package_code",
 			"label": "Qadoq kodi",
 			"fieldtype": "Data",
 			"insert_after": "mxik_code",
+			"allow_in_quick_entry": 1,
+			"mandatory_depends_on": "eval:!doc.is_group && (doc.shop || frappe.boot.marketplace_shop)",
+			"description": "tasnif.soliq.uz da MXIK kodining ichida turadi (masalan \"dona\" uchun). Soliq chekida MXIK bilan birga majburiy",
 		},
 	],
 	"Customer": [
@@ -234,7 +420,8 @@ CUSTOM_FIELDS["Item Attribute Value"] = [
 	{"fieldname": "color_hex", "label": "Rang (HEX)", "fieldtype": "Color", "insert_after": "abbr", "in_list_view": 1},
 ]
 
-# Platformadagi umumiy atributlar: har do'kon o'z "Rang"ini ochmasligi uchun bitta ro'yxat
+# ERPNext atributlari platformada umumiy (variantlar shu nomlar bilan yaratiladi). Do'konlar ro'yxati esa alohida:
+# ranglar — Rang, o'lchamlar — Olcham (har biri shop maydoni bilan); yangi do'konga COLORS va SIZES qo'shiladi
 COLOR_ATTR = "Rang"
 SIZE_ATTR = "O'lcham"
 COLORS = [
@@ -261,6 +448,81 @@ CUSTOM_FIELDS["Sales Order"] += [
 	},
 ]
 
+# Kuryer yetkazish va naqd pul yo'li: mijozdan oldi (Kuryerda) -> do'kon egasiga berdi (Do'konga topshirildi).
+# Hammasini server yozadi (seller_desk.courier_delivered / cash_handed_over), formada faqat ko'rinadi
+CUSTOM_FIELDS["Sales Order"] += [
+	{
+		"fieldname": "mp_courier",
+		"label": "Kuryer",
+		"fieldtype": "Link",
+		"options": "User",
+		"insert_after": "delivery_address",
+		"read_only": 1,
+		"allow_on_submit": 1,
+		"no_copy": 1,
+		"in_standard_filter": 1,
+	},
+	{
+		# Kuryerda -> (kuryer "Topshirdim") Topshirilmoqda -> (do'konchi "Qabul qildim") Do'konga topshirildi (kassa.py)
+		"fieldname": "mp_cash_status",
+		"label": "Naqd pul qayerda",
+		"fieldtype": "Select",
+		"options": "\nKuryerda\nTopshirilmoqda\nDo'konga topshirildi",
+		"insert_after": "mp_courier",
+		"read_only": 1,
+		"allow_on_submit": 1,
+		"no_copy": 1,
+		"in_standard_filter": 1,
+	},
+	{
+		"fieldname": "mp_delivered_at",
+		"label": "Mijozga topshirilgan vaqt",
+		"fieldtype": "Datetime",
+		"insert_after": "mp_cash_status",
+		"read_only": 1,
+		"allow_on_submit": 1,
+		"no_copy": 1,
+	},
+	{
+		# Naqd to'lovning noyob ID'si (Payme/Click'da — ularning tranzaksiya ID'si, Payment Transaction'da). kassa.py
+		"fieldname": "mp_payment_id",
+		"label": "To'lov ID",
+		"fieldtype": "Data",
+		"insert_after": "mp_delivered_at",
+		"read_only": 1,
+		"allow_on_submit": 1,
+		"no_copy": 1,
+		"search_index": 1,
+	},
+	{
+		"fieldname": "mp_paid_at",
+		"label": "To'langan vaqt",
+		"fieldtype": "Datetime",
+		"insert_after": "mp_payment_id",
+		"read_only": 1,
+		"allow_on_submit": 1,
+		"no_copy": 1,
+	},
+	{
+		"fieldname": "mp_cash_sent_at",
+		"label": "Kuryer pulni topshirgan vaqt",
+		"fieldtype": "Datetime",
+		"insert_after": "mp_paid_at",
+		"read_only": 1,
+		"allow_on_submit": 1,
+		"no_copy": 1,
+	},
+	{
+		"fieldname": "mp_cash_handed_at",
+		"label": "Pul do'konga topshirilgan vaqt",
+		"fieldtype": "Datetime",
+		"insert_after": "mp_cash_sent_at",
+		"read_only": 1,
+		"allow_on_submit": 1,
+		"no_copy": 1,
+	},
+]
+
 # Sotuvchi nima qila oladi. Qaysi do'kon ekanini User Permission cheklaydi.
 SELLER_PERMISSIONS = {
 	# O'z do'konini tahrirlaydi (logo, karusel, aloqa). Status, STIR, ombor — permlevel 1 (faqat ko'radi),
@@ -272,19 +534,38 @@ SELLER_PERMISSIONS = {
 	"Item": ["read", "write", "create"],
 	"Item Price": ["read", "write", "create", "delete"],
 	"Sales Order": ["read", "write"],
-	"Delivery Note": ["read", "write", "create", "submit"],
+	# Ombor faqat kirim (inventory.receive) va sotuv (mark_delivered) bilan o'zgaradi — ikkalasi server'da.
+	# Sotuvchi ERPNext formalari orqali qoldiqni kamaytira olmasin: bu hujjatlarni faqat ko'radi
+	"Delivery Note": ["read"],
 	"Warehouse": ["read"],
-	"Stock Reconciliation": ["read", "write", "create", "submit"],
+	"Stock Reconciliation": ["read"],
+	"Stock Entry": ["read"],
 	# Item va narx formalaridagi Link maydonlari uchun (faqat tanlash)
 	"Price List": ["read"],
 	"Brand": ["read"],
 	"Item Attribute": ["read"],
 	# O'z kategoriyalari: faqat o'z do'koninikini ko'radi (permissions.item_group_query)
 	"Item Group": ["select", "read", "create", "write"],
-	"Rang": ["read", "create"],
+	# O'z ranglari: faqat o'z do'koninikini ko'radi va o'chiradi (permissions.rang_query)
+	"Rang": ["read", "write", "create", "delete"],
 	"UOM": ["select"],
 }
 
+
+# Kuryer: o'z do'konining kuryer bilan yetkaziladigan buyurtmalari (permissions.sales_order_query) va mijozlar.
+# Item/Shop/ombor unga kerak emas — Payme kalitlari va narxlarga umuman tegmaydi
+COURIER_PERMISSIONS = {
+	"Sales Order": ["read", "write"],
+	"Customer": ["read"],
+	"Contact": ["read"],
+}
+
+# Oldin berilgan, endi olib qo'yilgan huquqlar (migrate'da o'chiriladi)
+SELLER_REVOKED = {
+	"Delivery Note": ["write", "create", "submit", "cancel", "delete", "amend"],
+	"Stock Reconciliation": ["write", "create", "submit", "cancel", "delete", "amend"],
+	"Stock Entry": ["write", "create", "submit", "cancel", "delete", "amend"],
+}
 
 # permlevel > 0 dagi ruxsatlar: {doctype: {permlevel: [huquqlar]}}
 SELLER_LEVEL_PERMISSIONS = {"Shop": {1: ["read"]}}
@@ -316,21 +597,35 @@ def after_install():
 def after_migrate():
 	create_custom_fields(CUSTOM_FIELDS, update=True)
 	setup_seller_role()
+	setup_courier_role()
+	setup_sales_role()
 	setup_manager_role()
 	# Strict: shop maydoni bo'sh yozuvlar ham sotuvchiga ko'rinmaydi
 	frappe.db.set_single_value("System Settings", "apply_strict_user_permissions", 1)
 	disable_perpetual_inventory()
+	setup_link_results_limit()
 	setup_variant_attributes()
 	setup_uzs_currency()
 	setup_seller_workspace()
 	setup_admin_workspace()
 	migrate_single_banner()
 	setup_variant_fields()
-	seed_colors()
+	seed_shop_sizes()
 	assign_item_groups_to_shops()
+	setup_sales_order_list()
+	setup_admin_forms()
 	# Tovar qo'shishda kichik dialog emas, to'liq (soddalashtirilgan) forma ochilsin
 	if not frappe.db.exists("Property Setter", {"doc_type": "Item", "property": "quick_entry"}):
 		make_property_setter("Item", None, "quick_entry", "0", "Check", for_doctype=True, validate_fields_for_doctype=False)
+
+
+def setup_admin_forms():
+	"""Kategoriya havolasida ID emas, nomi (mp_title): ID boshqa do'kon bilan to'qnashsa "Kiyimlar (clothes)" bo'ladi
+	(permissions.item_group_before_insert), ko'rinishi esa "Kiyimlar"."""
+	make_property_setter("Item Group", None, "title_field", "mp_title", "Data", for_doctype=True, validate_fields_for_doctype=False)
+	make_property_setter("Item Group", None, "show_title_field_in_link", "1", "Check", for_doctype=True, validate_fields_for_doctype=False)
+	# Eski kategoriyalar: ko'rinadigan nomi — ID'si (to'qnashuvsiz yaratilgan)
+	frappe.db.sql("update `tabItem Group` set mp_title = item_group_name where ifnull(mp_title, '') = ''")
 
 
 def setup_variant_attributes():
@@ -350,10 +645,24 @@ def setup_uzs_currency():
 	"""ERPNext'da UZS belgisi "лв" (bolgar levi) bo'lib keladi. So'm: 189 000 so‘m."""
 	frappe.db.set_value(
 		"Currency", "UZS",
-		{"symbol": "so‘m", "symbol_on_right": 1, "number_format": "# ###.##", "smallest_currency_fraction_value": 1},
+		{"symbol": "so‘m", "symbol_on_right": 1, "number_format": "#,###", "smallest_currency_fraction_value": 1},
 	)
 	# So'mda tiyin amalda ishlatilmaydi: kasr qismini ko'rsatmaymiz
 	frappe.db.set_single_value("System Settings", "currency_precision", "0")
+	# Desk JS currency_precision=0 ni "berilmagan" deb oladi (0 || null) va .00 qo'shadi: 40,480,000.00.
+	# Shuning uchun summa formati valyutaning o'zidan olinadi: 40,480,000 so‘m
+	frappe.db.set_single_value("System Settings", "use_number_format_from_currency", 1)
+	# set_single_value System Settings'ning on_update'ini chaqirmaydi, Desk esa qiymatni global default'dan o'qiydi
+	frappe.db.set_default("currency_precision", "0")
+	frappe.db.set_default("use_number_format_from_currency", "1")
+
+
+def setup_link_results_limit():
+	"""Havola ro'yxatlarida (rang, kategoriya, kontragent, o'lcham) 10 emas, 50 tagacha natija: aks holda alifboda
+	11-o'rindan keyingilar (To'q ko'k, Yashil...) yozmaguncha ko'rinmaydi. 50 — Frappe ruxsat bergan eng ko'pi."""
+	frappe.db.set_single_value("System Settings", "link_field_results_limit", 50)
+	# set_single_value System Settings'ning on_update'ini chaqirmaydi, Desk esa qiymatni global default'dan o'qiydi
+	frappe.db.set_default("link_field_results_limit", "50")
 
 
 def disable_perpetual_inventory():
@@ -386,7 +695,37 @@ def setup_seller_role():
 		add_permission(doctype, SELLER_ROLE, 0)
 		for right in rights:
 			update_permission_property(doctype, SELLER_ROLE, 0, right, 1, validate=False)
+	for doctype, rights in SELLER_REVOKED.items():
+		for right in rights:
+			update_permission_property(doctype, SELLER_ROLE, 0, right, 0, validate=False)
 	set_level_permissions(SELLER_ROLE, SELLER_LEVEL_PERMISSIONS)
+
+
+# Sotuv menejeri: panel API'lari (sotuv/api.py) o'zi tekshiradi va do'kon bo'yicha cheklaydi; bu — ro'yxatlar uchun
+SALES_PERMISSIONS = {
+	"Telefon Qongiroq": ["read"],
+	"Aloqa Yozuvi": ["read"],
+	# Instagram murojaatlari (sotuv/murojaat.py) — menejer holat va qayta qo'ng'iroq sanasini yozadi
+	"Murojaat": ["read", "write"],
+}
+
+
+def setup_sales_role():
+	if not frappe.db.exists("Role", SALES_ROLE):
+		frappe.get_doc({"doctype": "Role", "role_name": SALES_ROLE, "desk_access": 1}).insert(ignore_permissions=True)
+	for doctype, rights in SALES_PERMISSIONS.items():
+		add_permission(doctype, SALES_ROLE, 0)
+		for right in rights:
+			update_permission_property(doctype, SALES_ROLE, 0, right, 1, validate=False)
+
+
+def setup_courier_role():
+	if not frappe.db.exists("Role", COURIER_ROLE):
+		frappe.get_doc({"doctype": "Role", "role_name": COURIER_ROLE, "desk_access": 1}).insert(ignore_permissions=True)
+	for doctype, rights in COURIER_PERMISSIONS.items():
+		add_permission(doctype, COURIER_ROLE, 0)
+		for right in rights:
+			update_permission_property(doctype, COURIER_ROLE, 0, right, 1, validate=False)
 
 
 def set_level_permissions(role, levels):
@@ -414,7 +753,7 @@ def migrate_single_banner():
 # Variant yaratilganda andozadan (template) ko'chiriladigan maydonlar (ERPNext: Item Variant Settings)
 VARIANT_COPY_FIELDS = (
 	"shop", "is_published", "item_group", "mxik_code", "package_code", "old_price", "spec_line",
-	"wholesale_price", "wholesale_min_qty", "variant_price", "description",
+	"wholesale_price", "wholesale_min_qty", "variant_price", "description", "mp_majburiy", "mp_tez_kunda",
 )
 
 
@@ -427,13 +766,6 @@ def setup_variant_fields():
 			settings.append("fields", {"field_name": f})
 		settings.flags.ignore_permissions = True
 		settings.save()
-
-
-def seed_colors():
-	"""ERPNext "Rang" atributidagi mavjud qiymatlar Rang ro'yxatiga ko'chadi (bir marta)."""
-	for v in frappe.get_all("Item Attribute Value", filters={"parent": COLOR_ATTR}, fields=["attribute_value", "color_hex"]):
-		if not frappe.db.exists("Rang", v.attribute_value):
-			frappe.get_doc({"doctype": "Rang", "rang_nomi": v.attribute_value, "hex": v.color_hex}).insert(ignore_permissions=True)
 
 
 def assign_item_groups_to_shops():
@@ -458,3 +790,61 @@ def assign_item_groups_to_shops():
 	for name, shop in owner.items():
 		if not frappe.db.get_value("Item Group", name, "shop"):
 			frappe.db.set_value("Item Group", name, "shop", shop, update_modified=False)
+
+
+def seed_shop_sizes():
+	"""Bir marta: O'lchamlar ro'yxati bo'sh do'konga uning tovarlarida ishlatilgan o'lchamlar yoziladi
+	(va eski Shop.olchamlar matni, agar ustun hali bazada bo'lsa)."""
+	from marketplace.seller_desk import _split, remember_shop_sizes
+
+	has_old = frappe.db.has_column("Shop", "olchamlar")
+	for shop in frappe.get_all("Shop", pluck="name"):
+		if frappe.db.exists("Olcham", {"shop": shop}):
+			continue
+		sizes = _split(frappe.db.get_value("Shop", shop, "olchamlar")) if has_old else []
+		sizes += frappe.db.sql(
+			"""select distinct a.attribute_value from `tabItem Variant Attribute` a
+			join `tabItem` i on i.name = a.parent
+			where i.shop = %s and a.attribute = %s and ifnull(a.attribute_value, '') != ''""",
+			(shop, SIZE_ATTR),
+			pluck=True,
+		)
+		if sizes:
+			from marketplace.storefront import _size_key
+
+			rank = {v: i for i, v in enumerate(SIZES)}
+			remember_shop_sizes(shop, sorted(dict.fromkeys(sizes), key=lambda z: _size_key(z, rank)))
+
+
+def setup_sales_order_list():
+	"""Buyurtmalar ro'yxati ustunlari: mijoz, telefoni, holat, do'kon, to'lov, summa.
+
+	ERPNext'ning "% Amount Billed" (hisob-faktura — Sales Invoice) ustuni olinadi: do'konlarda buxgalteriya yo'q,
+	u doim 0%. "% Delivered" o'rniga holat belgisi (Topshirilgan) bor."""
+	import json
+
+	for field in ("per_billed", "per_delivered"):
+		make_property_setter("Sales Order", field, "in_list_view", "0", "Check", validate_fields_for_doctype=False)
+	make_property_setter("Sales Order", "billing_status", "in_standard_filter", "0", "Check", validate_fields_for_doctype=False)
+	columns = [
+		("customer_name", "Mijoz"),
+		("customer_phone", "Telefon"),
+		("status_field", "Holati"),
+		("shop", "Do'kon"),
+		("payment_status", "To'lov holati"),
+		("payment_method", "To'lov turi"),
+		("grand_total", "Summa"),
+		("name", "ID"),
+	]
+	settings = (
+		frappe.get_doc("List View Settings", "Sales Order")
+		if frappe.db.exists("List View Settings", "Sales Order")
+		else frappe.get_doc({"doctype": "List View Settings", "name": "Sales Order"})
+	)
+	# Telefon to'liq sig'sin: +998 99 801 10 26
+	widths = {"customer_phone": 170}
+	settings.fields = json.dumps(
+		[{"fieldname": f, "label": label, **({"width": widths[f]} if f in widths else {})} for f, label in columns]
+	)
+	settings.flags.ignore_permissions = True
+	settings.save() if not settings.is_new() else settings.insert()

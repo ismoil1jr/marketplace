@@ -94,6 +94,8 @@ def execute(filters=None):
 		},
 		"type": "bar",
 		"colors": ["#1F5C4A"],
+		# Ustun ustiga kelganda 40480000 emas, 40,480,000 so‘m
+		"fieldtype": "Currency",
 	}
 	total_paid = sum(d["paid_amount"] for d in data)
 	summary = [

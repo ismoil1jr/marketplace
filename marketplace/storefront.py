@@ -8,6 +8,9 @@ import frappe
 from frappe import _
 from frappe.utils import cint, flt
 
+from marketplace.marketplace.doctype.rang.rang import color_names, shop_hexes
+from marketplace.permissions import group_title
+
 CACHE_TTL = 300  # 5 daqiqa; tovar/narx o'zgarsa darhol tozalanadi
 
 
@@ -18,9 +21,9 @@ def get_shop(slug):
 		{"name": slug, "status": "Active"},
 		[
 			"name", "shop_name", "tagline", "city", "logo", "cover_image", "brand_color", "layout_style",
-			"instagram", "phone",
+			"instagram", "phone", "pickup_address", "pickup_hours", "pickup_map",
 			"delivery_info", "delivery_short", "banner_label", "banner_title", "banner_image",
-			"banner_group", "enable_payme", "enable_click", "enable_cod", "warehouse",
+			"banner_group", "enable_payme", "enable_click", "enable_cod", "enable_pickup", "warehouse",
 		],
 		as_dict=True,
 	)
@@ -36,9 +39,13 @@ def get_shop(slug):
 	shop.banners = frappe.get_all(
 		"Shop Banner",
 		filters={"parent": shop.name, "parenttype": "Shop", "enabled": 1},
-		fields=["image", "label", "title", "item_group"],
+		fields=["image", "label", "title", "item_group", "item", "button_label"],
 		order_by="idx",
-	) + _carousel_items(shop.name)
+	)
+	_link_banner_items(shop.name, shop.banners)
+	shop.banners += _carousel_items(shop.name)
+	for b in shop.banners:
+		b.item_group = group_title(b.get("item_group"))  # saytda kategoriya kaliti — nomi (_category_tree)
 	shop.layout = resolve_layout(shop)
 	return shop
 
@@ -81,7 +88,8 @@ def _build_catalog(shop):
 		filters={"shop": shop.name, "is_published": 1, "disabled": 0, "variant_of": ["is", "not set"]},
 		fields=[
 			"name", "item_name", "item_group", "image", "old_price", "is_stock_item", "creation",
-			"spec_line", "wholesale_price", "wholesale_min_qty", "has_variants",
+			"spec_line", "wholesale_price", "wholesale_min_qty", "has_variants", "mp_tez_kunda",
+			"variant_price", "standard_rate",
 		],
 		order_by="creation desc",
 	)
@@ -90,6 +98,7 @@ def _build_catalog(shop):
 
 	codes = [i.name for i in items]
 	prices = _get_prices(codes)
+	varying = _varying_prices([i.name for i in items if i.has_variants])
 	stock = _get_stock(codes, shop.warehouse)
 	stock.update(_get_variant_stock([i.name for i in items if i.has_variants], shop.warehouse))
 	thumbs = _get_thumbnails(codes)
@@ -98,8 +107,9 @@ def _build_catalog(shop):
 	result = []
 	for i in items:
 		price = prices.get(i.name)
-		if price is None:
-			continue  # narxsiz tovar sotuvga chiqmaydi
+		if price is None and not i.mp_tez_kunda:
+			continue  # narxsiz tovar sotuvga chiqmaydi ("tez kunda" — narxsiz ham ko'rinadi)
+		price = price or (_soon_price(i) if i.mp_tez_kunda else 0)
 		old = flt(i.old_price)
 		result.append(
 			{
@@ -107,12 +117,16 @@ def _build_catalog(shop):
 				"name": i.item_name,
 				"group": i.item_group,
 				"price": price,
-				"old_price": old if old > price else None,
-				"discount": round((1 - price / old) * 100) if old > price else None,
+				# Rang/o'lchamlar narxi har xil: kartada "100 000 so'mdan" (price — eng arzoni)
+				"price_from": i.name in varying,
+				"old_price": old if old > price > 0 else None,
+				"discount": round((1 - price / old) * 100) if old > price > 0 else None,
 				"thumb": thumbs.get(i.name) or i.image,
 				"images": gallery.get(i.name) or ([i.image] if i.image else []),
-				"in_stock": (stock.get(i.name, 0) > 0) if (i.is_stock_item or i.has_variants) else True,
-				"stock_qty": cint(stock.get(i.name, 0)) if (i.is_stock_item or i.has_variants) else None,
+				# "Tez kunda": ko'rinadi, sevimlilarga qo'shiladi, lekin sotilmaydi (savatga tugma chiqmaydi)
+				"coming_soon": cint(i.mp_tez_kunda),
+				"in_stock": False if i.mp_tez_kunda else (stock.get(i.name, 0) > 0) if (i.is_stock_item or i.has_variants) else True,
+				"stock_qty": None if i.mp_tez_kunda else cint(stock.get(i.name, 0)) if (i.is_stock_item or i.has_variants) else None,
 				"has_variants": cint(i.has_variants),
 				"created": str(i.creation),
 				"is_new": False,
@@ -126,10 +140,45 @@ def _build_catalog(shop):
 		for r in result[:4]:
 			r["is_new"] = True
 
-	# Kategoriyalar Item Group daraxtidagi tartibda (admin belgilagan)
-	used = {r["group"] for r in result}
-	groups = frappe.get_all("Item Group", filters={"name": ["in", list(used)]}, order_by="lft asc", pluck="name")
-	return {"items": result, "groups": groups}
+	groups, tree = _category_tree(shop, result)
+	return {"items": result, "groups": groups, "tree": tree}
+
+
+def _category_tree(shop, items):
+	"""Ustma-ust kategoriyalar (Telefonlar › Xiaomi): har tovarga yo'li ("Telefonlar|Xiaomi") — saytda bosh kategoriya
+	tanlansa, uning ichidagi barcha tovarlar chiqadi. Qaytaradi: bosh kategoriyalar (daraxt tartibida) va
+	{papka: [ichidagi kategoriyalar]} — faqat tovari borlari."""
+	used = {r["group"] for r in items if r.get("group")}
+	if not used:
+		return [], {}
+	rows = frappe.get_all("Item Group", fields=["name", "mp_title", "item_group_name", "lft", "rgt", "shop", "parent_item_group"], order_by="lft asc")
+	by_name = {r.name: r for r in rows}
+	paths = {}
+	for leaf in used:
+		node, path = by_name.get(leaf), []
+		# Yuqoriga — do'konning o'z kategoriyalari bo'ylab (ildiz va boshqa do'konlarniki kirmaydi)
+		while node and (node.shop == shop.name or node.name == leaf):
+			path.insert(0, node.name)
+			node = by_name.get(node.parent_item_group)
+		paths[leaf] = path or [leaf]
+	# Bosh qavatda bitta papka bo'lsa (masalan, faqat "Mebel") — xaridor ortiqcha bosmasin: ichidagilari bosh qavat
+	while paths and len({p[0] for p in paths.values()}) == 1 and all(len(p) > 1 for p in paths.values()):
+		paths = {leaf: p[1:] for leaf, p in paths.items()}
+	for r in items:
+		r["groups"] = "|".join(paths.get(r.get("group"), [r.get("group") or ""]))
+	order = {r.name: r.lft for r in rows}
+	tops = sorted({p[0] for p in paths.values()}, key=lambda n: order.get(n, 0))
+	tree = {}
+	for path in paths.values():
+		for parent, child in zip(path, path[1:]):
+			tree.setdefault(parent, set()).add(child)
+	# Saytda kalit ham, yozuv ham — kategoriya nomi (ID emas: "Kiyimlar (clothes)" -> "Kiyimlar"); do'kon ichida
+	# nomlar takrorlanmaydi (permissions.item_group_before_insert)
+	title = lambda n: (by_name.get(n) or {}).get("mp_title") or (by_name.get(n) or {}).get("item_group_name") or n
+	for r in items:
+		r["groups"] = "|".join(title(n) for n in r["groups"].split("|"))
+		r["group"] = title(r.get("group")) if r.get("group") else r.get("group")
+	return [title(n) for n in tops], {title(k): [title(c) for c in sorted(v, key=lambda n: order.get(n, 0))] for k, v in tree.items()}
 
 
 def get_highlights(catalog):
@@ -142,7 +191,7 @@ def get_highlights(catalog):
 		if first:
 			out.append({"key": key, "label": label, "thumb": first["thumb"], "accent": True})
 	for g in catalog["groups"]:
-		first = next((r for r in items if r["group"] == g), None)
+		first = next((r for r in items if g in (r.get("groups") or r["group"]).split("|")), None)
 		out.append({"key": g, "label": g, "thumb": first["thumb"] if first else None, "accent": False})
 	return out
 
@@ -153,10 +202,27 @@ def get_product(shop, code):
 
 	item = frappe.get_doc("Item", code)
 	price = _get_prices([code]).get(code)
-	if price is None:
+	if price is None and not item.get("mp_tez_kunda"):
 		raise frappe.DoesNotExistError(_("Mahsulot sotuvda emas"))
+	# "Tez kunda": variantlari hali yo'q bo'lsa ham formadagi narx ko'rinadi (yoki narx hali qo'yilmagan — 0)
+	price = price or (_soon_price(item) if item.get("mp_tez_kunda") else 0)
 
-	images = [g.medium or g.image for g in item.get("gallery") or []] or ([item.image] if item.image else [])
+	# Rasm rangga bog'langan bo'lsa (galereyadagi "Rang" ustuni), saytda o'sha rang tanlanganda faqat u chiqadi
+	# src — sahifadagi o'rta o'lcham, full — bosganda ochiladigan asl rasm, thumb — chapdagi kichik rasmcha.
+	# Galereyada Rang ID ("Oq (clothes)"), variantda nomi ("Oq") — saytga nomi beriladi
+	names = color_names([g.get("rang") for g in item.get("gallery") or []])
+	gallery = [
+		{
+			"src": g.medium or g.image,
+			"full": g.image or g.medium,
+			"thumb": g.thumbnail or g.medium or g.image,
+			"color": names.get(g.get("rang"), ""),
+		}
+		for g in item.get("gallery") or []
+	]
+	if not gallery and item.image:
+		gallery = [{"src": item.image, "full": item.image, "thumb": item.image, "color": ""}]
+	images = [g["src"] for g in gallery]
 	options = get_variant_options(item, shop.warehouse) if item.has_variants else None
 	qty = sum(v["qty"] for v in options["variants"].values()) if options else _get_stock([code], shop.warehouse).get(code, 0)
 	old = flt(item.old_price)
@@ -164,20 +230,34 @@ def get_product(shop, code):
 		options=options,
 		code=item.name,
 		name=item.item_name,
-		group=item.item_group,
+		group=group_title(item.item_group),
 		description=_plain_text(item.description),
 		price=price,
-		old_price=old if old > price else None,
-		discount=round((1 - price / old) * 100) if old > price else None,
+		# Variantlar narxi har xil: tanlanmaguncha "…so'mdan", tanlanganda — o'sha variant narxi (storefront.js)
+		price_from=bool(options) and len({v["price"] for v in options["variants"].values() if v["price"]}) > 1,
+		list_price=old,
+		old_price=old if old > price > 0 else None,
+		discount=round((1 - price / old) * 100) if old > price > 0 else None,
 		images=images,
+		gallery=gallery,
 		thumb=_get_thumbnails([code]).get(code) or (images[0] if images else None),
-		in_stock=(qty > 0) if (item.is_stock_item or options) else True,
+		coming_soon=cint(item.get("mp_tez_kunda")),
+		in_stock=False if item.get("mp_tez_kunda") else (qty > 0) if (item.is_stock_item or options) else True,
 		max_qty=cint(qty) if item.is_stock_item else 99,
 	)
 
 
+def get_related(shop, product, limit=12):
+	"""Mahsulot sahifasi pastidagi "O'xshash mahsulotlar": shu do'konning shu kategoriyasidan,
+	avval sotuvda borlari. Katalog keshidan olinadi (qo'shimcha so'rov yo'q)."""
+	same = [p for p in get_catalog(shop)["items"] if p["group"] == product.group and p["code"] != product.code]
+	same.sort(key=lambda p: not p["in_stock"])
+	return same[:limit]
+
+
 def get_variant_options(template, warehouse):
-	"""{'colors': [{value, hex}], 'sizes': [..], 'variants': {'Oq|M': {code, qty}}} — faqat faol variantlar."""
+	"""{'colors': [{value, hex}], 'sizes': [..], 'variants': {'Oq|M': {code, qty, price}}} — faqat faol variantlar.
+	price — variantning o'z narxi (rang/o'lcham bo'yicha har xil bo'lishi mumkin)."""
 	from marketplace.setup import COLOR_ATTR, SIZE_ATTR
 
 	variants = frappe.get_all(
@@ -200,20 +280,61 @@ def get_variant_options(template, warehouse):
 		)
 	used_colors = {v.get(COLOR_ATTR) for v in by_variant.values()}
 	used_sizes = {v.get(SIZE_ATTR) for v in by_variant.values()}
-	colors = [{"value": r.attribute_value, "hex": r.color_hex or "#ccc"} for r in order[COLOR_ATTR] if r.attribute_value in used_colors]
-	sizes = [r.attribute_value for r in order[SIZE_ATTR] if r.attribute_value in used_sizes]
-	# Platforma ro'yxatida yo'q o'lchamlar (masalan 42, 98) — oxirida
-	sizes += sorted(s for s in used_sizes if s and s not in sizes)
+	# Rang namunasi rasmi: galereyada shu rangga bog'langan birinchi rasm, bo'lmasa (eski usul) variantning rasmi
+	tagged = {}
+	names = color_names([g.get("rang") for g in template.get("gallery") or []])
+	for g in template.get("gallery") or []:
+		if g.get("rang"):
+			tagged.setdefault(names[g.rang], g.medium or g.image)
+	# Doiracha rangi — do'konning o'z Rang yozuvidan (ikki do'konda "Oq" har xil bo'lishi mumkin)
+	hexes = shop_hexes(template.shop)
+	pictures = {
+		g.parent: g.medium or g.image
+		for g in frappe.get_all(
+			"Item Gallery", filters={"parent": ["in", variants or [""]], "parenttype": "Item", "idx": 1},
+			fields=["parent", "medium", "image"],
+		)
+	}
+	color_image = {}
+	for code, v in by_variant.items():
+		if pictures.get(code) and v.get(COLOR_ATTR):
+			color_image.setdefault(v[COLOR_ATTR], pictures[code])
+	colors = [
+		{"value": r.attribute_value, "hex": hexes.get(r.attribute_value) or "#ccc", "image": tagged.get(r.attribute_value) or color_image.get(r.attribute_value)}
+		for r in order[COLOR_ATTR]
+		if r.attribute_value in used_colors
+	]
+	# Raqamli o'lchamlar (36, 41, 42.5) — o'sish tartibida, harfli (S, M, L) — platforma ro'yxati tartibida
+	from marketplace.seller_desk import shop_sizes
 
+	own = shop_sizes(template.shop)
+	rank = {v: i for i, v in enumerate(own or [r.attribute_value for r in order[SIZE_ATTR]])}
+	sizes = sorted((s for s in used_sizes if s), key=lambda s: _size_key(s, rank))
+
+	prices = _get_prices(variants) if variants else {}
 	variants_map = {
-		f"{v.get(COLOR_ATTR) or ''}|{v.get(SIZE_ATTR) or ''}": {"code": code, "qty": max(cint(stock.get(code, 0)), 0)}
+		f"{v.get(COLOR_ATTR) or ''}|{v.get(SIZE_ATTR) or ''}": {
+			"code": code, "qty": max(cint(stock.get(code, 0)), 0), "price": prices.get(code),
+		}
 		for code, v in by_variant.items()
 	}
 	return {"colors": colors, "sizes": sizes, "variants": variants_map}
 
 
-def get_cart_lines(shop, lines):
-	"""Savatdagi tovarlarning HOZIRGI narxi va qoldig'i. Brauzerdagi narxga ishonilmaydi."""
+def _size_key(size, rank):
+	"""Do'kon ro'yxatidagi tartib; ro'yxatda yo'qlari — raqamlilari o'sish tartibida, keyin qolganlari."""
+	if size in rank:
+		return (0, rank[size], 0, size)
+	try:
+		return (1, 0, float(size.replace(",", ".")), size)
+	except ValueError:
+		return (2, 0, 0, size)
+
+
+def get_cart_lines(shop, lines, held=None):
+	"""Savatdagi tovarlarning HOZIRGI narxi va qoldig'i. Brauzerdagi narxga ishonilmaydi.
+	held: {kod: soni} — mijozning o'z to'lanmagan buyurtmasi zaxiralagani (qayta rasmiylashtirganda bo'shaydi),
+	shuning uchun savatda "tugagan" bo'lib ko'rinmasin."""
 	qty_by_code = {}
 	for line in lines or []:
 		code, qty = line.get("code"), cint(line.get("qty"))
@@ -226,7 +347,8 @@ def get_cart_lines(shop, lines):
 	items = frappe.get_all(
 		"Item",
 		filters={"name": ["in", list(qty_by_code)], "shop": shop.name, "is_published": 1, "disabled": 0, "has_variants": 0},
-		fields=["name", "item_name", "image", "is_stock_item", "wholesale_price", "wholesale_min_qty", "variant_of"],
+		fields=["name", "item_name", "image", "is_stock_item", "wholesale_price", "wholesale_min_qty", "variant_of", "mp_tez_kunda",
+		        "old_price"],
 	)
 	codes = [i.name for i in items]
 	prices = _get_prices(codes)
@@ -237,22 +359,27 @@ def get_cart_lines(shop, lines):
 		t.name: t
 		for t in frappe.get_all(
 			"Item", filters={"name": ["in", list(templates) or [""]]},
-			fields=["name", "item_name", "image", "wholesale_price", "wholesale_min_qty"],
+			fields=["name", "item_name", "image", "wholesale_price", "wholesale_min_qty", "mp_tez_kunda", "old_price"],
 		)
 	}
 	labels = variant_labels([i.name for i in items if i.variant_of])
+	color_thumbs = _color_thumbs([i.name for i in items if i.variant_of])
 
 	out = []
 	for i in items:
 		if i.name not in prices:
 			continue
-		available = cint(stock.get(i.name, 0)) if i.is_stock_item else 99
+		base = tpl.get(i.variant_of) or i
+		if base.mp_tez_kunda:
+			continue  # "Tez kunda" — sotilmaydi: savatga tushmaydi, buyurtma ham bo'lmaydi
+		available = cint(stock.get(i.name, 0) + (held or {}).get(i.name, 0)) if i.is_stock_item else 99
 		qty = min(qty_by_code[i.name], available)
 		if qty <= 0:
 			continue  # tugagan tovar savatdan tushib qoladi
-		base = tpl.get(i.variant_of) or i
 		ws = _wholesale(base, prices[i.name])
 		price = unit_price(prices[i.name], ws, qty)
+		# Chegirmasiz narx (saytdagi chizilgan eski narx, bo'lmasa oddiy narx) — savatda "Chegirma: −X so'm" shundan
+		old = flt(base.old_price)
 		out.append(
 			{
 				"code": i.name,
@@ -262,14 +389,46 @@ def get_cart_lines(shop, lines):
 				"price": price,
 				"retail_price": prices[i.name],
 				"is_wholesale": price != prices[i.name],
+				"list_price": old if old > prices[i.name] else prices[i.name],
 				"qty": qty,
 				"max_qty": available,
-				"thumb": thumbs.get(i.name) or thumbs.get(i.variant_of) or base.image or i.image,
+				"thumb": color_thumbs.get(i.name) or thumbs.get(i.name) or thumbs.get(i.variant_of) or base.image or i.image,
 				"amount": price * qty,
 				**ws,
 			}
 		)
 	return out
+
+
+def _color_thumbs(variants):
+	"""{variant: rasm} — andoza galereyasida variant rangiga bog'langan birinchi rasm (savatda qora tanlangan bo'lsa, qora)."""
+	from marketplace.setup import COLOR_ATTR
+
+	if not variants:
+		return {}
+	rows = frappe.get_all(
+		"Item", filters={"name": ["in", variants]}, fields=["name", "variant_of"]
+	)
+	colors = dict(
+		frappe.get_all(
+			"Item Variant Attribute",
+			filters={"parent": ["in", variants], "parenttype": "Item", "attribute": COLOR_ATTR},
+			fields=["parent", "attribute_value"],
+			as_list=True,
+		)
+	)
+	gallery = frappe.get_all(
+		"Item Gallery",
+		filters={"parent": ["in", list({r.variant_of for r in rows}) or [""]], "parenttype": "Item", "rang": ["is", "set"]},
+		fields=["parent", "rang", "thumbnail", "image"],
+		order_by="idx asc",
+	)
+	# Galereyada Rang ID ("Oq (clothes)"), variantda nomi ("Oq")
+	names = color_names([g.rang for g in gallery])
+	pics = {}
+	for g in gallery:
+		pics.setdefault((g.parent, names[g.rang]), g.thumbnail or g.image)
+	return {r.name: pics.get((r.variant_of, colors.get(r.name))) for r in rows if pics.get((r.variant_of, colors.get(r.name)))}
 
 
 def variant_labels(codes):
@@ -324,11 +483,17 @@ def clear_catalog_cache(doc, method=None):
 
 def _cache_key(shop_name):
 	# Tuzilma o'zgarsa versiyani oshiring: eski kesh avtomatik e'tiborsiz qoladi
-	return f"marketplace:catalog:v4:{shop_name}"
+	return f"marketplace:catalog:v5:{shop_name}"
 
 
 def _selling_price_list():
 	return frappe.db.get_single_value("Selling Settings", "selling_price_list") or "Standard Selling"
+
+
+def _soon_price(item):
+	""""Tez kunda" tovar: narx ro'yxatida (Item Price) narxi yo'q — variantlari hali yaratilmagan bo'lishi mumkin.
+	Saytda formadagi narx ko'rinadi: "Sotish narxi (barcha variantlarga)" yoki oddiy tovar narxi. Sotilmaydi."""
+	return flt(item.get("variant_price")) or flt(item.get("standard_rate"))
 
 
 def _get_prices(codes):
@@ -353,6 +518,17 @@ def _get_prices(codes):
 	return prices
 
 
+def _varying_prices(templates):
+	"""Variantlari har xil narxdagi andozalar (Desk'da rang/o'lcham bo'yicha alohida narx qo'yilgan)."""
+	children = frappe.get_all("Item", filters={"variant_of": ["in", templates or [""]], "disabled": 0}, fields=["name", "variant_of"])
+	prices = _get_prices([c.name for c in children]) if children else {}
+	seen = {}
+	for c in children:
+		if c.name in prices:
+			seen.setdefault(c.variant_of, set()).add(prices[c.name])
+	return {t for t, values in seen.items() if len(values) > 1}
+
+
 def _get_stock(codes, warehouse):
 	if not warehouse:
 		return {}
@@ -362,6 +538,26 @@ def _get_stock(codes, warehouse):
 		fields=["item_code", "actual_qty", "reserved_qty"],
 	)
 	return {r.item_code: flt(r.actual_qty) - flt(r.reserved_qty) for r in rows}
+
+
+def _link_banner_items(shop, banners):
+	"""Reklama slaydi: tanlangan tovar shu do'konniki va saytda bo'lsa — tugma uning sahifasini ochadi.
+
+	Tovar yashirilsa yoki o'chirilsa slayd qoladi, tugma kategoriyaga (yoki umuman yo'q) qaytadi."""
+	codes = {b.item for b in banners if b.get("item")}
+	if not codes:
+		return
+	rows = frappe.get_all(
+		"Item",
+		filters={"name": ["in", list(codes)], "shop": shop, "is_published": 1, "disabled": 0},
+		fields=["name", "variant_of"],
+	)
+	live = {r.name: r.variant_of or r.name for r in rows}
+	for b in banners:
+		code = live.get(b.get("item"))
+		if code:
+			b.url = f"/s/{shop}/p/{code}"
+			b.button = b.button_label or "Tovarni ko‘rish"
 
 
 def _carousel_items(shop):

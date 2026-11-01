@@ -129,6 +129,20 @@ svg { width: 20px; height: 20px; flex: none; }
 .sf-otp__botbox { margin-top: 12px; padding: 12px 14px; border-radius: 14px; background: color-mix(in srgb, var(--brand) 8%, transparent); }
 .sf-otp__steps { margin: 0 0 12px; padding-left: 20px; font-size: 13px; line-height: 1.6; }
 
+/* Telegram orqali kirish (macros.html auth_form) */
+.sf-btn--tg { background: #2AABEE; border-color: #2AABEE; color: #fff; }
+.sf-btn--tg svg { width: 22px; height: 22px; }
+.sf-btn--tg[aria-disabled="true"] { opacity: .6; pointer-events: none; }
+.sf-tg { margin-top: 12px; padding: 12px 14px; border-radius: 14px; background: color-mix(in srgb, #2AABEE 9%, transparent); }
+.sf-tg__code { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 10px; padding-bottom: 10px;
+	border-bottom: 1px solid color-mix(in srgb, #2AABEE 20%, transparent); }
+.sf-tg__code span { color: var(--muted); font-size: 13px; }
+.sf-tg__code b { font-size: 26px; letter-spacing: .18em; font-variant-numeric: tabular-nums; }
+.sf-tg__wait { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--muted); font-size: 13px; }
+.sf-tg__spin { width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: sf-spin .8s linear infinite; }
+@keyframes sf-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .sf-tg__spin { animation: none; } }
+
 /* ---------- Karusel (sotuvchi Shop → Karusel jadvalidan) ---------- */
 .sf-carousel { position: relative; margin-top: 12px; border-radius: 20px; overflow: hidden; background: color-mix(in srgb, var(--brand) 14%, var(--bg)); }
 .sf-carousel__track { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scroll-behavior: smooth; scrollbar-width: none; }
@@ -169,6 +183,15 @@ svg { width: 20px; height: 20px; flex: none; }
 	background: var(--sale); color: #fff; font-size: 12px; font-weight: 700;
 }
 .sf-badge--muted { background: rgb(27 27 26 / .75); }
+/* Chegirma + "Tez kunda" / "Tugagan" birga: ikkinchisi pastroqda (ustma-ust tushmasin) */
+.sf-badge + .sf-badge { top: 38px; }
+/* "Tez kunda": ko'rinadi, lekin sotilmaydi — rasm och, yorliq ko'k */
+.sf-badge--soon { background: #2563EB; }
+.sf-card.is-soon img, .sf-card.is-soon .sf-card__ph { opacity: .55; filter: grayscale(.35); }
+.sf-stock--soon { color: #2563EB; font-weight: 600; }
+.kt-soon { color: #2563EB; font-weight: 600; }
+.sf-soon-note { display: grid; gap: 8px; flex: 1; }
+.sf-soon-note p { margin: 0; font-size: 13px; }
 .sf-badge--inline { position: static; }
 .sf-fav {
 	position: absolute; top: 10px; right: 10px; display: grid; place-items: center;
@@ -233,6 +256,54 @@ svg { width: 20px; height: 20px; flex: none; }
 .sf-dots span { width: 6px; height: 6px; border-radius: 3px; background: rgb(0 0 0 / .25); transition: width .2s ease; }
 .sf-dots span.is-active { width: 20px; background: var(--dark); }
 
+/* Galereya: rasm butunligicha ko'rinadi (kesilmaydi), bosilsa to'liq ekranda ochiladi */
+.sf-gallery__main { position: relative; }
+.sf-gallery__track > img { object-fit: contain; cursor: zoom-in; }
+.sf-thumbs { display: none; }
+.sf-gallery__nav {
+	display: none; position: absolute; top: 50%; width: 40px; height: 40px; margin-top: -20px; padding: 0;
+	border: 0; border-radius: 50%; background: rgb(255 255 255 / .92); color: var(--dark);
+	box-shadow: 0 2px 10px rgb(0 0 0 / .12); cursor: pointer; place-items: center;
+}
+.sf-gallery__nav svg { width: 18px; height: 18px; }
+.sf-gallery__nav--prev { left: 12px; }
+.sf-gallery__nav--next { right: 12px; }
+.sf-gallery__nav--next svg, .sf-lightbox__nav--next svg { transform: rotate(180deg); }
+
+/* O'xshash mahsulotlar */
+.sf-related { padding: 0 var(--gutter) 120px; }
+.sf-product:has(+ .sf-related) .sf-sheet { padding-bottom: 96px; }
+
+/* To'liq ekran */
+html.sf-noscroll, html.sf-noscroll body { overflow: hidden; }
+.sf-lightbox { position: fixed; inset: 0; z-index: 1000; background: #000; }
+.sf-lightbox[hidden] { display: none; }
+.sf-lightbox__track {
+	display: flex; width: 100%; height: 100%; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none;
+}
+.sf-lightbox__track::-webkit-scrollbar { display: none; }
+.sf-lightbox__track figure {
+	flex: 0 0 100%; height: 100%; margin: 0; display: grid; place-items: center; scroll-snap-align: center;
+	padding: calc(56px + env(safe-area-inset-top)) 0 calc(48px + env(safe-area-inset-bottom));
+}
+.sf-lightbox__track img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.sf-lightbox__count {
+	position: absolute; left: 0; right: 0; bottom: calc(16px + env(safe-area-inset-bottom));
+	text-align: center; color: #fff; font-size: 14px; opacity: .8;
+}
+.sf-lightbox__close {
+	position: absolute; top: calc(10px + env(safe-area-inset-top)); right: 12px; width: 44px; height: 44px;
+	border: 0; border-radius: 50%; background: rgb(255 255 255 / .14); color: #fff; font-size: 30px; line-height: 1; cursor: pointer;
+}
+.sf-lightbox__nav {
+	display: none; position: absolute; top: 50%; width: 52px; height: 52px; margin-top: -26px; padding: 0;
+	border: 0; border-radius: 50%; background: rgb(255 255 255 / .14); color: #fff; cursor: pointer; place-items: center;
+}
+.sf-lightbox__nav svg { width: 22px; height: 22px; }
+.sf-lightbox__nav--prev { left: 20px; }
+.sf-lightbox__nav--next { right: 20px; }
+.sf-lightbox.is-single .sf-lightbox__nav, .sf-lightbox.is-single .sf-lightbox__count { display: none !important; }
+
 .sf-sheet {
 	position: relative; margin-top: -24px; padding: 24px var(--gutter) 120px;
 	background: var(--bg); border-radius: 24px 24px 0 0;
@@ -277,9 +348,58 @@ svg { width: 20px; height: 20px; flex: none; }
 .sf-line__name { font-weight: 500; }
 .sf-line__row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .sf-line__note { color: var(--sale); font-size: 12px; }
+.sf-line__top { display: flex; align-items: flex-start; gap: 8px; }
+.sf-line__top .sf-line__name { flex: 1; min-width: 0; }
+.sf-line__trash {
+	flex: none; display: grid; place-items: center; width: 32px; height: 32px; margin: -6px -6px 0 0;
+	border: 0; border-radius: 50%; background: none; color: var(--muted); cursor: pointer;
+}
+.sf-line__trash svg, .sf-swipe__del svg { width: 20px; height: 20px; }
+.sf-line__trash:hover { color: var(--sale); background: var(--tile); }
+/* Chapga surilganda ostidan qizil "O'chirish" chiqadi */
+.sf-swipe { position: relative; margin-bottom: 10px; border-radius: var(--radius); overflow: hidden; transition: opacity .2s, max-height .2s; max-height: 400px; }
+.sf-swipe .sf-line { position: relative; margin: 0; transition: transform .2s ease; touch-action: pan-y; }
+.sf-swipe__del {
+	position: absolute; top: 1px; right: 1px; bottom: 1px; width: 100%; padding-right: 18px;
+	display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 4px;
+	border: 0; border-radius: var(--radius); background: var(--sale); color: #fff; font-size: 12px; cursor: pointer;
+	visibility: hidden;
+}
+.sf-swipe.is-open .sf-swipe__del { visibility: visible; }
+.sf-swipe.is-gone { opacity: 0; max-height: 0; margin-bottom: 0; }
+/* O'chirildi — 5 soniya "Qaytarish" (pastdagi chiziq qisqarib boradi) */
+.sf-swipe.is-removing .sf-line { opacity: .3; filter: grayscale(1); pointer-events: none; }
+.sf-swipe.is-removing .sf-swipe__del { visibility: hidden; }
+.sf-undo {
+	position: absolute; inset: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+	padding: 0 8px 0 18px; border-radius: var(--radius); font-weight: 500;
+	background: color-mix(in srgb, var(--surface) 82%, transparent);
+}
+.sf-undo__btn {
+	min-height: 44px; padding: 0 16px; border: 0; border-radius: 12px; cursor: pointer;
+	background: var(--dark); color: #fff; font: inherit; font-weight: 600;
+}
+.sf-undo__bar {
+	position: absolute; left: 12px; right: 12px; bottom: 6px; height: 3px; border-radius: 3px; background: var(--brand);
+	transform-origin: left; animation: sf-undo linear forwards;
+}
+@keyframes sf-undo { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+@media (prefers-reduced-motion: reduce) { .sf-undo__bar { animation: none; } }
+.sf-stepper button:disabled { opacity: .3; cursor: default; }
+.sf-pending {
+	display: grid; gap: 4px; margin: 0 0 12px; padding: 12px 14px; border-radius: 14px;
+	background: color-mix(in srgb, var(--brand) 8%, var(--surface)); font-size: 14px;
+}
+.sf-pending small { color: var(--muted); }
+.sf-pickup { display: grid; gap: 4px; padding: 12px 14px; border-radius: 14px; background: var(--tile); }
+.sf-pickup p { margin: 0; white-space: pre-line; }
+.sf-pickup small { color: var(--muted); }
 .sf-summary { display: grid; gap: 10px; margin: 18px 0; padding: 18px; background: var(--surface); border-radius: var(--radius); }
 .sf-summary > div { display: flex; justify-content: space-between; color: var(--muted); }
 .sf-summary__total { padding-top: 12px; border-top: 1px solid var(--line); color: var(--ink) !important; font-size: 17px; }
+.sf-summary__save span:last-child { color: var(--ok); font-weight: 600; }
+.sf-line__price { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; min-width: 0; }
+.sf-line__price s { color: var(--muted); font-size: 13px; }
 .sf-checkout {
 	position: fixed; left: 0; right: 0; bottom: 0; padding: 12px var(--gutter) calc(12px + env(safe-area-inset-bottom));
 	background: linear-gradient(transparent, var(--bg) 30%);
@@ -336,7 +456,22 @@ svg { width: 20px; height: 20px; flex: none; }
 
 	/* Mahsulot sahifasi: rasm chapda, ma'lumot o'ngda */
 	.sf-product { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; max-width: 1180px; margin: 0 auto; padding: 24px var(--gutter); }
-	.sf-gallery { border-radius: 24px; overflow: hidden; align-self: start; position: sticky; top: 24px; }
+	.sf-gallery { display: flex; gap: 12px; align-self: start; position: sticky; top: 24px; background: none; }
+	.sf-gallery__main { flex: 1; min-width: 0; border-radius: 24px; overflow: hidden; background: var(--tile); }
+	/* Uzum kabi: chapda kichik rasmlar ustuni, rasm ustida strelkalar */
+	.sf-thumbs { display: flex; flex-direction: column; gap: 8px; width: 68px; max-height: 560px; overflow-y: auto; scrollbar-width: thin; }
+	.sf-thumbs__item {
+		flex: 0 0 auto; width: 64px; height: 84px; padding: 0; border: 2px solid transparent; border-radius: 10px;
+		overflow: hidden; background: var(--tile); cursor: pointer;
+	}
+	.sf-thumbs__item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+	.sf-thumbs__item.is-active { border-color: var(--dark); }
+	.sf-thumbs__item[hidden] { display: none; }
+	.sf-gallery__nav, .sf-lightbox__nav { display: grid; }
+	.sf-gallery__nav[hidden] { display: none; }
+	.sf-related { max-width: 1180px; margin: 8px auto 0; padding: 0 var(--gutter) 48px; }
+	.sf-related .sf-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+	.sf-product:has(+ .sf-related) .sf-sheet { padding-bottom: 0; }
 	.sf-dots { bottom: 16px; }
 	.sf-sheet { margin: 0; padding: 8px 0 0; border-radius: 0; background: none; }
 	.sf-sheet h1 { font-size: 30px; }
@@ -517,6 +652,7 @@ svg { width: 20px; height: 20px; flex: none; }
 	background: rgb(18 17 16 / .65); color: #fff; font-size: 12px; font-weight: 600; backdrop-filter: blur(6px);
 }
 .st-card .sf-badge { top: 14px; left: 14px; }
+.st-card .sf-badge + .sf-badge { top: 42px; }
 .st-card .sf-fav { top: 12px; right: 12px; }
 .st-card__body { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px 16px; }
 .st-card__name { display: block; font-weight: 500; font-size: 16px; }
@@ -575,7 +711,7 @@ svg { width: 20px; height: 20px; flex: none; }
 .kt-toggle button { height: 42px; border-radius: 11px; font-weight: 500; color: var(--muted); }
 .kt-toggle button.is-active { background: var(--surface); color: var(--ink); font-weight: 600; box-shadow: 0 1px 3px rgb(0 0 0 / .08); }
 .kt-searchrow { display: flex; gap: 8px; margin-top: 12px; }
-.kt-searchrow .sf-search { flex: 1; height: 46px; border-radius: 12px; }
+.kt-searchrow .sf-search { flex: 1; min-width: 0; height: 46px; border-radius: 12px; }
 .kt-sort { flex: none; max-width: 130px; height: 46px; padding: 0 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
 
 .kt-tabs {
@@ -627,7 +763,27 @@ svg { width: 20px; height: 20px; flex: none; }
 	.kt-price { text-align: right; }
 	.kt-bar { left: 50%; right: auto; bottom: 16px; width: min(640px, calc(100% - 48px)); transform: translateX(-50%); border: 1px solid var(--line); border-radius: 18px; padding: 10px 10px 10px 20px; }
 }
-@media (max-width: 480px) { .kt-sort { display: none; } }
+.kt-filterbtn { position: relative; flex: none; display: flex; align-items: center; gap: 6px; height: 46px; padding: 0 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); font-weight: 500; }
+.kt-filterbtn svg { width: 18px; height: 18px; }
+.kt-filterbtn[aria-expanded=true] { border-color: var(--brand); color: var(--brand); }
+.kt-filterbtn__n { display: grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 99px; background: var(--brand); color: #fff; font-size: 11px; }
+.kt-filters { display: grid; grid-template-columns: 1fr; gap: 12px; margin-top: 10px; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.kt-filters[hidden] { display: none; }
+.kt-filters__f { display: grid; gap: 6px; font-size: 13px; color: var(--muted); }
+.kt-filters__f select { height: 44px; padding: 0 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); font-size: 15px; }
+.kt-filters .sf-range { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.kt-filters .sf-range input { -moz-appearance: textfield; appearance: textfield; width: 100%; height: 44px; padding: 0 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); outline: 0; font-size: 15px; }
+.kt-filters .sf-range input:focus { border-color: var(--brand); }
+.kt-filters__check { display: flex; align-items: center; gap: 8px; font-size: 15px; }
+.kt-filters__check input { width: 18px; height: 18px; accent-color: var(--brand); }
+.kt-filters .sf-reset { width: 100%; height: 40px; border-radius: 12px; border: 1px dashed var(--line); color: var(--muted); font-size: 14px; font-weight: 500; }
+.kt-resultrow { margin-top: 10px; color: var(--muted); font-size: 13px; }
+.kt .sf-carousel { margin: 0 0 14px; }
+@media (min-width: 760px) {
+	.kt-filters { grid-template-columns: 180px 1fr auto auto; align-items: end; }
+	.kt-filters__check { height: 44px; }
+	.kt-filters .sf-reset { width: auto; padding: 0 14px; height: 44px; }
+}
 @media (max-width: 380px) {
 	.kt-row__img { width: 64px; height: 64px; }
 	.kt-add { padding: 0 12px; }
@@ -683,14 +839,21 @@ svg { width: 20px; height: 20px; flex: none; }
 .sf-ordercard { display: grid; gap: 2px; }
 .sf-ordercard__no { font-size: 18px; letter-spacing: .01em; }
 .sf-ordercard__row { display: flex; justify-content: space-between; gap: 10px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.sf-addr { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.sf-addr__view { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.sf-addr__text { display: grid; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
+.sf-addr__edit { flex: none; height: 40px; padding: 0 14px; font-size: 14px; }
+.sf-addr .sf-field { margin-bottom: 10px; }
+.sf-addr__btns { display: flex; gap: 8px; }
+.sf-addr__btns .sf-btn { flex: 1; height: 46px; }
 .sf-pay { display: grid; gap: 10px; }
 .sf-pay__opt { position: relative; display: flex; align-items: center; gap: 14px; padding: 14px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); cursor: pointer; }
 .sf-pay__opt input { position: absolute; opacity: 0; }
 .sf-pay__opt:has(input:checked) { border: 2px solid var(--brand); padding: 13px; }
 .sf-pay__opt.is-soon { opacity: .55; cursor: not-allowed; }
 .sf-pay__icon { display: grid; place-items: center; width: 50px; height: 50px; border-radius: 12px; background: var(--tile); }
-.sf-pay__icon--payme { background: #DFF1F0; color: #0E7C7B; }
-.sf-pay__icon--click { background: #E3E8FB; color: #2D4BC9; }
+.sf-pay__icon--logo { width: 76px; background: #fff; border: 1px solid var(--line); }
+.sf-pay__icon--logo img { width: 60px; height: 22px; object-fit: contain; }
 .sf-pay__icon--naqd { background: #EFEBE3; color: #6A5A3C; }
 .sf-pay__text { flex: 1; display: grid; }
 .sf-pay__text small { color: var(--muted); }
@@ -711,6 +874,14 @@ svg { width: 20px; height: 20px; flex: none; }
 .sf-pagehead > .sf-link { flex: none; font-size: 14px; white-space: nowrap; }
 .sf-whoami { margin: -4px 0 0; }
 .sf-orows { display: grid; gap: 10px; }
+.sf-orow-wrap { display: grid; }
+.sf-orow-wrap:has(.sf-pdf) .sf-orow { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.sf-pdf {
+	display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 42px; padding: 0 14px;
+	border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--brand); font-weight: 500; font-size: 14px;
+}
+.sf-orow-wrap .sf-pdf { border-top: 1px dashed var(--line); border-top-left-radius: 0; border-top-right-radius: 0; }
+.sf-pdf svg { width: 18px; height: 18px; }
 .sf-orow {
 	display: flex; align-items: center; justify-content: space-between; gap: 12px;
 	padding: 14px 16px; background: var(--surface); border-radius: var(--radius);
@@ -776,3 +947,24 @@ svg { width: 20px; height: 20px; flex: none; }
 .sf-size.is-out.is-active { background: transparent; color: var(--muted); border-color: var(--ink); }
 .sf-variants__stock { margin: 12px 0 0; color: var(--ok); font-size: 14px; font-weight: 500; min-height: 20px; }
 .sf-line__variant { color: var(--muted); font-size: 13px; }
+
+/* Ustma-ust kategoriyalar: bosh kategoriya ostida yo'l (Telefonlar › Xiaomi) va ichki kategoriyalar */
+.sf-subcats { display: grid; gap: 8px; margin: 14px 0; }
+.sf-subcats__path { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 14px; color: var(--muted); }
+.sf-subcats__path button { border: 0; background: none; padding: 0; color: var(--muted); font: inherit; cursor: pointer; text-decoration: underline; }
+.sf-subcats__path b { color: var(--ink, inherit); }
+.sf-subcats__chips { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.sf-subcats__chips::-webkit-scrollbar { display: none; }
+.sf-subcats__chips button { flex: none; height: 34px; padding: 0 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface);
+	font: inherit; font-size: 14px; cursor: pointer; white-space: nowrap; }
+.sf-subcats__chips button.is-active { background: var(--ink, #1b1b1b); border-color: var(--ink, #1b1b1b); color: var(--surface, #fff); }
+
+
+/* Majburiy tovar ogohlantirishi (savat) */
+.sf-must { border: 2px solid #F59E0B; background: #FFFBEB; }
+.sf-must h2 { margin-bottom: 4px; }
+.sf-must__item { display: flex; gap: 12px; align-items: center; padding: 10px 0; border-top: 1px solid rgb(0 0 0 / .08); }
+.sf-must__item img { width: 64px; height: 64px; object-fit: cover; border-radius: 12px; flex: none; }
+.sf-must__info { flex: 1; display: grid; gap: 2px; min-width: 0; }
+.sf-must__deal { justify-self: start; padding: 2px 8px; border-radius: 8px; background: var(--sale, #DC2626); color: #fff; font-size: 12px; font-weight: 600; }
+.sf-must__call { margin: 8px 0 0; font-size: 14px; }

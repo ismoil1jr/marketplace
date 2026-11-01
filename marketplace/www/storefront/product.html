@@ -1,30 +1,45 @@
 {% extends "marketplace/templates/storefront/base.html" %}
 
+{% from "marketplace/templates/storefront/macros.html" import product_card %}
+
 {% block title %}{% autoescape true %}{{ product.name }} — {{ shop.shop_name }}{% endautoescape %}{% endblock %}
 {% block body_class %}page-product layout-{{ shop.layout }}{% endblock %}
 
 {% block content %}{% autoescape true %}
 <div class="sf-product">
 	<section class="sf-gallery">
-		<div class="sf-gallery__track" data-gallery>
-			{% for img in product.images %}
-			<img src="{{ img }}" alt="{{ product.name }}" width="1200" height="1200" decoding="async"
-				loading="{{ 'eager' if loop.first else 'lazy' }}">
-			{% else %}
-			<div class="sf-gallery__ph"><svg><use href="#i-image"/></svg></div>
+		{% if product.gallery | length > 1 %}
+		<div class="sf-thumbs" data-thumbs>
+			{% for img in product.gallery %}
+			<button type="button" class="sf-thumbs__item{{ ' is-active' if loop.first else '' }}" data-color="{{ img.color }}" aria-label="{{ loop.index }}-rasm">
+				<img src="{{ img.thumb }}" alt="" width="72" height="72" loading="lazy" decoding="async">
+			</button>
 			{% endfor %}
 		</div>
-		{% if product.images | length > 1 %}
-		<div class="sf-dots" data-dots>
-			{% for img in product.images %}<span class="{{ 'is-active' if loop.first else '' }}"></span>{% endfor %}
-		</div>
 		{% endif %}
-		<div class="sf-gallery__bar">
-			<a class="sf-round" href="{{ base }}" aria-label="Orqaga"><svg><use href="#i-back"/></svg></a>
-			<span>
-				<button class="sf-round" type="button" data-share aria-label="Ulashish"><svg><use href="#i-share"/></svg></button>
-				<button class="sf-round sf-fav--inline" type="button" data-fav="{{ product.code }}" aria-label="Sevimlilarga qo‘shish"><svg><use href="#i-heart"/></svg></button>
-			</span>
+		<div class="sf-gallery__main">
+			<div class="sf-gallery__track" data-gallery>
+				{% for img in product.gallery %}
+				<img src="{{ img.src }}" data-full="{{ img.full }}" alt="{{ product.name }}" width="1200" height="1200" decoding="async" data-color="{{ img.color }}"
+					loading="{{ 'eager' if loop.first else 'lazy' }}">
+				{% else %}
+				<div class="sf-gallery__ph"><svg><use href="#i-image"/></svg></div>
+				{% endfor %}
+			</div>
+			{% if product.gallery | length > 1 %}
+			<button type="button" class="sf-gallery__nav sf-gallery__nav--prev" data-gallery-step="-1" aria-label="Oldingi rasm"><svg><use href="#i-back"/></svg></button>
+			<button type="button" class="sf-gallery__nav sf-gallery__nav--next" data-gallery-step="1" aria-label="Keyingi rasm"><svg><use href="#i-back"/></svg></button>
+			<div class="sf-dots" data-dots>
+				{% for img in product.gallery %}<span class="{{ 'is-active' if loop.first else '' }}"></span>{% endfor %}
+			</div>
+			{% endif %}
+			<div class="sf-gallery__bar">
+				<a class="sf-round" href="{{ base }}" aria-label="Orqaga"><svg><use href="#i-back"/></svg></a>
+				<span>
+					<button class="sf-round" type="button" data-share aria-label="Ulashish"><svg><use href="#i-share"/></svg></button>
+					<button class="sf-round sf-fav--inline" type="button" data-fav="{{ product.code }}" aria-label="Sevimlilarga qo‘shish"><svg><use href="#i-heart"/></svg></button>
+				</span>
+			</div>
 		</div>
 	</section>
 
@@ -32,9 +47,9 @@
 		<a class="sf-sheet__shop sf-only-desktop" href="{{ base }}">← {{ shop.shop_name }}</a>
 		<h1>{{ product.name }}</h1>
 		<div class="sf-sheet__price">
-			<strong>{{ fmt_sum(product.price) }}</strong>
-			{% if product.old_price %}<s>{{ fmt_sum(product.old_price) }}</s><span class="sf-badge sf-badge--inline">−{{ product.discount }}%</span>{% endif %}
-			{% if product.in_stock %}<span class="sf-stock">Omborda bor</span>{% else %}<span class="sf-stock sf-stock--out">Tugagan</span>{% endif %}
+			<strong data-price-now="{{ product.price }}">{% if product.price %}{{ fmt_sum(product.price) }}{% if product.price_from %}dan{% endif %}{% else %}Narxi tez kunda{% endif %}</strong>
+			{% if product.old_price %}<s data-price-old="{{ product.list_price }}">{{ fmt_sum(product.old_price) }}</s><span class="sf-badge sf-badge--inline" data-price-badge>−{{ product.discount }}%</span>{% endif %}
+			{% if product.coming_soon %}<span class="sf-stock sf-stock--soon">Tez kunda</span>{% elif product.in_stock %}<span class="sf-stock">Sotuvda bor</span>{% else %}<span class="sf-stock sf-stock--out">Tugagan</span>{% endif %}
 		</div>
 
 		{% if product.options %}
@@ -71,10 +86,33 @@
 				<button type="button" data-step="1" aria-label="Ko‘paytirish"><svg><use href="#i-plus"/></svg></button>
 			</div>
 			<button class="sf-btn sf-btn--brand sf-btn--grow" type="button" data-buy-add>Savatga qo‘shish</button>
+			{% elif product.coming_soon %}
+			<div class="sf-soon-note">
+				<button class="sf-btn sf-btn--grow" type="button" disabled>Tez kunda sotuvga chiqadi</button>
+				<p class="sf-muted">Hozircha sotib bo‘lmaydi. ♡ Sevimlilarga qo‘shib qo‘ying — sotuvga chiqqanda shu yerda topasiz.</p>
+			</div>
 			{% else %}
 			<button class="sf-btn sf-btn--grow" type="button" disabled>Hozircha mavjud emas</button>
 			{% endif %}
 		</div>
 	</section>
+</div>
+
+{% if related %}
+<section class="sf-related" data-related>
+	<h2 class="sf-h2">O‘xshash mahsulotlar</h2>
+	<div class="sf-grid">
+		{% for p in related %}{{ product_card(p, base, 99) }}{% endfor %}
+	</div>
+</section>
+{% endif %}
+
+{# To'liq ekranda rasm: rasm bosilganda ochiladi #}
+<div class="sf-lightbox" data-lightbox hidden role="dialog" aria-modal="true" aria-label="{{ product.name }}">
+	<div class="sf-lightbox__track" data-lightbox-track></div>
+	<span class="sf-lightbox__count" data-lightbox-count></span>
+	<button type="button" class="sf-lightbox__close" data-lightbox-close aria-label="Yopish">&times;</button>
+	<button type="button" class="sf-lightbox__nav sf-lightbox__nav--prev" data-lightbox-step="-1" aria-label="Oldingi rasm"><svg><use href="#i-back"/></svg></button>
+	<button type="button" class="sf-lightbox__nav sf-lightbox__nav--next" data-lightbox-step="1" aria-label="Keyingi rasm"><svg><use href="#i-back"/></svg></button>
 </div>
 {% endautoescape %}{% endblock %}

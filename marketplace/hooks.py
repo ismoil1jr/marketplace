@@ -36,7 +36,7 @@ add_to_apps_screen = [
 # include js, css files in header of desk.html
 # app_include_css = "/assets/marketplace/css/marketplace.css"
 # Desk'da yangi buyurtma signali (ovoz + ekrandagi xabar)
-app_include_js = "/assets/marketplace/js/seller_notify.js"
+app_include_js = ["/assets/marketplace/js/seller_notify.js", "/assets/marketplace/js/stock_views.js", "/assets/marketplace/js/voice_note.js"]
 
 # include js, css files in header of web template
 # web_include_css = "/assets/marketplace/css/marketplace.css"
@@ -55,11 +55,18 @@ app_include_js = "/assets/marketplace/js/seller_notify.js"
 # include js in doctype views
 # doctype_js = {"doctype" : "public/js/doctype.js"}
 # Sotuvchi uchun soddalashtirilgan tovar formasi
-doctype_js = {"Item": "public/js/item_seller.js", "Sales Order": "public/js/sales_order_seller.js"}
+doctype_js = {
+	"Item": "public/js/item_seller.js",
+	"Sales Order": "public/js/sales_order_seller.js",
+	# Do'kon kategoriyasi: papka belgisi yashirin, daraxt oynasida MXIK va qadoq kodi
+	"Item Group": "public/js/item_group_seller.js",
+	# Admin: foydalanuvchini do'konga biriktirish; rollar ro'yxatida faqat marketplace rollari (ERPNext'niki yashirin)
+	"User": "public/js/user_admin.js",
+}
 doctype_list_js = {"Sales Order": "public/js/sales_order_list.js", "Item": "public/js/item_list_seller.js"}
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_kanban_js = {"doctype" : "public/js/doctype_kanban.js"}
-# doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
+doctype_tree_js = {"Item Group": "public/js/item_group_seller.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
 
 # Svg Icons
@@ -106,6 +113,8 @@ before_request = ["marketplace.payments.before_request"]
 
 # Sotuvchiga Desktop'da faqat o'z do'koni ikonkasi
 boot_session = "marketplace.seller_desk.boot_session"
+# Adminning "Do'kon paneliga kirish" holati sessiyaga bog'liq: keshlanmaydigan qism
+extend_bootinfo = "marketplace.seller_desk.extend_bootinfo"
 
 after_install = "marketplace.setup.after_install"
 after_migrate = "marketplace.setup.after_migrate"
@@ -173,6 +182,17 @@ website_route_rules = [
 # Sotuvchi faqat o'z buyurtmachilarini ko'radi
 permission_query_conditions = {
 	"Item": "marketplace.permissions.item_query",
+	"Kontragent": "marketplace.permissions.kontragent_query",
+	"Telegram Mijoz": "marketplace.permissions.telegram_mijoz_query",
+	"Shop": "marketplace.permissions.shop_list_query",
+	"Doimiy Mijoz": "marketplace.permissions.doimiy_mijoz_query",
+	"Olcham": "marketplace.permissions.olcham_query",
+	"Telefon Qongiroq": "marketplace.permissions.telefon_qongiroq_query",
+	"Aloqa Yozuvi": "marketplace.permissions.aloqa_yozuvi_query",
+	"Murojaat": "marketplace.permissions.murojaat_query",
+	"Majburiy Tasdiq": "marketplace.permissions.majburiy_tasdiq_query",
+	"Rang": "marketplace.permissions.rang_query",
+	"Warehouse": "marketplace.permissions.warehouse_query",
 	"Sales Order": "marketplace.permissions.sales_order_query",
 	"Delivery Note": "marketplace.permissions.delivery_note_query",
 	"Item Price": "marketplace.permissions.item_price_query",
@@ -181,6 +201,20 @@ permission_query_conditions = {
 	"Contact": "marketplace.permissions.contact_query",
 }
 has_permission = {
+	"Sales Order": "marketplace.permissions.sales_order_has_permission",
+	# Do'konga tegishli yozuvlar: a'zo — faqat o'z do'koniniki, a'zo bo'lmagan (admin emas) — hech biri
+	"Item": "marketplace.permissions.shop_doc_has_permission",
+	"Item Price": "marketplace.permissions.shop_doc_has_permission",
+	"Delivery Note": "marketplace.permissions.shop_doc_has_permission",
+	"Kontragent": "marketplace.permissions.shop_doc_has_permission",
+	"Doimiy Mijoz": "marketplace.permissions.shop_doc_has_permission",
+	"Telegram Mijoz": "marketplace.permissions.shop_doc_has_permission",
+	"Olcham": "marketplace.permissions.shop_doc_has_permission",
+	"Telefon Qongiroq": "marketplace.permissions.shop_doc_has_permission",
+	"Aloqa Yozuvi": "marketplace.permissions.shop_doc_has_permission",
+	"Rang": "marketplace.permissions.shop_doc_has_permission",
+	"Payment Transaction": "marketplace.permissions.shop_doc_has_permission",
+	"Shop": "marketplace.permissions.shop_has_permission",
 	"Item Group": "marketplace.permissions.item_group_has_permission",
 	"Customer": "marketplace.permissions.customer_has_permission",
 	"Contact": "marketplace.permissions.contact_has_permission",
@@ -195,6 +229,8 @@ has_permission = {
 # Hook on document methods and events
 
 doc_events = {
+	# Do'kon a'zosi User formasida o'z rolini yo'qotmasin va admin bo'lib qolmasin (shop.user_validate)
+	"User": {"validate": "marketplace.marketplace.doctype.shop.shop.user_validate"},
 	"Item": {
 		"before_insert": "marketplace.permissions.item_before_insert",
 		"before_validate": [
@@ -216,7 +252,12 @@ doc_events = {
 	"Item Group": {
 		"before_insert": "marketplace.permissions.item_group_before_insert",
 		"validate": "marketplace.permissions.item_group_validate",
-		"on_update": "marketplace.permissions.item_group_on_update",
+		"on_update": [
+			"marketplace.permissions.item_group_on_update",
+			# Saytdagi ustma-ust kategoriyalar (storefront._category_tree) keshdan yangilansin
+			"marketplace.storefront.clear_catalog_cache",
+		],
+		"on_trash": "marketplace.storefront.clear_catalog_cache",
 	},
 	"Marketplace Settings": {"on_update": "marketplace.telegram_bot.on_settings_update"},
 	"Item Price": {
@@ -226,10 +267,13 @@ doc_events = {
 	},
 	"Sales Order": {
 		"before_validate": "marketplace.permissions.set_shop",
-		# Yangi buyurtma: sotuvchiga bildirishnoma (Desk) va Telegram xabari
+		# Yangi buyurtma: sotuvchiga bildirishnoma (Desk) va Telegram xabari. Saytdagi buyurtma esa
+		# mijoz naqdni tanlaganda yoki to'laganda (orders.confirm_order)
 		"on_submit": [
-			"marketplace.seller_desk.notify_new_order",
-			"marketplace.telegram_bot.enqueue_order_notification",
+			"marketplace.orders.sales_order_on_submit",
+			# Buyurtma zaxiraga oladi: chegaraga tushgan tovar haqida egasiga Telegram xabari
+			# (Desk buyurtmasi; saytdagisi — mijoz yakunlagach, orders.confirm_order)
+			"marketplace.inventory.enqueue_low_stock_check",
 		],
 	},
 	"Delivery Note": {"before_validate": "marketplace.permissions.set_shop"},
@@ -239,7 +283,19 @@ doc_events = {
 # ---------------
 
 scheduler_events = {
-	"hourly": ["marketplace.otp.cleanup_expired"],
+	"hourly": [
+		"marketplace.otp.cleanup_expired",
+		"marketplace.orders.cancel_abandoned",
+		# Sotuv paneli: qayta qo'ng'iroq sanasi kelgan buyurtmalar — menejerga eslatma
+		"marketplace.sotuv.api.remind_callbacks",
+	],
+	"cron": {
+		# Har kuni 09:00 (sayt vaqt zonasi): do'kon egalariga kam qolgan / tugagan tovarlar ro'yxati
+		"0 9 * * *": ["marketplace.inventory.daily_low_stock_digest"],
+		# Qo'ng'iroq yozuvlari: o'tkazib yuborilgan transkripsiyalar (AI) va saqlash muddati o'tgan fayllar
+		"*/15 * * * *": ["marketplace.sotuv.stt.process_queue"],
+		"30 3 * * *": ["marketplace.sotuv.stt.cleanup_old_recordings"],
+	},
 }
 
 # scheduler_events = {
@@ -276,9 +332,11 @@ scheduler_events = {
 # Overriding Methods
 # ------------------------------
 #
-# override_whitelisted_methods = {
-# 	"frappe.desk.doctype.event.event.get_events": "marketplace.event.get_events"
-# }
+# ASMIZ Call Agent (sotuv menejeri telefonidagi ilova) manzilni o'zi qo'shadi — ikkalasi bizning telefoniyaga
+override_whitelisted_methods = {
+	"asmiz_call.api.ingest_call": "marketplace.sotuv.telefoniya.ingest_call",
+	"target_zenit.telefoniya.api.ingest_call": "marketplace.sotuv.telefoniya.ingest_call",
+}
 #
 # each overriding function accepts a `data` argument;
 # generated from the base implementation of the doctype dashboard,

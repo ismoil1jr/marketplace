@@ -72,10 +72,16 @@ def mark_paid(order, method, provider_ref=None):
 		return
 	so.db_set({"payment_status": "To'langan", "payment_method": method})
 	so.add_comment("Info", _("{0} orqali to‘landi {1}").format(method, provider_ref or ""))
+	from marketplace.kassa import stamp_paid
 
+	stamp_paid(so.name)
+
+	from marketplace.orders import confirm_order
 	from marketplace.seller_desk import notify_shop
 
-	notify_shop(so, _("To‘landi {0}: {1} — {2}").format(so.name, so.customer_name, _money(so)))
+	# To'lov o'tdi — buyurtma endi do'konga "Yangi buyurtma" bo'lib boradi (naqd tanlangan bo'lsa — "To'landi")
+	if not confirm_order(so.name):
+		notify_shop(so, _("To‘landi {0}: {1} — {2}").format(so.name, so.customer_name, _money(so)))
 
 
 def mark_refunded(order, method, provider_ref=None):
@@ -89,7 +95,8 @@ def mark_refunded(order, method, provider_ref=None):
 
 	from marketplace.seller_desk import notify_shop
 
-	notify_shop(so, _("To‘lov bekor qilindi {0}: {1} — {2}").format(so.name, so.customer_name, _money(so)))
+	if so.get("mp_placed"):
+		notify_shop(so, _("To‘lov bekor qilindi {0}: {1} — {2}").format(so.name, so.customer_name, _money(so)))
 
 
 def _money(so):

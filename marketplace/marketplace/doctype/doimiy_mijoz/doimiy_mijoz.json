@@ -1,0 +1,315 @@
+{
+ "actions": [],
+ "autoname": "MJ-.#####",
+ "creation": "2026-10-22 11:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "sb_main",
+  "first_name",
+  "last_name",
+  "phone",
+  "cb_main",
+  "birth_date",
+  "gender",
+  "children_count",
+  "birth_month",
+  "sb_manzil",
+  "viloyat",
+  "tuman",
+  "cb_manzil",
+  "kocha",
+  "uy",
+  "moljal",
+  "sb_xarita",
+  "joylashuv",
+  "xarita_html",
+  "latitude",
+  "longitude",
+  "sb_children",
+  "children",
+  "sb_orders",
+  "purchases_html",
+  "sb_extra",
+  "notes",
+  "cb_extra",
+  "shop",
+  "customer",
+  "source_order",
+  "registered_by",
+  "registered_by_full_name",
+  "mijoz_ismi"
+ ],
+ "fields": [
+  {
+   "fieldname": "sb_main",
+   "fieldtype": "Section Break",
+   "label": "Mijoz"
+  },
+  {
+   "fieldname": "first_name",
+   "fieldtype": "Data",
+   "label": "Ismi",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "last_name",
+   "fieldtype": "Data",
+   "label": "Familiyasi",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "phone",
+   "fieldtype": "Data",
+   "label": "Telefon raqami",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "search_index": 1,
+   "description": "Raqamni yozing — o'zi +998 90 123 45 67 ko'rinishiga keladi. Bitta raqam do'koningizda faqat bir marta yoziladi"
+  },
+  {
+   "fieldname": "cb_main",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "birth_date",
+   "fieldtype": "Date",
+   "label": "Tug'ilgan sana",
+   "reqd": 0,
+   "in_list_view": 1,
+   "description": "Ixtiyoriy"
+  },
+  {
+   "fieldname": "gender",
+   "fieldtype": "Select",
+   "label": "Jinsi",
+   "options": "\nErkak\nAyol",
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "children_count",
+   "fieldtype": "Int",
+   "label": "Farzandlari soni",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "birth_month",
+   "fieldtype": "Select",
+   "label": "Tug'ilgan oyi",
+   "read_only": 1,
+   "in_standard_filter": 1,
+   "options": "\n01 Yanvar\n02 Fevral\n03 Mart\n04 Aprel\n05 May\n06 Iyun\n07 Iyul\n08 Avgust\n09 Sentyabr\n10 Oktyabr\n11 Noyabr\n12 Dekabr",
+   "description": "Ro'yxatda shu oy bo'yicha filtrlab, tug'ilgan kuni yaqinlashganlarni topasiz"
+  },
+  {
+   "fieldname": "sb_manzil",
+   "fieldtype": "Section Break",
+   "label": "Manzil"
+  },
+  {
+   "fieldname": "viloyat",
+   "fieldtype": "Select",
+   "label": "Viloyat",
+   "options": "\nToshkent shahri\nToshkent viloyati\nAndijon viloyati\nBuxoro viloyati\nFarg‘ona viloyati\nJizzax viloyati\nXorazm viloyati\nNamangan viloyati\nNavoiy viloyati\nQashqadaryo viloyati\nSamarqand viloyati\nSirdaryo viloyati\nSurxondaryo viloyati\nQoraqalpog‘iston Respublikasi",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "tuman",
+   "fieldtype": "Autocomplete",
+   "label": "Tuman / shahar",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "Ro'yxatdan tanlang yoki yozing"
+  },
+  {
+   "fieldname": "cb_manzil",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "kocha",
+   "fieldtype": "Data",
+   "label": "Ko'cha / mahalla"
+  },
+  {
+   "fieldname": "uy",
+   "fieldtype": "Data",
+   "label": "Uy / xonadon",
+   "description": "Masalan: 12-uy, 45-xonadon"
+  },
+  {
+   "fieldname": "moljal",
+   "fieldtype": "Data",
+   "label": "Mo'ljal",
+   "description": "Masalan: 25-maktab yonida"
+  },
+  {
+   "fieldname": "sb_xarita",
+   "fieldtype": "Section Break",
+   "label": "Xaritadagi joyi"
+  },
+  {
+   "fieldname": "joylashuv",
+   "fieldtype": "Geolocation",
+   "label": "Xaritada belgilang",
+   "description": "Xaritada nuqta qo'ying yoki «📍 Hozirgi joylashuvim» tugmasini bosing (mijoz uyida bo'lsangiz)"
+  },
+  {
+   "fieldname": "xarita_html",
+   "fieldtype": "HTML",
+   "label": "Xarita havolalari"
+  },
+  {
+   "fieldname": "latitude",
+   "fieldtype": "Float",
+   "label": "Kenglik",
+   "precision": "7",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "longitude",
+   "fieldtype": "Float",
+   "label": "Uzunlik",
+   "precision": "7",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "sb_children",
+   "fieldtype": "Section Break",
+   "label": "Farzandlari"
+  },
+  {
+   "fieldname": "children",
+   "fieldtype": "Table",
+   "label": "Farzandlari",
+   "options": "Mijoz Farzandi",
+   "description": "Har bir farzand — alohida qator: ismi, o'g'il yoki qiz, tug'ilgan sanasi"
+  },
+  {
+   "fieldname": "sb_orders",
+   "fieldtype": "Section Break",
+   "label": "Xaridlari"
+  },
+  {
+   "fieldname": "purchases_html",
+   "fieldtype": "HTML",
+   "label": "Xaridlari"
+  },
+  {
+   "fieldname": "sb_extra",
+   "fieldtype": "Section Break",
+   "label": "Qo'shimcha",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "label": "Izoh"
+  },
+  {
+   "fieldname": "cb_extra",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "shop",
+   "fieldtype": "Link",
+   "options": "Shop",
+   "label": "Do'kon",
+   "read_only": 1,
+   "search_index": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "options": "Customer",
+   "label": "Saytdagi mijoz",
+   "read_only": 1
+  },
+  {
+   "fieldname": "source_order",
+   "fieldtype": "Link",
+   "options": "Sales Order",
+   "label": "Qaysi buyurtmada yozildi",
+   "read_only": 1
+  },
+  {
+   "fieldname": "registered_by",
+   "fieldtype": "Link",
+   "options": "User",
+   "label": "Kim yozdi",
+   "read_only": 1
+  },
+  {
+   "fieldname": "registered_by_full_name",
+   "fieldtype": "Data",
+   "label": "Kim yozdi (ismi)",
+   "fetch_from": "registered_by.full_name",
+   "hidden": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "mijoz_ismi",
+   "fieldtype": "Data",
+   "label": "To'liq ismi",
+   "hidden": 1,
+   "read_only": 1
+  }
+ ],
+ "links": [],
+ "modified": "2026-10-26 19:45:00.000000",
+ "modified_by": "Administrator",
+ "module": "Marketplace",
+ "name": "Doimiy Mijoz",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Marketplace Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Shop Seller",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Shop Courier",
+   "read": 1,
+   "write": 1,
+   "create": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "search_fields": "mijoz_ismi,phone",
+ "show_title_field_in_link": 1,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "mijoz_ismi",
+ "track_changes": 1
+}

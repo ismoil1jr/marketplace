@@ -4,20 +4,34 @@
 	const is_seller = () =>
 		!!frappe.boot.marketplace_shop /* sotuvchi yoki do'kon panelidagi admin */;
 
+	// Rang tanlash ro'yxatida faqat nomi: Frappe ostiga ID'ni ham yozadi ("Oq (clothes)" — rang.py autoname).
+	// Jadvallarda (kirim, galereya) ro'yxat katakda emas, jadvalning .grid-field'ida chiziladi
+	if (!document.getElementById("mp-rang-option-style")) {
+		$(`<style id="mp-rang-option-style">
+			[data-fieldname="ranglar"] .awesomplete [role="option"] .small,
+			[data-fieldname="mp_kirim"] .grid-field .awesomplete [role="option"] .small,
+			[data-fieldname="gallery"] .grid-field .awesomplete [role="option"] .small { display: none; }
+		</style>`).appendTo("head");
+	}
+
 	// Hamma shablonda ko'rinadigan maydonlar
 	const COMMON = [
-		"item_name", "item_group", "image", "standard_rate", "variant_price", "ranglar", "variant_sizes", "variant_qty",
-		"opening_stock", "disabled", "description", "has_variants", "variant_of", "is_published",
+		"item_name", "item_group", "image", "standard_rate", "variant_price", "mp_narxlar_html", "ranglar",
+		"disabled", "description", "has_variants", "variant_of", "is_published",
+		// Majburiy tovar (avval shuni olishi shart) va "Tez kunda" (ko'rinadi, sotilmaydi)
+		"mp_majburiy", "mp_tez_kunda",
 		"gallery", "mxik_code", "package_code",
+		// "Ombor" tabi: hozirgi qoldiq, kirim (kimdan, nechta, necha puldan), kirim tarixi
+		"mp_ombor_html", "mp_kirim_kontragent", "mp_kirim", "mp_kirim_izoh", "mp_ombor_log",
 	];
 	// Do'kon shabloniga qarab qo'shimcha maydonlar: sayt aynan shularni ko'rsatadi
 	//   vitrina (A) — kiyim va oddiy chakana: chegirma, karusel
 	//   story (B)   — Instagram uslubi, katta rasmlar: chegirma (karusel bu shablonda yo'q)
-	//   katalog (C) — zavod va ulgurji: ulgurji narx, kamida nechta, qisqa xususiyat
+	//   katalog (C) — zavod va ulgurji: ulgurji narx, kamida nechta, qisqa xususiyat, karusel
 	const BY_LAYOUT = {
 		vitrina: ["old_price", "in_carousel", "carousel_label"],
 		story: ["old_price"],
-		katalog: ["wholesale_price", "wholesale_min_qty", "spec_line"],
+		katalog: ["wholesale_price", "wholesale_min_qty", "spec_line", "in_carousel", "carousel_label"],
 	};
 	const layout = () => frappe.boot.marketplace_shop?.layout || "vitrina";
 	const KEEP = new Set([...COMMON, ...(BY_LAYOUT[layout()] || BY_LAYOUT.vitrina)]);
@@ -39,7 +53,6 @@
 		item_group: "Kategoriya",
 		image: "Asosiy rasm",
 		standard_rate: "Sotish narxi",
-		opening_stock: "Omborda nechta bor",
 		disabled: "Sotuvdan olingan",
 		description: "Tavsif",
 		has_variants: "Rang / o'lcham variantlari bor",
@@ -59,7 +72,6 @@
 					frm.set_df_property(df.fieldname, "hidden", 1);
 				}
 			}
-			frm.set_df_property("opening_stock", "description", "Saqlaganingizda shu son do'kon omboriga yoziladi");
 			// Kod nomdan avtomatik yasaladi (permissions.item_before_insert)
 			frm.set_df_property("item_code", "reqd", 0);
 			frm.set_df_property("item_code", "hidden", 1);
@@ -69,44 +81,277 @@
 			frm.set_df_property("attributes", "reqd", 0);
 			toggle_variant_fields(frm);
 			name_media_tab(frm);
+			// MXIK va qadoq kodi kategoriyadan olinadi (permissions.item_validate) — faqat ko'rinadi
+			for (const f of ["mxik_code", "package_code"]) {
+				frm.set_df_property(f, "read_only", 1);
+				frm.set_df_property(f, "description", "Kategoriyadan avtomatik olinadi. O'zgartirish — kategoriyaning o'zida");
+			}
 
 			// ERPNext'ning ombor/hisob tugmalari sotuvchiga kerak emas
 			frm.remove_custom_button(__("Set Opening Stock"), __("Actions"));
 
-			if (frm.doc.has_variants) {
-				frm.add_custom_button("Rang / o'lcham tanlash", () => variants_dialog(frm));
-				if (!frm.is_new()) frm.add_custom_button("Variantlar qoldig'i", () => variants_stock(frm));
-				frm.dashboard.set_headline(
-					frm.is_new()
-						? "Ranglar va o'lchamlarni yozing (yoki <b>Rang / o'lcham tanlash</b>), keyin <b>Saqlash</b> — variantlar o'zi yaratiladi."
-						: "Yangi rang/o'lcham qo'shsangiz, saqlaganda variantlari yaratiladi. Sonini <b>Variantlar qoldig'i</b>da kiriting."
+			frm.add_custom_button("📦 Ombor / kirim", () => open_ombor_tab(frm));
+		},
+	});
+	// Ombor tabi hamma uchun (sotuvchi ham, admin ham)
+	frappe.ui.form.on("Item", {
+		refresh(frm) {
+			setup_kirim_grid(frm);
+			setup_supplier(frm);
+			render_ombor(frm);
+			render_variant_prices(frm);
+			// Instagram reklama formasi uchun havola (sotuv/murojaat.py): murojaat shu tovar bo'yicha tushadi
+			if (!frm.is_new() && !frm.doc.variant_of && (frappe.user.has_role("Shop Seller") || frappe.user.has_role("System Manager") || frappe.user.has_role("Marketplace Manager"))) {
+				frm.add_custom_button("📣 SMM havolasi", () => show_smm_link(frm));
+			}
+			// Ombor sahifasidan "Kirim qilish" bosilgan bo'lsa — to'g'ri Ombor tabiga
+			if (window.mp?.open_ombor_of === frm.doc.name) {
+				mp.open_ombor_of = null;
+				setTimeout(() => open_ombor_tab(frm), 100);
+			}
+		},
+		has_variants(frm) {
+			if (is_seller()) {
+				toggle_variant_fields(frm);
+				frm.refresh();
+			} else {
+				setup_kirim_grid(frm);
+			}
+		},
+		ranglar: (frm) => setup_kirim_grid(frm),
+		// Kategoriya tanlanganda MXIK darhol ko'rinsin (saqlashda server baribir kategoriyadan qo'yadi)
+		async item_group(frm) {
+			if (!frm.doc.item_group) return;
+			const { message: g } = await frappe.db.get_value("Item Group", frm.doc.item_group, ["mxik_code", "package_code"]);
+			if (g?.mxik_code) {
+				frm.set_value("mxik_code", g.mxik_code);
+				frm.set_value("package_code", g.package_code || "");
+			} else if (is_seller()) {
+				frappe.show_alert({ message: `«${frm.doc.item_group}» kategoriyasida MXIK kodi yo'q — kategoriyani ochib kiriting`, indicator: "orange" });
+			}
+		},
+		// Kirimni keyin o'zgartirib bo'lmaydi: saqlashdan oldin kimdan, sonlar va narxlarni tasdiqlatamiz
+		before_save(frm) {
+			const rows = (frm.doc.mp_kirim || []).filter((r) => r.soni > 0);
+			if (!rows.length) return;
+			const esc = frappe.utils.escape_html;
+			const id = frm.doc.mp_kirim_kontragent;
+			const supplier = id && (frappe.utils.get_link_title("Kontragent", id) || id);
+			const missing = !supplier
+				? "Tovar qaysi kontragentdan olinganini tanlang («Kimdan olindi»)"
+				: rows.some((r) => !(r.narx > 0))
+				? "Har bir qatorda 1 donasi necha puldan olinganini yozing"
+				: "";
+			if (missing) {
+				frappe.validated = false;
+				frappe.msgprint({ title: "Kirim", message: missing, indicator: "orange" });
+				open_ombor_tab(frm);
+				return;
+			}
+			const total = rows.reduce((a, r) => a + r.soni, 0);
+			const sum = rows.reduce((a, r) => a + r.soni * r.narx, 0);
+			const list = rows
+				.map((r) => `<li>${esc([r.rang && (frappe.utils.get_link_title("Rang", r.rang) || r.rang), r.olcham].filter(Boolean).join(" · ") || frm.doc.item_name || "")}: <b>+${r.soni}</b> × ${money(r.narx)}</li>`)
+				.join("");
+			return new Promise((resolve) => {
+				let done = false;
+				frappe.confirm(
+					`Kimdan: <b>${esc(supplier)}</b><br>Omborga jami <b>+${total}</b> dona, <b>${money(sum)}</b> kirim qilinadi:<ul style="margin:8px 0">${list}</ul>Kirimni keyin o'zgartirib yoki o'chirib bo'lmaydi — sonlar va narxlar to'g'rimi?`,
+					() => { done = true; resolve(); },
+					() => { if (!done) { done = true; frappe.validated = false; resolve(); } },
+					"Ha, kirim qilinsin",
+					"Yo'q, tekshiraman"
 				);
-			}
-
-			if (!frm.is_new() && !frm.doc.has_variants && frm.doc.is_stock_item) {
-				frm.add_custom_button("Qoldiqni o'zgartirish", () => change_stock(frm));
-				frappe
-					.xcall("marketplace.seller_desk.get_item_stock", { item_code: frm.doc.name })
-					.then((qty) => {
-						frm.dashboard.clear_headline();
-						frm.dashboard.set_headline(
-							qty > 0
-								? `Omborda: <b>${qty}</b> ta`
-								: `<span class="text-danger">Omborda qolmagan</span> — "Qoldiqni o'zgartirish" tugmasi bilan qo'shing`
-						);
-					});
-			}
+			});
 		},
 	});
 
-	frappe.ui.form.on("Item", "has_variants", (frm) => is_seller() && (toggle_variant_fields(frm), frm.refresh()));
+	// Kirim jadvali: odatda bir partiya bir xil narxda keladi — yangi qatorga oldingi qator narxi tushadi.
+	// Jadval ostida: jami nechta dona va necha so'mlik kirim
+	frappe.ui.form.on("Tovar Kirimi", {
+		mp_kirim_add(frm, cdt, cdn) {
+			const row = locals[cdt][cdn];
+			const prev = (frm.doc.mp_kirim || []).find((r) => r.idx === row.idx - 1);
+			if (prev?.narx && !row.narx) frappe.model.set_value(cdt, cdn, "narx", prev.narx);
+			show_kirim_total(frm);
+		},
+		mp_kirim_remove: (frm) => show_kirim_total(frm),
+		soni: (frm) => show_kirim_total(frm),
+		narx: (frm) => show_kirim_total(frm),
+	});
+
+	const money = (x) => `${format_number(x || 0, null, 0)} so‘m`;
+
+	function show_kirim_total(frm) {
+		const $field = frm.fields_dict.mp_kirim?.$wrapper;
+		if (!$field) return;
+		let $total = $field.find(".mp-kirim-total");
+		if (!$total.length) $total = $(`<div class="mp-kirim-total text-muted small" style="margin-top:6px"></div>`).appendTo($field);
+		const rows = frm.doc.mp_kirim || [];
+		const qty = rows.reduce((a, r) => a + (r.soni || 0), 0);
+		const sum = rows.reduce((a, r) => a + (r.soni || 0) * (r.narx || 0), 0);
+		$total.html(qty ? `Jami: <b>+${format_number(qty, null, 0)}</b> dona · <b>${money(sum)}</b>` : "");
+	}
+
+	// «Kimdan olindi»: faqat shu do'konning kontragentlari. Ro'yxatda yo'q bo'lsa — "+ yangi" kichik oynasi,
+	// unda do'kon tovarnikidan olinadi (admin boshqa do'kon tovarini ochgan bo'lsa ham to'g'ri do'konga yoziladi)
+	function setup_supplier(frm) {
+		const control = frm.fields_dict.mp_kirim_kontragent;
+		if (!control) return;
+		frm.set_query("mp_kirim_kontragent", () => (frm.doc.shop ? { filters: { shop: frm.doc.shop } } : {}));
+		control.get_route_options_for_new_doc = () => (frm.doc.shop ? { shop: frm.doc.shop } : {});
+		show_kirim_total(frm);
+	}
+
+	// Standart narx tagida: "Rang/o'lcham bo'yicha narx" tugmasi va nechta variantda alohida narx borligi
+	async function render_variant_prices(frm) {
+		const $box = frm.fields_dict.mp_narxlar_html?.$wrapper;
+		if (!$box) return;
+		if (!frm.doc.has_variants) return $box.empty();
+		if (frm.is_new()) {
+			$box.html(`<div class="text-muted small">Saqlab, kirim qilganingizdan keyin har bir rang/o'lchamga alohida narx qo'ysa bo'ladi.</div>`);
+			return;
+		}
+		const name = frm.doc.name;
+		const own = await frappe.db.count("Item", { filters: { variant_of: name, mp_own_price: 1 } });
+		if (frm.doc.name !== name) return;
+		$box.html(`<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:-4px 0 8px">
+			<button class="btn btn-default btn-xs" data-vprice>Rang/o'lcham bo'yicha narx</button>
+			<span class="text-muted small">${own ? `${own} ta rang/o'lchamda alohida narx` : "Hamma rang/o'lcham standart narxda"}</span>
+		</div>`);
+		$box.find("[data-vprice]").on("click", () => open_variant_prices(frm));
+	}
+
+	// Oyna: har bir rang/o'lcham — omborda nechta, olish narxi (oxirgi kirimdan), sotish narxi.
+	// Bo'sh katak — standart narx. "Olish narxiga + N" — olish narxi bor qatorlarga sotish narxini yozib beradi
+	async function open_variant_prices(frm) {
+		if (frm.is_dirty()) return frappe.msgprint("Avval tovarni saqlang, keyin narx qo'yasiz");
+		const data = await frappe.xcall("marketplace.seller_desk.get_variant_prices", { template: frm.doc.name });
+		if (!data.rows.length) {
+			return frappe.msgprint("Hali rang/o'lcham yo'q: ular kirimdan paydo bo'ladi. Avval Ombor tabida kirim qiling.");
+		}
+		const esc = frappe.utils.escape_html;
+		const n = (x) => format_number(x || 0, null, 0);
+		const parse = (v) => +String(v || "").replace(/\D/g, "") || 0;
+		const label = (r) => [r.color, r.size].filter(Boolean).join(" · ") || frm.doc.item_name;
+		const row_html = (r) => `
+			<tr>
+				<td>${r.color ? `<i style="background:${esc(r.hex || "#ccc")}"></i>` : ""}${esc(label(r))}</td>
+				<td class="num">${n(r.qty)}</td>
+				<td class="num">${r.cost ? money(r.cost) : "—"}</td>
+				<td><input class="form-control input-xs" inputmode="numeric" data-price="${esc(r.code)}"
+					value="${r.own ? n(r.price) : ""}" placeholder="${n(r.price || data.standard)} (standart)"></td>
+			</tr>`;
+		const d = new frappe.ui.Dialog({
+			title: `${frm.doc.item_name}: rang/o'lcham bo'yicha narx`,
+			size: "large",
+			fields: [{ fieldtype: "HTML", fieldname: "body" }],
+			primary_action_label: "Saqlash",
+			async primary_action() {
+				const prices = {};
+				d.$wrapper.find("[data-price]").each((_, el) => {
+					const r = data.rows.find((x) => x.code === el.dataset.price);
+					const value = parse(el.value);
+					if (value !== (r.own ? r.price : 0)) prices[r.code] = value || null;
+				});
+				if (!Object.keys(prices).length) return d.hide();
+				await frappe.xcall("marketplace.seller_desk.set_variant_prices", { template: frm.doc.name, prices });
+				d.hide();
+				frappe.show_alert({ message: "Narxlar saqlandi", indicator: "green" });
+				render_variant_prices(frm);
+			},
+		});
+		d.fields_dict.body.$wrapper.html(`
+			<style>
+				.mp-vp__tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; font-size: var(--text-sm); }
+				.mp-vp__tools input { width: 110px; }
+				.mp-vp__scroll { overflow-x: auto; }
+				.mp-vp__table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+				.mp-vp__table th { color: var(--text-muted); font-weight: 600; text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border-color); white-space: nowrap; }
+				.mp-vp__table td { padding: 6px 8px; border-bottom: 1px solid var(--border-color); white-space: nowrap; }
+				.mp-vp__table .num { text-align: right; }
+				.mp-vp__table td i { display: inline-block; width: 12px; height: 12px; margin-right: 6px; border-radius: 50%; border: 1px solid var(--border-color); vertical-align: -1px; }
+				.mp-vp__table input { min-width: 130px; text-align: right; }
+			</style>
+			<div class="mp-vp__tools">
+				<span>Olish narxiga</span>
+				<input class="form-control input-xs" inputmode="numeric" placeholder="10 000" data-markup>
+				<span>so'm qo'shib</span>
+				<button class="btn btn-default btn-xs" data-apply>hammasiga yozish</button>
+			</div>
+			<div class="mp-vp__scroll"><table class="mp-vp__table">
+				<thead><tr><th>Rang · O'lcham</th><th class="num">Omborda</th><th class="num">Olish narxi</th><th>Sotish narxi</th></tr></thead>
+				<tbody>${data.rows.map(row_html).join("")}</tbody>
+			</table></div>
+			<p class="text-muted small" style="margin-top:10px">Bo'sh qoldirilsa — standart narx (${money(data.standard)}). Standart narxni keyin o'zgartirsangiz, alohida qo'yilgan narxlar o'zgarmaydi.</p>
+		`);
+		const $body = d.fields_dict.body.$wrapper;
+		// Pul katakchalari: "160000" -> "160 000"
+		$body.on("input", "[data-price], [data-markup]", (e) => {
+			const value = parse(e.target.value);
+			e.target.value = value ? n(value) : "";
+		});
+		$body.find("[data-apply]").on("click", () => {
+			const markup = parse($body.find("[data-markup]").val());
+			if (!markup) return frappe.show_alert({ message: "Qancha qo'shishni yozing, masalan 10 000", indicator: "orange" });
+			let filled = 0;
+			for (const r of data.rows) {
+				if (!r.cost) continue;
+				$body.find(`[data-price="${CSS.escape(r.code)}"]`).val(n(r.cost + markup));
+				filled++;
+			}
+			frappe.show_alert({
+				message: filled ? `${filled} ta qatorga yozildi — tekshirib, Saqlash bosing` : "Olish narxi bor rang/o'lcham yo'q (narxsiz eski kirimlar)",
+				indicator: filled ? "blue" : "orange",
+			});
+		});
+		d.show();
+	}
+
+	// SMM'ga beriladigan havola: reklama lead-formasi (Make, Zapier va h.k.) murojaatni shu manzilga POST qiladi
+	async function show_smm_link(frm) {
+		const r = await frappe.xcall("marketplace.sotuv.murojaat.smm_link", { item: frm.doc.name });
+		const esc = frappe.utils.escape_html;
+		const example = JSON.stringify({ full_name: "Ali Valiyev", phone: "+998901234567", city: "Toshkent", comment: "Kitob qachon keladi?", campaign: "Oktabr reklamasi" }, null, 2);
+		const d = new frappe.ui.Dialog({
+			title: `SMM havolasi: ${r.item_name || frm.doc.item_name}`,
+			size: "large",
+			fields: [{ fieldtype: "HTML", fieldname: "body" }],
+		});
+		const local = /\/\/(localhost|127\.|10\.|192\.168\.)/.test(r.url);
+		const curl = `curl -X POST '${r.url}' -H 'Content-Type: application/json' -d '${JSON.stringify({ full_name: "Ali Valiyev", phone: "+998901234567", city: "Toshkent" })}'`;
+		d.fields_dict.body.$wrapper.html(`
+			<p>Instagram reklamasidagi forma to'ldirilganda murojaat <b>shu tovar bo'yicha</b> Sotuv panelining
+				«Murojaatlar» bo'limiga tushadi. Havolani SMM mutaxassisiga bering: <b>har bir kitob (forma) — o'z havolasi</b>,
+				shunda mijoz qaysi reklama bo'yicha yozgani ko'rinadi.</p>
+			${local ? `<div class="alert alert-warning small">Bu havola hozir faqat shu kompyuter / tarmoqda ishlaydi. Instagram va SMM vositalari
+				unga yeta olmaydi — sayt serverga (domen bilan) qo'yilgach, havolani shu yerdan qayta oling.</div>` : ""}
+			<div style="display:flex;gap:6px;align-items:center">
+				<input class="form-control" readonly value="${esc(r.url)}" style="font-family:monospace;font-size:12px">
+				<button class="btn btn-primary btn-sm" data-copy>Nusxalash</button>
+			</div>
+			<p class="text-muted small" style="margin-top:8px">Tekshirish: havolani brauzerda oching — do'kon va tovar nomi chiqadi.
+				Murojaat esa faqat <b>POST</b> bilan yoziladi.</p>
+			<p class="small"><b>Instagram lead-formasini ulash:</b> Make.com, Zapier yoki Albato'da
+				«Facebook Lead Ads → yangi lead» → «HTTP so'rov (POST)» shu havolaga. Formadagi ism, telefon, shahar va savollar o'zi taniladi.</p>
+			<p class="text-muted small">Maydonlar: <code>full_name</code> (yoki <code>first_name</code> + <code>last_name</code>),
+				<code>phone</code> (majburiy), <code>city</code>, <code>comment</code>, <code>campaign</code>, <code>lead_id</code>.
+				JSON, forma yoki Meta'ning <code>field_data</code> ko'rinishi qabul qilinadi. Misol:</p>
+			<pre style="font-size:12px">${esc(example)}</pre>
+			<p class="text-muted small">Dasturchi uchun sinov (havola qo'shtirnoqda bo'lsin, aks holda <code>&amp;tovar=</code> tushib qoladi):</p>
+			<pre style="font-size:11px;white-space:pre-wrap;word-break:break-all">${esc(curl)}</pre>
+			<p class="text-muted small">Havolada do'kon kaliti bor — uni faqat SMM vositasiga qo'ying, ochiq joyga yozmang.</p>`);
+		d.fields_dict.body.$wrapper.find("[data-copy]").on("click", () => {
+			frappe.utils.copy_to_clipboard(r.url);
+		});
+		d.show();
+	}
 
 	// Variantli tovarda narx variant_price'ga yoziladi (ERPNext andozaga narx qo'ymaydi), qoldiq esa har variantda
 	function toggle_variant_fields(frm) {
 		const v = !!frm.doc.has_variants;
 		frm.toggle_display("standard_rate", !v);
 		frm.toggle_display("variant_price", v);
-		if (v) frm.toggle_display("opening_stock", false);
 		if (v && frm.doc.standard_rate && !frm.doc.variant_price) {
 			frm.set_value("variant_price", frm.doc.standard_rate);
 			frm.set_value("standard_rate", 0);
@@ -123,103 +368,88 @@
 		if (tab) frm.set_df_property(tab, "label", "Rasmlar va MXIK");
 	}
 
-	// Rang va o'lcham tanlash: ro'yxatdan belgilash yoki o'zi yozish (yangi nomlar avtomatik qo'shiladi)
-	function variants_dialog(frm) {
-		const split = (v) => (v || "").split(/[,\n]/).map((x) => x.trim()).filter(Boolean);
-		frappe.xcall("marketplace.seller_desk.get_variant_options", { template: frm.is_new() ? null : frm.doc.name }).then((o) => {
-			const have_c = (frm.doc.ranglar || []).map((r) => r.rang);
-			const have_s = split(frm.doc.variant_sizes);
-			const opts = (list, used) => list.map((v) => ({ label: v, value: v, checked: used.includes(v) }));
-			const extra = (have, list) => have.filter((v) => !list.includes(v)).join(", ");
-			const d = new frappe.ui.Dialog({
-				title: "Rang va o'lcham",
-				size: "large",
-				fields: [
-					{ fieldname: "colors", fieldtype: "MultiCheck", label: "Ranglar", columns: 4, options: opts(o.colors, have_c) },
-					{ fieldname: "new_colors", fieldtype: "Data", label: "Yangi rang (vergul bilan)", placeholder: "Masalan: Bordo, Olcha" },
-					{ fieldtype: "Section Break" },
-					{ fieldname: "sizes", fieldtype: "MultiCheck", label: "O'lchamlar", columns: 6, options: opts(o.sizes, have_s) },
-					{ fieldname: "new_sizes", fieldtype: "Data", label: "Boshqa o'lcham (vergul bilan)", default: extra(have_s, o.sizes), placeholder: "Masalan: 42, 44, 46 yoki 110 sm" },
-				],
-				primary_action_label: "Tayyor",
-				async primary_action(v) {
-					// Yangi ranglar Rang ro'yxatiga qo'shiladi, keyin jadvalga
-					const fresh = split(v.new_colors).filter((c) => !o.colors.some((x) => x.toLowerCase() === c.toLowerCase()));
-					for (const c of fresh) await frappe.db.insert({ doctype: "Rang", rang_nomi: c });
-					const colors = [...new Set([...(v.colors || []), ...split(v.new_colors)])];
-					frm.clear_table("ranglar");
-					colors.forEach((c) => frm.add_child("ranglar", { rang: c }));
-					frm.refresh_field("ranglar");
-					frm.set_value("variant_sizes", [...(v.sizes || []), ...split(v.new_sizes)].join(", "));
-					d.hide();
-					frappe.show_alert({ message: "Endi Saqlash bosing — variantlar yaratiladi", indicator: "blue" });
-				},
-			});
-			d.show();
-		});
+	const split_list = (v) => (v || "").split(/[,\n]/).map((x) => x.trim()).filter(Boolean);
+
+	function open_ombor_tab(frm) {
+		const tab = frm.layout?.tabs?.find((t) => t.df.fieldname === "mp_ombor_tab");
+		if (tab) {
+			tab.set_active();
+			frm.fields_dict.mp_kirim?.$wrapper.get(0)?.scrollIntoView({ block: "center", behavior: "smooth" });
+		}
 	}
 
-	function variants_stock(frm) {
-		frappe.xcall("marketplace.seller_desk.get_variants_stock", { template: frm.doc.name }).then((rows) => {
-			if (!rows.length) {
-				frappe.msgprint("Avval <b>Variantlar yaratish</b> tugmasi bilan rang/o'lchamlarni tanlang.");
-				return;
+	// Kirim jadvali: variantli tovarda Rang / O'lcham / Nechta keldi / Narxi, oddiy tovarda — son va narx.
+	// Galereyada "Rang" ustuni: rasm qaysi rangniki (saytda shu rang bosilganda chiqadi)
+	async function setup_kirim_grid(frm) {
+		const grid = frm.fields_dict.mp_kirim?.grid;
+		if (!grid) return;
+		const v = !!frm.doc.has_variants;
+		const colors = (frm.doc.ranglar || []).map((r) => r.rang).filter(Boolean);
+		frm.set_query("rang", "gallery", () => (colors.length ? { filters: { name: ["in", colors] } } : {}));
+		if (frm._mp_grid_mode !== v) {
+			frm._mp_grid_mode = v;
+			for (const f of ["rang", "olcham"]) grid.update_docfield_property(f, "hidden", v ? 0 : 1);
+			grid.reset_grid();
+			const gallery = frm.fields_dict.gallery?.grid;
+			if (gallery?.docfields.some((d) => d.fieldname === "rang")) {
+				gallery.update_docfield_property("rang", "hidden", v ? 0 : 1);
+				gallery.reset_grid();
 			}
-			const d = new frappe.ui.Dialog({
-				title: "Variantlar qoldig'i",
-				size: "large",
-				fields: [
-					{
-						fieldname: "rows",
-						fieldtype: "Table",
-						cannot_add_rows: true,
-						cannot_delete_rows: true,
-						in_place_edit: true,
-						data: rows,
-						fields: [
-							{ fieldname: "item_code", fieldtype: "Data", hidden: 1 },
-							{ fieldname: "item_name", fieldtype: "Data", label: "Variant", in_list_view: 1, read_only: 1, columns: 6 },
-							{ fieldname: "qty", fieldtype: "Float", label: "Omborda nechta", in_list_view: 1, columns: 4 },
-						],
-					},
-				],
-				primary_action_label: "Saqlash",
-				primary_action(values) {
-					frappe
-						.xcall("marketplace.seller_desk.set_variants_stock", {
-							rows: values.rows.map((r) => ({ item_code: r.item_code, qty: r.qty || 0 })),
-						})
-						.then((n) => {
-							d.hide();
-							frappe.show_alert({ message: `${n} ta variant qoldig'i yangilandi`, indicator: "green" });
-						});
-				},
-			});
-			d.show();
-		});
+		}
+		const label = v ? "Qaysi rang, qaysi o'lcham, nechta keldi, necha puldan" : "Nechta keldi, necha puldan";
+		const help = v
+			? "Har bir rang va o'lcham — alohida qator: masalan Qora · 42 · 15 ta · 120 000, keyin Oq · 43 · 10 ta. Narx — 1 donasini necha puldan olganingiz (yangi qatorga oldingi narx o'zi tushadi). O'lchamni ro'yxatdan tanlang yoki yangisini yozing (masalan 42) — tovarga o'zi qo'shiladi. Do'koningiz o'lchamlari ro'yxati: chapdagi menyu → O'lchamlar. Saqlaganda omborga qo'shiladi."
+			: "Kelgan sonni va 1 donasini necha puldan olganingizni yozing, Saqlash bosing — omborga qo'shiladi va kirim tarixiga yoziladi.";
+		frm.set_df_property("mp_kirim", "label", label);
+		frm.set_df_property("mp_kirim", "description", help);
+		// Jadval sarlavhasi va izohi bir marta chiziladi: df o'zgargani bilan ekrandagi matn yangilanmaydi
+		const $field = frm.fields_dict.mp_kirim.$wrapper;
+		$field.find(".control-label").first().text(label);
+		$field.find(".grid-description").first().text(help);
+		grid.wrapper.find(".grid-add-row").text("+ Qator qo'shish");
+		if (v) {
+			frm._mp_sizes = frm._mp_sizes || (await frappe.xcall("marketplace.seller_desk.get_variant_options", { template: null })).sizes;
+			grid.update_docfield_property("olcham", "options", [...new Set([...split_list(frm.doc.variant_sizes), ...frm._mp_sizes])]);
+			// Ro'yxatda yo'q o'lcham ham yozilsin (42, 128GB): Autocomplete aks holda uni jimgina o'chiradi
+			grid.update_docfield_property("olcham", "ignore_validation", 1);
+		}
 	}
 
-	function change_stock(frm) {
-		frappe.xcall("marketplace.seller_desk.get_item_stock", { item_code: frm.doc.name }).then((qty) => {
-			frappe.prompt(
-				{
-					fieldname: "qty",
-					fieldtype: "Float",
-					label: "Omborda hozir nechta bor",
-					default: qty,
-					reqd: 1,
-					description: `Hozir hisobda: ${qty} ta. Yangi umumiy sonni yozing (qo'shiladigan farqni emas).`,
-				},
-				(v) =>
-					frappe
-						.xcall("marketplace.seller_desk.set_item_stock", { item_code: frm.doc.name, qty: v.qty })
-						.then(() => {
-							frappe.show_alert({ message: "Qoldiq yangilandi", indicator: "green" });
-							frm.refresh();
-						}),
-				"Qoldiqni o'zgartirish",
-				"Saqlash"
+	// Ombor tabi: omborda hozir nechta (rang × o'lcham) va kirim tarixi — faqat ko'rish.
+	// Sotuvlar tarixga yozilmaydi: ular qoldiqni o'zi kamaytiradi
+	async function render_ombor(frm) {
+		const $stock = frm.fields_dict.mp_ombor_html?.$wrapper;
+		const $log = frm.fields_dict.mp_ombor_log?.$wrapper;
+		if (!$stock || !$log) return;
+		if (frm.is_new()) {
+			$stock.html(`<div class="text-muted small" style="padding:6px 0">Qaysi kontragentdan olganingizni tanlang, pastdagi jadvalga ${frm.doc.has_variants ? "har bir rang va o'lchamdan " : ""}nechta kelganini va necha puldan olganingizni yozing, Saqlash bosing — omborga qo'shiladi.</div>`);
+			$log.html("");
+			return;
+		}
+		const name = frm.doc.name;
+		const [stock, log] = await Promise.all([
+			frm.doc.has_variants
+				? frappe.xcall("marketplace.seller_desk.get_variant_matrix", { template: name })
+				: frappe.xcall("marketplace.seller_desk.get_item_stock", { item_code: name }),
+			frappe.xcall("marketplace.seller_desk.get_item_ledger", { item_code: name }),
+		]);
+		if (frm.doc.name !== name) return;
+		let total;
+		if (frm.doc.has_variants) {
+			$stock.html(mp.stock_grid(stock));
+			total = Object.values(stock.cells || {}).reduce((a, c) => a + Math.max(c.qty, 0), 0);
+		} else {
+			total = stock;
+			$stock.html(`<div class="mp-sg__total" style="padding:6px 0">Omborda hozir: <b>${format_number(stock, null, 0)}</b> dona</div>`);
+		}
+		$log.html(mp.journal(log, { empty: "Hali kirim bo'lmagan" }));
+		if (is_seller() && frm.doc.is_stock_item !== 0) {
+			frm.dashboard.clear_headline();
+			frm.dashboard.set_headline(
+				total > 0
+					? `Omborda: <b>${format_number(total, null, 0)}</b> dona. Yangi tovar kelsa — <b>Ombor</b> tabida kirim qiling.`
+					: `<span class="text-danger">Omborda qolmagan.</span> Yangi tovar kelsa — <b>Ombor</b> tabida kirim qiling.`
 			);
-		});
+		}
 	}
 })();

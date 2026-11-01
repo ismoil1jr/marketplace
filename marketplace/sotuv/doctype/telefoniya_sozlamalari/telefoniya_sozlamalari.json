@@ -1,0 +1,135 @@
+{
+ "actions": [],
+ "creation": "2026-10-27 19:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_saqlash",
+  "saqlash_kuni",
+  "column_break_saqlash",
+  "maks_fayl_mb",
+  "section_ai",
+  "stt_holat_html",
+  "ai_yoqilgan",
+  "gemini_api_kalit",
+  "gemini_model",
+  "zaxira_model",
+  "column_break_ai",
+  "stt_til",
+  "stt_min_sekund",
+  "stt_maks_daqiqa"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_saqlash",
+   "fieldtype": "Section Break",
+   "label": "Yozuvlarni saqlash"
+  },
+  {
+   "fieldname": "saqlash_kuni",
+   "fieldtype": "Int",
+   "label": "Saqlash muddati (kun)",
+   "default": "180",
+   "description": "Shu kundan eski yozuv fayllari o'chiriladi (har kuni tunda). Qo'ng'iroq ma'lumoti, transkript va AI tahlili qoladi. 0 — hech qachon o'chirilmaydi."
+  },
+  {
+   "fieldname": "column_break_saqlash",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "maks_fayl_mb",
+   "fieldtype": "Int",
+   "label": "Maksimal fayl hajmi (MB)",
+   "default": "25",
+   "description": "Bundan katta fayl qabul qilinmaydi. 3 daqiqali suhbat ~1–2 MB."
+  },
+  {
+   "fieldname": "section_ai",
+   "fieldtype": "Section Break",
+   "label": "AI: transkripsiya va qisqa tahlil",
+   "description": "Yozuv kelishi bilan o'zi matnga aylanadi va qisqa xulosa yoziladi (Google Gemini). Sotuv panelida har bir qo'ng'iroq ostida chiqadi."
+  },
+  {
+   "fieldname": "stt_holat_html",
+   "fieldtype": "HTML",
+   "label": "Holat"
+  },
+  {
+   "fieldname": "ai_yoqilgan",
+   "fieldtype": "Check",
+   "label": "AI yoqilgan"
+  },
+  {
+   "fieldname": "gemini_api_kalit",
+   "fieldtype": "Password",
+   "label": "Gemini API kalit",
+   "description": "aistudio.google.com → Get API key. Bo'sh bo'lsa site_config.json'dagi gemini_api_key olinadi."
+  },
+  {
+   "fieldname": "gemini_model",
+   "fieldtype": "Data",
+   "label": "Gemini model",
+   "default": "gemini-3.8-flash",
+   "description": "gemini-3.8-flash (aniqroq) yoki gemini-3.8-flash-lite (2x arzon)"
+  },
+  {
+   "fieldname": "zaxira_model",
+   "fieldtype": "Data",
+   "label": "Zaxira model",
+   "default": "gemini-3.8-flash-lite",
+   "description": "Asosiy model band bo'lsa (503) yoki topilmasa shunga o'tadi. Bo'sh — zaxirasiz."
+  },
+  {
+   "fieldname": "column_break_ai",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "stt_til",
+   "fieldtype": "Select",
+   "label": "Nutq tili",
+   "options": "uz\nru\nen",
+   "default": "uz",
+   "description": "Aralash nutq uchun asosiy til: uz — o'zbekcha (lotin), ru — ruscha"
+  },
+  {
+   "fieldname": "stt_min_sekund",
+   "fieldtype": "Int",
+   "label": "Minimal davomiylik (sek)",
+   "default": "5",
+   "description": "Bundan qisqa qo'ng'iroqlar (javob berilmagan, uzilgan) transkripsiya qilinmaydi — pul tejash"
+  },
+  {
+   "fieldname": "stt_maks_daqiqa",
+   "fieldtype": "Int",
+   "label": "Maksimal davomiylik (daq)",
+   "default": "30",
+   "description": "Bundan uzun yozuvlar o'tkazib yuboriladi"
+  }
+ ],
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-10-27 19:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Sotuv",
+ "name": "Telefoniya Sozlamalari",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1
+  },
+  {
+   "role": "Marketplace Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

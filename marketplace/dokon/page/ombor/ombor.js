@@ -1,4 +1,6 @@
-// Ombor: sotuvchining barcha tovarlari rasmi, nomi va qoldig'i. Umumiy sonni yozib "Saqlash" bosiladi.
+// Ombor: sotuvchining barcha tovarlari qoldig'i — faqat ko'rish.
+// Kirim tovar formasining "Ombor" tabida qilinadi ("Kirim qilish" tugmasi o'sha yerga olib boradi), kamayish — faqat sotuvdan.
+// Variantli tovar ochilganda rang × o'lcham bo'yicha qoldiq (mp.stock_grid). "Kirim tarixi" — kimdan, nechta, necha puldan.
 
 frappe.pages["ombor"].on_page_load = function (wrapper) {
 	const page = frappe.ui.make_app_page({
@@ -10,47 +12,28 @@ frappe.pages["ombor"].on_page_load = function (wrapper) {
 };
 
 frappe.pages["ombor"].on_page_show = function (wrapper) {
-	// Saqlanmagan o'zgarishlar bo'lsa, qayta yuklab o'chirib yubormaymiz
-	if (!Object.keys(wrapper.ombor.edits).length) wrapper.ombor.load();
+	wrapper.ombor.load();
 };
 
 class OmborPage {
 	constructor(page) {
 		this.page = page;
-		this.state = { q: "", filter: "", shop: "" };
-		this.edits = {}; // {item_code: yangi son}
+		this.state = { q: "", filter: "", shop: "", view: "stock" };
+		this.grids = {}; // andoza: get_variant_matrix natijasi
 		this.open = new Set(); // ochilgan andozalar
-		this.page.set_secondary_action(__("Yangilash"), () => this.load(true), "refresh");
+		this.page.set_secondary_action(__("Yangilash"), () => this.load(), "refresh");
 		this.$body = $(`<div class="mp-om"></div>`).appendTo(page.main);
-		this.$bar = $(`
-			<div class="mp-om__bar">
-				<span class="mp-om__bar-text"></span>
-				<button class="btn btn-default btn-sm" data-act="reset">${__("Bekor qilish")}</button>
-				<button class="btn btn-primary btn-sm" data-act="save">${__("Saqlash")}</button>
-			</div>`).appendTo(page.main);
-		this.$bar.find("[data-act=save]").on("click", () => this.save());
-		this.$bar.find("[data-act=reset]").on("click", () => {
-			this.edits = {};
-			this.render();
-		});
 		this.inject_style();
 	}
 
-	async load(force) {
-		if (force && Object.keys(this.edits).length && !(await this.confirm_discard())) return;
-		this.edits = {};
-		this.$body.html(`<div class="mp-om__empty text-muted">${__("Yuklanmoqda…")}</div>`);
-		this.update_bar();
+	async load() {
+		this.grids = {};
+		this.movements = null;
+		if (!this.data) this.$body.html(`<div class="mp-om__empty text-muted">${__("Yuklanmoqda…")}</div>`);
 		const { message } = await frappe.call("marketplace.stock_page.get_stock_overview", { shop: this.state.shop || null });
 		this.data = message;
 		this.state.shop = message.shop || "";
 		this.render();
-	}
-
-	confirm_discard() {
-		return new Promise((resolve) =>
-			frappe.confirm(__("Saqlanmagan o'zgarishlar o'chadi. Davom etasizmi?"), () => resolve(true), () => resolve(false))
-		);
 	}
 
 	render() {
@@ -66,40 +49,56 @@ class OmborPage {
 			["low", __("Kam qolgan")],
 			["out", __("Tugagan")],
 		];
+		const total = products.reduce((a, p) => a + Math.max(p.actual, 0), 0);
+		const stock_view = this.state.view === "stock";
 
 		this.$body.html(`
-			<div class="mp-om__hint">${frappe.utils.icon("info", "sm")} ${__("Omborda hozir nechta bor bo'lsa, o'shani yozing (qo'shiladigan sonni emas, umumiy sonni)")}</div>
+			<div class="mp-om__hint">${frappe.utils.icon("info", "sm")}<span>${__("Bu sahifa faqat ko'rish uchun. Yangi tovar kelsa — tovarni oching, <b>Ombor</b> tabida qaysi kontragentdan olganingizni, rang, o'lcham, nechta kelganini va necha puldan olganingizni yozing. Ombor faqat kirim bilan ko'payadi, sotuvda o'zi kamayadi.")}</span></div>
+			<div class="mp-om__tabs">
+				<button class="${stock_view ? "is-active" : ""}" data-view="stock">${__("Qoldiq")} <span>${format_number(total, null, 0)} ${__("dona")}</span></button>
+				<button class="${stock_view ? "" : "is-active"}" data-view="log">${__("Kirim tarixi")}</button>
+			</div>
 			<div class="mp-om__toolbar">
 				${shops.length ? `<select class="form-control mp-om__shop">
 					<option value="">${__("Do'konni tanlang")}</option>
 					${shops.map((s) => `<option value="${esc(s.name)}" ${s.name === this.state.shop ? "selected" : ""}>${esc(s.shop_name)}</option>`).join("")}
 				</select>` : ""}
+				${stock_view ? `
 				<input class="form-control mp-om__search" type="search" placeholder="${__("Tovar nomi yoki turi…")}" value="${esc(this.state.q)}">
 				<div class="mp-om__chips">
 					${chips.map(([k, l]) => `<button class="${this.state.filter === k ? "is-active" : ""}" data-filter="${k}">${l} <span>${counts[k]}</span></button>`).join("")}
-				</div>
+				</div>` : ""}
 			</div>
 			<div class="mp-om__list"></div>
 		`);
 
-		const q = this.state.q.trim().toLowerCase();
-		const list = products.filter((p) => {
-			if (q && !`${p.name} ${p.category || ""} ${p.variants.map((v) => v.label).join(" ")}`.toLowerCase().includes(q)) return false;
-			if (this.state.filter === "out") return p.status === "Tugagan";
-			if (this.state.filter === "low") return p.status === "Kam qolgan" || (p.status !== "Tugagan" && p.low_variants);
-			return true;
-		});
-
 		const $list = this.$body.find(".mp-om__list");
 		if (!this.data.shop) {
 			$list.html(`<div class="mp-om__empty text-muted">${__("Do'konni tanlang")}</div>`);
-		} else if (!list.length) {
-			$list.html(`<div class="mp-om__empty text-muted">${products.length ? __("Mos tovar topilmadi") : __("Hali tovar yo'q")}</div>`);
+		} else if (!stock_view) {
+			this.render_log($list);
+		} else {
+			const q = this.state.q.trim().toLowerCase();
+			const list = products.filter((p) => {
+				if (q && !`${p.name} ${p.category || ""} ${p.variants.map((v) => v.label).join(" ")}`.toLowerCase().includes(q)) return false;
+				if (this.state.filter === "out") return p.status === "Tugagan";
+				if (this.state.filter === "low") return p.status === "Kam qolgan" || (p.status !== "Tugagan" && p.low_variants);
+				return true;
+			});
+			if (!list.length) {
+				$list.html(`<div class="mp-om__empty text-muted">${products.length ? __("Mos tovar topilmadi") : __("Hali tovar yo'q")}</div>`);
+			}
+			for (const p of list) $list.append(this.card(p));
 		}
-		for (const p of list) $list.append(this.card(p));
-
 		this.bind();
-		this.update_bar();
+	}
+
+	async render_log($list) {
+		if (!this.movements) {
+			$list.html(`<div class="mp-om__empty text-muted">${__("Yuklanmoqda…")}</div>`);
+			this.movements = await frappe.xcall("marketplace.stock_page.get_movements", { shop: this.state.shop || null });
+		}
+		$list.html(`<div class="mp-om__log">${mp.journal(this.movements, { show_item: true, empty: __("Hali kirim bo'lmagan") })}</div>`);
 	}
 
 	card(p) {
@@ -109,10 +108,19 @@ class OmborPage {
 			? `<img src="${esc(p.picture)}" alt="" loading="lazy">`
 			: `<span>${esc((p.name || "?").charAt(0).toUpperCase())}</span>`;
 		const badge = (s) => (s ? `<span class="indicator-pill ${s === "Tugagan" ? "red" : "orange"}">${__(s)}</span>` : "");
-		const total = p.is_template ? this.template_total(p) : this.qty_of(p.code, p.actual);
-
+		// Holatlar alohida: jadvalda omborda bori (actual) ko'rinadi, holat esa buyurtmaga band qilinganini ayirib
+		// hisoblanadi — bori bor, lekin hammasi band bo'lsa "tugagan" emas, "buyurtmaga band" deymiz
+		const count = (fn) => p.variants.filter(fn).length;
+		const warn = [
+			[count((v) => v.status === "Kam qolgan"), __("tasi kam qolgan")],
+			[count((v) => v.status === "Tugagan" && v.actual <= 0), __("tasi tugagan")],
+			[count((v) => v.status === "Tugagan" && v.actual > 0), __("tasi buyurtmaga band")],
+		]
+			.filter(([n]) => n)
+			.map(([n, label]) => `${n} ${label}`)
+			.join(", ");
 		const variants_hint = p.is_template
-			? `${p.variants.length} ${__("ta variant")}${p.low_variants ? ` · <span class="mp-om__warn">${p.low_variants} ${__("tasi kam/tugagan")}</span>` : ""}`
+			? `${p.variants.length} ${__("ta variant")}${warn ? ` · <span class="mp-om__warn">${warn}</span>` : ""}`
 			: "";
 
 		return `
@@ -124,40 +132,20 @@ class OmborPage {
 						<div class="mp-om__meta">${esc([p.category, p.price ? `${format_number(p.price, null, 0)} so‘m` : ""].filter(Boolean).join(" · "))}</div>
 						${variants_hint ? `<div class="mp-om__meta">${variants_hint}</div>` : ""}
 					</div>
-					${p.is_template
-						? `<div class="mp-om__total"><b data-total="${esc(p.code)}">${format_number(total, null, 0)}</b><span>${__("dona")}</span></div>
-						   <span class="mp-om__chev">${frappe.utils.icon("down", "sm")}</span>`
-						: this.input_cell(p.code, p.actual, p.reserved)}
+					<div class="mp-om__total"><b>${format_number(p.actual, null, 0)}</b><span>${__("dona")}${p.reserved > 0 ? ` · ${__("zaxirada")} ${format_number(p.reserved, null, 0)}` : ""}</span></div>
+					<button class="btn btn-default btn-xs mp-om__add" data-kirim="${esc(p.code)}">${__("+ Kirim qilish")}</button>
+					${p.is_template ? `<span class="mp-om__chev">${frappe.utils.icon("down", "sm")}</span>` : ""}
 				</div>
-				${p.is_template ? `<div class="mp-om__variants">
-					${p.variants.length
-						? p.variants.map((v) => `
-							<div class="mp-om__row">
-								<div class="mp-om__label">${esc(v.label)} ${badge(v.status)}</div>
-								${this.input_cell(v.code, v.actual, v.reserved, p.code)}
-							</div>`).join("")
-						: `<div class="text-muted small">${__("Variantlar hali yaratilmagan")}</div>`}
-				</div>` : ""}
+				${p.is_template ? `<div class="mp-om__variants"><div data-grid="${esc(p.code)}"><div class="text-muted small">${__("Yuklanmoqda…")}</div></div></div>` : ""}
 			</div>`;
 	}
 
-	input_cell(code, actual, reserved, parent = "") {
-		const esc = frappe.utils.escape_html;
-		const val = this.qty_of(code, actual);
-		return `
-			<div class="mp-om__qty">
-				<input type="number" min="0" step="1" inputmode="numeric" class="form-control ${code in this.edits ? "is-changed" : ""}"
-					data-item="${esc(code)}" data-actual="${actual}" data-parent="${esc(parent)}" value="${val}">
-				${reserved > 0 ? `<div class="mp-om__reserved">${__("zaxirada")} ${format_number(reserved, null, 0)}</div>` : ""}
-			</div>`;
-	}
-
-	qty_of(code, actual) {
-		return code in this.edits ? this.edits[code] : actual;
-	}
-
-	template_total(p) {
-		return p.variants.reduce((s, v) => s + (Number(this.qty_of(v.code, v.actual)) || 0), 0);
+	// Andoza ochilganda: rang × o'lcham bo'yicha omborda nechta bor
+	async mount_grid(code) {
+		const $el = this.$body.find(`[data-grid="${CSS.escape(code)}"]`);
+		if (!$el.length) return;
+		this.grids[code] = this.grids[code] || (await frappe.xcall("marketplace.seller_desk.get_variant_matrix", { template: code }));
+		$el.html(mp.stock_grid(this.grids[code]));
 	}
 
 	bind() {
@@ -174,63 +162,40 @@ class OmborPage {
 			this.state.filter = e.currentTarget.dataset.filter;
 			this.render();
 		});
-		this.$body.find(".mp-om__shop").on("change", async (e) => {
-			if (Object.keys(this.edits).length && !(await this.confirm_discard())) return this.render();
+		this.$body.find("[data-view]").on("click", (e) => {
+			this.state.view = e.currentTarget.dataset.view;
+			this.render();
+		});
+		this.$body.find(".mp-om__shop").on("change", (e) => {
 			this.state.shop = e.target.value;
-			this.edits = {};
 			this.load();
+		});
+		this.$body.find("[data-kirim]").on("click", (e) => {
+			e.stopPropagation();
+			mp.open_ombor_of = e.currentTarget.dataset.kirim;
+			frappe.set_route("Form", "Item", e.currentTarget.dataset.kirim);
 		});
 		this.$body.find("[data-toggle]").on("click", (e) => {
 			const code = e.currentTarget.dataset.toggle;
 			this.open.has(code) ? this.open.delete(code) : this.open.add(code);
-			$(e.currentTarget).closest(".mp-om__card").toggleClass("is-open");
+			const $card = $(e.currentTarget).closest(".mp-om__card").toggleClass("is-open");
+			if ($card.hasClass("is-open")) this.mount_grid(code);
 		});
-		this.$body.find("input[data-item]").on("input", (e) => {
-			const el = e.target;
-			const actual = Number(el.dataset.actual);
-			if (el.value === "" || Number(el.value) === actual) delete this.edits[el.dataset.item];
-			else this.edits[el.dataset.item] = el.value;
-			el.classList.toggle("is-changed", el.dataset.item in this.edits);
-			const parent = el.dataset.parent && this.data.products.find((p) => p.code === el.dataset.parent);
-			if (parent) this.$body.find(`[data-total="${CSS.escape(parent.code)}"]`).text(format_number(this.template_total(parent), null, 0));
-			this.update_bar();
-		});
-	}
-
-	update_bar() {
-		const n = Object.keys(this.edits).length;
-		this.$bar.toggleClass("is-visible", n > 0);
-		this.$bar.find(".mp-om__bar-text").text(`${n} ${__("ta tovar o'zgardi")}`);
-	}
-
-	async save() {
-		const rows = Object.entries(this.edits).map(([item_code, qty]) => ({ item_code, qty }));
-		const bad = rows.find((r) => !/^\d+$/.test(String(r.qty).trim()));
-		if (bad) {
-			frappe.msgprint(__("Son 0 yoki undan katta butun son bo'lishi kerak"));
-			return;
-		}
-		if (!rows.length) return;
-		const $btn = this.$bar.find("[data-act=save]").prop("disabled", true);
-		try {
-			const { message } = await frappe.call({
-				method: "marketplace.stock_page.save_stock",
-				args: { rows, shop: this.state.shop || null },
-				freeze: true,
-				freeze_message: __("Saqlanmoqda…"),
-			});
-			frappe.show_alert({ message: `${message || 0} ${__("ta tovar qoldig'i yangilandi")}`, indicator: "green" });
-			this.edits = {};
-			this.load();
-		} finally {
-			$btn.prop("disabled", false);
-		}
+		this.$body.find(".mp-om__card.is-open[data-code]").each((_, el) => this.mount_grid(el.dataset.code));
 	}
 
 	inject_style() {
 		if (document.getElementById("mp-om-style")) return;
 		$(`<style id="mp-om-style">
-			.mp-om { padding: 4px 0 90px; }
+			.mp-om { padding: 4px 0 40px; }
+			.mp-om__tabs { display: flex; gap: 4px; margin-bottom: 12px; border-bottom: 1px solid var(--border-color); }
+			.mp-om__tabs button { border: 0; background: none; padding: 8px 14px; margin-bottom: -1px; border-bottom: 2px solid transparent;
+				color: var(--text-muted); font-weight: 600; }
+			.mp-om__tabs button span { margin-left: 6px; font-weight: 400; }
+			.mp-om__tabs button.is-active { color: var(--heading-color); border-bottom-color: var(--primary); }
+			.mp-om__log { padding: 6px 14px; border: 1px solid var(--border-color); border-radius: var(--border-radius-lg); background: var(--card-bg); }
+			.mp-om__log .mp-jr { max-height: none; }
+			.mp-om__add { flex: none; }
 			.mp-om__hint { display: flex; gap: 8px; align-items: center; padding: 10px 14px; margin-bottom: 14px; border-radius: var(--border-radius-md);
 				background: var(--bg-blue); color: var(--text-on-blue); font-size: var(--text-sm); }
 			.mp-om__toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 14px; }
@@ -259,25 +224,14 @@ class OmborPage {
 			.mp-om__total span { color: var(--text-muted); font-size: var(--text-xs); }
 			.mp-om__chev { transition: transform .15s; color: var(--text-muted); }
 			.mp-om__card.is-open .mp-om__chev { transform: rotate(180deg); }
-			.mp-om__variants { display: none; border-top: 1px solid var(--border-color); padding: 4px 14px 8px 82px; }
+			.mp-om__variants { display: none; border-top: 1px solid var(--border-color); padding: 10px 14px 12px 82px; }
 			.mp-om__card.is-open .mp-om__variants { display: block; }
-			.mp-om__row { display: flex; align-items: center; gap: 12px; padding: 6px 0; border-bottom: 1px dashed var(--border-color); }
-			.mp-om__row:last-child { border-bottom: 0; }
-			.mp-om__label { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; color: var(--text-color); }
-			.mp-om__qty { flex: none; width: 96px; text-align: right; }
-			.mp-om__qty input { text-align: right; font-weight: 600; }
-			.mp-om__qty input.is-changed { border-color: var(--primary); box-shadow: 0 0 0 2px var(--bg-blue); }
-			.mp-om__reserved { margin-top: 2px; color: var(--text-muted); font-size: var(--text-xs); white-space: nowrap; }
-			.mp-om__bar { position: sticky; bottom: 12px; z-index: 5; display: none; align-items: center; gap: 8px; justify-content: flex-end;
-				margin: -70px 0 12px; padding: 10px 14px; border: 1px solid var(--border-color); border-radius: var(--border-radius-lg);
-				background: var(--card-bg); box-shadow: var(--shadow-lg); }
-			.mp-om__bar.is-visible { display: flex; }
-			.mp-om__bar-text { margin-right: auto; font-weight: 600; color: var(--heading-color); }
 			@media (max-width: 640px) {
-				.mp-om__head { padding: 10px; gap: 10px; }
+				.mp-om__head { padding: 10px; gap: 10px; flex-wrap: wrap; }
+				.mp-om__info { flex-basis: calc(100% - 140px); }
+				.mp-om__add { margin-left: auto; }
 				.mp-om__pic { width: 44px; height: 44px; }
 				.mp-om__variants { padding-left: 14px; }
-				.mp-om__qty { width: 80px; }
 				.mp-om__search { max-width: none; }
 			}
 		</style>`).appendTo(document.head);

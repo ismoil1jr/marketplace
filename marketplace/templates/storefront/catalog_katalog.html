@@ -1,4 +1,4 @@
-{% from "marketplace/templates/storefront/macros.html" import shop_avatar %}
+{% from "marketplace/templates/storefront/macros.html" import shop_avatar, carousel %}
 {% autoescape true %}
 <div class="kt">
 	<header class="kt-head">
@@ -16,6 +16,8 @@
 	</header>
 
 	<main class="kt-main">
+		{{ carousel(shop) }}
+
 		{% if has_wholesale %}
 		<div class="kt-toggle" role="tablist" aria-label="Narx turi">
 			<button type="button" role="tab" class="is-active" data-price-mode="retail">Chakana narx</button>
@@ -28,12 +30,31 @@
 				<svg><use href="#i-search"/></svg>
 				<input type="search" placeholder="Model yoki artikul" data-search aria-label="Qidirish">
 			</label>
-			<select class="kt-sort" data-sort aria-label="Saralash">
-				<option value="new">Yangilari</option>
-				<option value="cheap">Arzonroq</option>
-				<option value="expensive">Qimmatroq</option>
-			</select>
+			<button type="button" class="kt-filterbtn" data-filter-toggle aria-expanded="false" aria-controls="kt-filters">
+				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+				<span>Filtr</span><b class="kt-filterbtn__n" data-filter-count hidden></b>
+			</button>
 		</div>
+
+		<section class="kt-filters" id="kt-filters" data-filter-panel hidden aria-label="Filtrlar">
+			<label class="kt-filters__f"><span>Saralash</span>
+				<select data-sort>
+					<option value="new">Yangilari</option>
+					<option value="cheap">Arzonroq</option>
+					<option value="expensive">Qimmatroq</option>
+				</select>
+			</label>
+			<div class="kt-filters__f"><span>Narx, so‘m</span>
+				<div class="sf-range">
+					<input type="number" inputmode="numeric" placeholder="dan" data-min aria-label="Narx dan">
+					<input type="number" inputmode="numeric" placeholder="gacha" data-max aria-label="Narx gacha">
+				</div>
+			</div>
+			<label class="kt-filters__check"><input type="checkbox" data-instock> Faqat sotuvda borlari</label>
+			<button type="button" class="sf-reset" data-reset-filters hidden>Filtrni tozalash</button>
+		</section>
+
+		<div class="kt-resultrow"><span data-result-count>{{ catalog["items"] | length }} ta mahsulot</span></div>
 
 		<nav class="kt-tabs" aria-label="Kategoriyalar">
 			<button type="button" class="is-active" data-group="">Hammasi</button>
@@ -44,20 +65,21 @@
 		{% if catalog["items"] %}
 		<div class="kt-list" data-grid>
 			{% for p in catalog["items"] %}
-			<article class="sf-card kt-row" data-code="{{ p.code }}" data-group="{{ p.group }}" data-price="{{ p.price }}"
-				data-name="{{ (p.name ~ ' ' ~ (p.spec or '') ~ ' ' ~ p.code) | lower }}" data-created="{{ p.created }}">
+			<article class="sf-card kt-row{% if p.coming_soon %} is-soon{% endif %}" data-code="{{ p.code }}" data-group="{{ p.group }}" data-groups="{{ p.groups or p.group }}" data-price="{{ p.price }}"
+				data-name="{{ (p.name ~ ' ' ~ (p.spec or '') ~ ' ' ~ p.code) | lower }}" data-created="{{ p.created }}" data-instock="{{ 1 if p.in_stock else 0 }}">
 				<a class="kt-row__img" href="{{ base }}/p/{{ p.code }}" aria-label="{{ p.name }}">
 					{% if p.thumb %}<img src="{{ p.thumb }}" alt="" width="160" height="160" loading="{{ 'eager' if loop.index <= 6 else 'lazy' }}" decoding="async">{% else %}<svg><use href="#i-image"/></svg>{% endif %}
 				</a>
 				<div class="kt-row__body">
 					<a class="kt-row__name" href="{{ base }}/p/{{ p.code }}">{{ p.name }}</a>
 					<p class="kt-row__meta">
+						{% if p.coming_soon %}<span class="kt-soon">Tez kunda</span>{% if p.spec %} · {% endif %}{% endif %}
 						{% if p.spec %}{{ p.spec }}{% endif %}{% if p.spec and p.stock_qty is not none %} · {% endif %}
-						{% if p.stock_qty is not none %}{% if p.in_stock %}Omborda {{ p.stock_qty }} ta{% else %}<span class="kt-out">Tugagan</span>{% endif %}{% endif %}
+						{% if p.stock_qty is not none %}{% if p.in_stock %}{{ p.stock_qty }} ta bor{% else %}<span class="kt-out">Tugagan</span>{% endif %}{% endif %}
 					</p>
 					<div class="kt-row__foot">
 						<div class="kt-price">
-							<strong data-retail>{{ fmt_sum(p.price) }}</strong>
+							<strong data-retail>{% if p.price %}{{ fmt_sum(p.price) }}{% if p.price_from %}dan{% endif %}{% else %}Narxi tez kunda{% endif %}</strong>
 							{% if p.wholesale_price %}
 							<small data-ws-note>Ulgurji: {{ fmt_sum(p.wholesale_price) }}</small>
 							<strong data-ws hidden>{{ fmt_sum(p.wholesale_price) }}</strong>
@@ -81,8 +103,7 @@
 			</article>
 			{% endfor %}
 		</div>
-		<p class="sf-empty" data-no-results hidden>Hech narsa topilmadi.</p>
-		<span data-result-count hidden></span>
+		<p class="sf-empty" data-no-results hidden>Hech narsa topilmadi. Filtrni o‘zgartirib ko‘ring.</p>
 		{% else %}
 		<p class="sf-empty">Hozircha tovarlar yo‘q. Tez orada qo‘shiladi.</p>
 		{% endif %}
