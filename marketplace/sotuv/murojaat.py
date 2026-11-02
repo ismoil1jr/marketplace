@@ -34,7 +34,7 @@ KEYS = {
 	"telefon": ("telefon", "phone", "phone_number", "phonenumber", "tel", "mobile", "номер_телефона", "телефон"),
 	"izoh": ("izoh", "comment", "comments", "message", "note", "savol", "комментарий"),
 	"shahar": ("shahar", "city", "viloyat", "region", "tuman", "город", "manzil"),
-	"tovar": ("tovar", "kitob", "product", "book", "item"),
+	"tovar": ("tovar", "tovar_id", "kitob", "product", "product_id", "book", "item", "item_code"),
 	"kampaniya": ("kampaniya", "campaign", "campaign_name", "utm_campaign", "ad_name", "adset_name"),
 	"forma": ("forma", "form", "form_name", "form_id"),
 	"manba": ("manba", "source", "platform"),
@@ -272,8 +272,8 @@ def get_leads(view: str = "yangi", q: str | None = None):
 	if (q or "").strip():
 		like = f"%{q.strip()}%"
 		digits = normalize_phone(q) or ""
-		or_filters = [["mijoz_ismi", "like", like], ["tovar_nomi", "like", like], ["kampaniya", "like", like], ["shahar", "like", like],
-		              ["name", "like", like]]
+		or_filters = [["mijoz_ismi", "like", like], ["tovar_nomi", "like", like], ["tovar", "like", like], ["kampaniya", "like", like],
+		              ["shahar", "like", like], ["name", "like", like]]
 		if len(digits) >= 4:
 			or_filters.append(["normal_telefon", "like", f"%{digits[-9:]}%"])
 	rows = frappe.get_all(

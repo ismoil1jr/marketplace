@@ -98,7 +98,7 @@ class SotuvPaneli {
 					<button class="${this.state.view === v ? "is-active" : ""} ${v === "bugun" && counts.bugun ? "is-due" : ""}" data-view="${v}">
 						${holat ? `<i class="mp-sp__dot" style="--c: var(--${MP_LEAD_CLS[holat]}-500)"></i>` : ""}${__(l)} <span>${counts[v] || 0}</span></button>`).join("")}
 				</div>
-				<input class="form-control mp-sp__search" type="search" placeholder="${leads ? __("Ism, telefon, kitob yoki kampaniya…") : __("Ism, telefon yoki buyurtma raqami…")}" value="${esc(this.state.q)}">
+				<input class="form-control mp-sp__search" type="search" placeholder="${leads ? __("Ism, telefon, kitob, tovar ID yoki kampaniya…") : __("Ism, telefon yoki buyurtma raqami…")}" value="${esc(this.state.q)}">
 			</div>
 			<div class="mp-sp__shop text-muted small">
 				<b>${esc(shop_name || "")}</b>
@@ -124,6 +124,7 @@ class SotuvPaneli {
 				</div>
 				<div class="mp-sp__row-side">
 					${r.tovar_nomi ? `<b class="mp-sp__book">📘 ${esc(r.tovar_nomi)}</b>` : `<span class="text-muted small">${__("Tovar ko‘rsatilmagan")}</span>`}
+					${r.tovar ? `<span class="mp-sp__tid" title="${__("Tovar ID")}">ID: ${esc(r.tovar)}</span>` : ""}
 					${mp_lead_pill(r.holat)}${due}
 				</div>
 			</div>`;
@@ -373,7 +374,9 @@ class SotuvPaneli {
 			<div class="mp-sp__sec">${__("Qaysi tovar bo‘yicha")}</div>
 			${item ? `<div class="mp-sp__book-card">
 					${item.image ? `<img src="${esc(item.image)}" alt="">` : ""}
-					<div><b>${esc(item.item_name)}</b>${item.price ? `<div>${this.money(item.price)}</div>` : ""}
+					<div><b>${esc(item.item_name)}</b>
+						<div class="mp-sp__tid">${__("Tovar ID")}: ${esc(item.name)}</div>
+						${item.price ? `<div>${this.money(item.price)}</div>` : ""}
 						<a class="small" href="${esc(item.url)}" target="_blank" rel="noopener">${__("Saytda ko‘rish")} ↗</a></div>
 				</div>`
 				: `<div class="small">${esc(d.tovar_nomi || __("Reklamada tovar ko‘rsatilmagan"))}</div>`}
@@ -504,6 +507,7 @@ class SotuvPaneli {
 			.mp-sp__modes button.is-active { background: var(--card-bg); color: var(--heading-color); box-shadow: var(--shadow-sm); }
 			.mp-sp__modes button span { margin-left: 4px; padding: 0 6px; border-radius: 8px; background: var(--orange-500, #f97316); color: #fff; font-size: 11px; }
 			.mp-sp__book { color: var(--heading-color); font-size: var(--text-sm); max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+			.mp-sp__tid { font-family: var(--font-stack-monospace, monospace); font-size: 11px; color: var(--text-muted); max-width: 220px; overflow: hidden; text-overflow: ellipsis; user-select: all; }
 			.mp-sp__must { margin-top: 10px; padding: 8px 12px; border-radius: var(--border-radius-md); background: var(--bg-orange); display: grid; gap: 4px; }
 			.mp-sp__must.is-ok { background: var(--bg-green); }
 			.mp-sp__must .btn { justify-self: start; }
