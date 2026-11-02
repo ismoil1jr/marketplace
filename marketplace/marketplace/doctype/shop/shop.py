@@ -206,6 +206,11 @@ def user_validate(doc, method=None):
 		# Do'kon rollari faqat do'kon a'zolari orqali: qo'lda berilsa foydalanuvchi do'konsiz qoladi va hech narsa
 		# ko'rmaydi (permissions.NOTHING) — shuning uchun darhol to'g'ri yo'lni aytamiz
 		shop_roles = sorted((roles - old) & {SELLER_ROLE, COURIER_ROLE, SALES_ROLE})
+		if shop_roles and not frappe.is_setup_complete():
+			# Sozlash ustasi birinchi foydalanuvchiga barcha rollarni beradi — u platforma admini: do'kon rollari
+			# olib tashlanadi (ular bilan admin do'konsiz sotuvchi bo'lib, hech narsa ko'rmay qolardi)
+			doc.set("roles", [r for r in doc.get("roles") if r.role not in shop_roles])
+			return
 		if shop_roles:
 			frappe.throw(
 				_("{0} roli shu yerda belgilanmaydi — foydalanuvchini do'konga biriktiring: User formasidagi «Do'konga biriktirish» "
