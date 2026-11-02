@@ -836,9 +836,11 @@ def setup_sales_order_list():
 		("grand_total", "Summa"),
 		("name", "ID"),
 	]
+	# Toza saytda yozuv hali yo'q: lug'atdan yaratilgan hujjatda is_new() False — shuning uchun exists bo'yicha
+	exists = frappe.db.exists("List View Settings", "Sales Order")
 	settings = (
 		frappe.get_doc("List View Settings", "Sales Order")
-		if frappe.db.exists("List View Settings", "Sales Order")
+		if exists
 		else frappe.get_doc({"doctype": "List View Settings", "name": "Sales Order"})
 	)
 	# Telefon to'liq sig'sin: +998 99 801 10 26
@@ -847,4 +849,4 @@ def setup_sales_order_list():
 		[{"fieldname": f, "label": label, **({"width": widths[f]} if f in widths else {})} for f, label in columns]
 	)
 	settings.flags.ignore_permissions = True
-	settings.save() if not settings.is_new() else settings.insert()
+	settings.save() if exists else settings.insert()
