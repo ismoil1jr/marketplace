@@ -312,14 +312,16 @@
 	async function show_smm_link(frm) {
 		const r = await frappe.xcall("marketplace.sotuv.murojaat.smm_link", { item: frm.doc.name });
 		const esc = frappe.utils.escape_html;
-		const example = JSON.stringify({ full_name: "Ali Valiyev", phone: "+998901234567", city: "Toshkent", comment: "Kitob qachon keladi?", campaign: "Oktabr reklamasi" }, null, 2);
+		// murojaat.SAMPLE bilan bir xil + shu tovar kodi
+		const sample = { ism: "Ali", familiya: "Valiyev", telefon: "+998901234567", tovar: r.item };
+		const example = JSON.stringify(sample, null, 2);
 		const d = new frappe.ui.Dialog({
 			title: `SMM havolasi: ${r.item_name || frm.doc.item_name}`,
 			size: "large",
 			fields: [{ fieldtype: "HTML", fieldname: "body" }],
 		});
 		const local = /\/\/(localhost|127\.|10\.|192\.168\.)/.test(r.url);
-		const curl = `curl -X POST '${r.url}' -H 'Content-Type: application/json' -d '${JSON.stringify({ full_name: "Ali Valiyev", phone: "+998901234567", city: "Toshkent" })}'`;
+		const curl = `curl -X POST '${r.url}' -H 'Content-Type: application/json' -d '${JSON.stringify(sample)}'`;
 		d.fields_dict.body.$wrapper.html(`
 			<p>Instagram reklamasidagi forma to'ldirilganda murojaat <b>shu tovar bo'yicha</b> Sotuv panelining
 				«Murojaatlar» bo'limiga tushadi. Havolani SMM mutaxassisiga bering: <b>har bir kitob (forma) — o'z havolasi</b>,
@@ -333,11 +335,12 @@
 			<p class="text-muted small" style="margin-top:8px">Tekshirish: havolani brauzerda oching — do'kon va tovar nomi chiqadi.
 				Murojaat esa faqat <b>POST</b> bilan yoziladi.</p>
 			<p class="small"><b>Instagram lead-formasini ulash:</b> Make.com, Zapier yoki Albato'da
-				«Facebook Lead Ads → yangi lead» → «HTTP so'rov (POST)» shu havolaga. Formadagi ism, telefon, shahar va savollar o'zi taniladi.</p>
-			<p class="text-muted small">Maydonlar: <code>full_name</code> (yoki <code>first_name</code> + <code>last_name</code>),
-				<code>phone</code> (majburiy), <code>city</code>, <code>comment</code>, <code>campaign</code>, <code>lead_id</code>.
-				JSON, forma yoki Meta'ning <code>field_data</code> ko'rinishi qabul qilinadi. Misol:</p>
+				«Facebook Lead Ads → yangi lead» → «HTTP so'rov (POST)» shu havolaga.</p>
+			<p class="small">Yuboriladigan JSON — 4 ta maydon: <code>ism</code>, <code>familiya</code>, <code>telefon</code> (majburiy)
+				va <code>tovar</code> (havolada bor — tanada shart emas). Shahar va boshqa savollar shart emas.</p>
 			<pre style="font-size:12px">${esc(example)}</pre>
+			<p class="text-muted small">Javobda nima yozilgani qaytadi: ism, familiya, telefon va <code>tovar_nomi</code> — tovar to'g'ri
+				ulanganini shundan ko'rasiz. Inglizcha nomlar (<code>first_name</code>, <code>last_name</code>, <code>phone</code>) ham bo'ladi.</p>
 			<p class="text-muted small">Dasturchi uchun sinov (havola qo'shtirnoqda bo'lsin, aks holda <code>&amp;tovar=</code> tushib qoladi):</p>
 			<pre style="font-size:11px;white-space:pre-wrap;word-break:break-all">${esc(curl)}</pre>
 			<p class="text-muted small">Havolada do'kon kaliti bor — uni faqat SMM vositasiga qo'ying, ochiq joyga yozmang.</p>`);

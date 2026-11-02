@@ -4,9 +4,11 @@ do'konning sotuv menejeri Sotuv panelidagi "Murojaatlar" bo'limida qo'ng'iroq qi
 Qabul: POST /api/method/marketplace.sotuv.murojaat.qabul?kalit=<do'kon kaliti>&tovar=<tovar kodi>
 * kalit — do'konning "Murojaat API kaliti" (Shop.murojaat_kaliti): murojaat qaysi do'konga tushishini shu belgilaydi;
 * tovar — reklama qaysi kitob (tovar) bo'yicha: har bir tovarning o'z havolasi (tovar formasidagi «SMM havolasi»);
-* tana — JSON yoki form: ism/first_name, familiya/last_name yoki full_name, telefon/phone, shahar/city, izoh/comment,
-  kampaniya/campaign, lead_id. Meta lead-formasi ko'rinishi ({"field_data": [{"name", "values"}]}) ham tushuniladi.
+* tana — JSON: {"ism", "familiya", "telefon", "tovar"} (SAMPLE). Faqat telefon majburiy; tovar havolada bo'lsa
+  tanada shart emas. Inglizcha nomlar (first_name, last_name, full_name, phone), qo'shimcha shahar/izoh/kampaniya
+  va Meta lead-formasi ko'rinishi ({"field_data": [{"name", "values"}]}) ham tushuniladi.
 SMM vositasi (Make, Zapier va h.k.) formani shu manzilga yuboradi. Bir xil lead qayta kelsa — yangisi yaratilmaydi.
+Javobda nima yozilgani qaytadi (ism, familiya, telefon, tovar) — SMM'chi tovar to'g'ri ulanganini shundan ko'radi.
 
 Qo'ng'iroq yozuvi murojaatga RAQAM bo'yicha bog'lanadi (telefoniya.ingest_call), mijoz keyin saytda buyurtma bersa —
 murojaat "Buyurtma berdi" bo'ladi.
@@ -39,6 +41,8 @@ KEYS = {
 	"lead_id": ("lead_id", "leadgen_id", "id"),
 }
 SOURCES = {"instagram": "Instagram", "ig": "Instagram", "facebook": "Facebook", "fb": "Facebook", "telegram": "Telegram", "sayt": "Sayt", "site": "Sayt"}
+# SMM'chiga ko'rsatiladigan namuna (GET tekshiruv javobi; tovar formasidagi «SMM havolasi» oynasida ham shu)
+SAMPLE = {"ism": "Ali", "familiya": "Valiyev", "telefon": "+998901234567"}
 
 
 # ---------------- Do'kon kaliti ----------------
@@ -82,7 +86,8 @@ def smm_link(item: str | None = None, shop: str | None = None):
 @frappe.whitelist(allow_guest=True, methods=["GET", "POST"])
 @rate_limit(limit=120, seconds=60)
 def qabul(**kwargs):
-	"""Lead-formadan bitta murojaat (POST). Qaytaradi: {"status": "ok", "name", "duplicate"}.
+	"""Lead-formadan bitta murojaat (POST). Qaytaradi: {"status": "ok", "name", "duplicate", "ism", "familiya",
+	"telefon", "tovar", "tovar_nomi"} (+ "ogohlantirish", agar yuborilgan tovar do'konda topilmasa).
 	Kalit noto'g'ri bo'lsa — 403, telefon yo'q bo'lsa — 417 (SMM vositasi xatoni ko'radi va qayta yubormaydi).
 	GET — faqat tekshirish: havolani brauzerda ochsa, qaysi do'kon va qaysi tovarga ulangani ko'rinadi."""
 	data = _payload()
@@ -98,7 +103,8 @@ def qabul(**kwargs):
 		frappe.throw(_("Telefon raqami yo'q yoki noto'g'ri"))
 
 	lead_id = _pick(data, "lead_id")[:140]
-	tovar, tovar_nomi = _item(shop, _pick(data, "tovar"))
+	asked = _pick(data, "tovar")
+	tovar, tovar_nomi = _item(shop, asked)
 	# Qayta yuborilgan lead (SMM vositasi takrorlasa) yoki 10 daqiqa ichida aynan o'sha mijoz + tovar — dublikat
 	dup = (lead_id and frappe.db.get_value("Murojaat", {"shop": shop, "tashqi_id": lead_id})) or frappe.db.get_value(
 		"Murojaat",
@@ -106,7 +112,7 @@ def qabul(**kwargs):
 		 "creation": [">", add_to_date(now_datetime(), minutes=-10)]},
 	)
 	if dup:
-		return {"status": "ok", "name": dup, "duplicate": True}
+		return _answer(dup, True, asked)
 
 	ism, familiya = _pick(data, "ism"), _pick(data, "familiya")
 	full = _pick(data, "to'liq")
@@ -136,7 +142,16 @@ def qabul(**kwargs):
 	)
 	doc.insert(ignore_permissions=True)
 	_notify(doc)
-	return {"status": "ok", "name": doc.name, "duplicate": False}
+	return _answer(doc.name, False, asked)
+
+
+def _answer(name, duplicate, asked):
+	"""SMM vositasiga javob: murojaat qanday yozilgani — ism, familiya, telefon va qaysi tovar bo'yicha."""
+	row = frappe.db.get_value("Murojaat", name, ["ism", "familiya", "telefon", "tovar", "tovar_nomi"], as_dict=True)
+	out = {"status": "ok", "name": name, "duplicate": duplicate, **row}
+	if asked and not row.tovar:
+		out["ogohlantirish"] = _("«{0}» tovari bu do'konda topilmadi — murojaat tovarsiz yozildi").format(asked)
+	return out
 
 
 def _link_check(shop, value):
@@ -144,10 +159,10 @@ def _link_check(shop, value):
 	if value and not tovar:
 		xabar = _("Diqqat: «{0}» tovari bu do'konda topilmadi — murojaatlar tovarsiz yoziladi").format(value)
 	else:
-		xabar = _("Havola ishlayapti. Murojaatni POST bilan yuboring: full_name, phone, city, comment")
+		xabar = _("Havola ishlayapti. Murojaatni POST bilan yuboring: ism, familiya, telefon (namuna pastda)")
 	return {
 		"status": "ok", "dokon": frappe.db.get_value("Shop", shop, "shop_name"), "tovar": tovar, "tovar_nomi": tovar_nomi,
-		"xabar": xabar,
+		"xabar": xabar, "namuna": {**SAMPLE, **({"tovar": tovar} if tovar else {})},
 	}
 
 
