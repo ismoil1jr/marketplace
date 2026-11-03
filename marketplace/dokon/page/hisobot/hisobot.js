@@ -445,7 +445,7 @@ class SalesReport {
 	inject_style() {
 		if (document.getElementById("mp-rep-style")) return;
 		$(`<style id="mp-rep-style">
-			.mp-rep { padding: 4px 0 40px; }
+			.mp-rep { padding: 4px var(--padding-md, 15px) 40px; }
 			.page-form .mp-rep-filter { flex: 0 0 150px; max-width: 150px; }
 			.page-form .mp-rep-filter--wide { flex-basis: 200px; max-width: 200px; }
 			.mp-sec { margin: 4px 0 8px; font-size: var(--text-xs); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); }

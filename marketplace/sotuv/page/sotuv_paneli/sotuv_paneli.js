@@ -501,7 +501,7 @@ class SotuvPaneli {
 	inject_style() {
 		if (document.getElementById("mp-sp-style")) return;
 		$(`<style id="mp-sp-style">
-			.mp-sp { padding: 4px 0 40px; }
+			.mp-sp { padding: 4px var(--padding-md, 15px) 40px; }
 			.mp-sp__modes { display: inline-flex; gap: 4px; padding: 3px; margin-bottom: 10px; border-radius: 10px; background: var(--subtle-fg); }
 			.mp-sp__modes button { border: 0; background: none; border-radius: 8px; padding: 6px 14px; font-weight: 600; color: var(--text-muted); }
 			.mp-sp__modes button.is-active { background: var(--card-bg); color: var(--heading-color); box-shadow: var(--shadow-sm); }

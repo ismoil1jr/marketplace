@@ -166,7 +166,7 @@ class ShopsOverview {
 	inject_style() {
 		if (document.getElementById("mp-ov-style")) return;
 		$(`<style id="mp-ov-style">
-			.mp-ov { padding: 4px 0 40px; }
+			.mp-ov { padding: 4px var(--padding-md, 15px) 40px; }
 			.mp-ov__loading, .mp-empty { padding: 60px 0; text-align: center; }
 			.mp-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 18px; }
 			.mp-stat { padding: 16px 18px; border: 1px solid var(--border-color); border-radius: var(--border-radius-lg); background: var(--card-bg); }

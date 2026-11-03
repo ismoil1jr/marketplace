@@ -205,7 +205,7 @@ class Tranzaksiyalar {
 	inject_style() {
 		if (document.getElementById("mp-tx-style")) return;
 		$(`<style id="mp-tx-style">
-			.mp-tx { padding: 4px 0 40px; }
+			.mp-tx { padding: 4px var(--padding-md, 15px) 40px; }
 			.mp-tx__cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
 			.mp-tx__card { display: grid; gap: 2px; text-align: left; padding: 12px 14px; border-radius: var(--border-radius-lg);
 				border: 1px solid var(--border-color); background: var(--card-bg); cursor: pointer; }

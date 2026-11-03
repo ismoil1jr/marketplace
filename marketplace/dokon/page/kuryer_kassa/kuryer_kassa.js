@@ -80,7 +80,7 @@ class KuryerKassa {
 	inject_style() {
 		if (document.getElementById("mp-kk-style")) return;
 		$(`<style id="mp-kk-style">
-			.mp-kk { max-width: 640px; margin: 0 auto; padding: 8px 0 40px; }
+			.mp-kk { max-width: 640px; margin: 0 auto; padding: 8px var(--padding-md, 15px) 40px; }
 			.mp-kk__empty { padding: 60px 0; text-align: center; }
 			.mp-kk__hero { display: grid; justify-items: center; gap: 6px; padding: 24px 16px; border-radius: var(--border-radius-lg);
 				background: var(--bg-orange, #fff7ed); text-align: center; }

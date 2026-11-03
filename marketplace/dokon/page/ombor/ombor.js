@@ -187,7 +187,7 @@ class OmborPage {
 	inject_style() {
 		if (document.getElementById("mp-om-style")) return;
 		$(`<style id="mp-om-style">
-			.mp-om { padding: 4px 0 40px; }
+			.mp-om { padding: 4px var(--padding-md, 15px) 40px; }
 			.mp-om__tabs { display: flex; gap: 4px; margin-bottom: 12px; border-bottom: 1px solid var(--border-color); }
 			.mp-om__tabs button { border: 0; background: none; padding: 8px 14px; margin-bottom: -1px; border-bottom: 2px solid transparent;
 				color: var(--text-muted); font-weight: 600; }
