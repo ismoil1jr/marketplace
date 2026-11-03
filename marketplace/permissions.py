@@ -91,6 +91,29 @@ def shop_has_permission(doc, ptype=None, user=None):
 	return is_admin(user) or doc.name == get_user_shop(user)
 
 
+# Frappe "Desk User" roliga User bo'yicha "Select" beradi — u bilan User ro'yxati ham ochiladi va sotuvchi
+# boshqa do'konlar a'zolarini, adminlarni ko'rardi. Do'kon a'zosi faqat o'z do'koni a'zolarini ko'radi
+# (kuryer, menejer tanlash uchun shu yetarli), a'zo bo'lmagan (admin emas) — faqat o'zini.
+def user_query(user=None):
+	user = user or frappe.session.user
+	if is_admin(user):
+		return ""
+	shop = get_user_shop(user)
+	if not shop:
+		return "`tabUser`.name = {0}".format(frappe.db.escape(user))
+	return "`tabUser`.name in (select m.user from `tabShop Member` m where m.parenttype = 'Shop' and m.parent = {0})".format(
+		frappe.db.escape(shop)
+	)
+
+
+def user_has_permission(doc, ptype=None, user=None):
+	user = user or frappe.session.user
+	if is_admin(user) or doc.name == user:
+		return True
+	shop = get_user_shop(user)
+	return bool(shop) and bool(frappe.db.exists("Shop Member", {"parenttype": "Shop", "parent": shop, "user": doc.name}))
+
+
 def item_query(user=None):
 	return shop_query(user, "Item")
 

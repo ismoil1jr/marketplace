@@ -199,6 +199,8 @@ permission_query_conditions = {
 	"Item Group": "marketplace.permissions.item_group_query",
 	"Customer": "marketplace.permissions.customer_query",
 	"Contact": "marketplace.permissions.contact_query",
+	# Sotuvchi boshqa do'konlar a'zolarini va adminlarni ko'rmasin (Desk User'da standart "Select" bor)
+	"User": "marketplace.permissions.user_query",
 }
 has_permission = {
 	"Sales Order": "marketplace.permissions.sales_order_has_permission",
@@ -218,6 +220,7 @@ has_permission = {
 	"Item Group": "marketplace.permissions.item_group_has_permission",
 	"Customer": "marketplace.permissions.customer_has_permission",
 	"Contact": "marketplace.permissions.contact_has_permission",
+	"User": "marketplace.permissions.user_has_permission",
 }
 #
 # has_permission = {
