@@ -152,6 +152,33 @@ def get_purchases(name: str):
 	return {"orders": out, "count": count, "total": total, "last": out[0]["date"] if out else None}
 
 
+def register_from_delivery(so):
+	"""Yetkazilgan buyurtma mijozi o'zi doimiy mijozlarga yoziladi (seller_desk.mark_delivered). Raqami ro'yxatda
+	bo'lsa — tegilmaydi. Familiya bo'lmasa ham yoziladi: anketaning qolganini kuryer yoki do'kon keyin to'ldiradi."""
+	from marketplace.otp import normalize_phone
+
+	raw = so.customer_phone or frappe.db.get_value("Customer", so.customer, "mp_phone")
+	try:
+		phone = normalize_phone(raw)
+	except frappe.ValidationError:
+		frappe.clear_messages()
+		return None
+	if not so.shop or frappe.db.exists("Doimiy Mijoz", {"shop": so.shop, "phone": phone}):
+		return None
+	first, _sep, last = (so.customer_name or "").strip().partition(" ")
+	address = (so.get("delivery_address") or "").strip()
+	doc = frappe.get_doc(
+		{
+			"doctype": "Doimiy Mijoz", "shop": so.shop, "phone": phone, "customer": so.customer, "source_order": so.name,
+			"first_name": first if first and first != raw else _("Mijoz"), "last_name": last,
+			"notes": _("Yetkazish manzili: {0}").format(address) if address else None,
+		}
+	)
+	doc.flags.ignore_mandatory = True  # familiya buyurtmada bo'lmasligi mumkin
+	doc.insert(ignore_permissions=True)
+	return doc.name
+
+
 @frappe.whitelist()
 def from_order(order: str):
 	"""Buyurtma formasidagi "Mijozni ro'yxatga olish": shu raqam yozilgan bo'lsa — o'sha anketa,

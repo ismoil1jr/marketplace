@@ -26,7 +26,8 @@ def _filters(shop, tab):
 		# Kuryerga — o'zi topshirganlari (do'konning o'zi bergani aralashmasin)
 		mine = {"mp_courier": frappe.session.user} if is_courier() else {}
 		return {**base, **mine, "per_delivered": [">=", 100]}
-	return {**base, "per_delivered": ["<", 100], "payment_status": ["!=", "Bekor"]}
+	# Faqat menejer mijoz bilan gaplashib "Oladi" deb tasdiqlaganlari (sotuv/api.save_result)
+	return {**base, "per_delivered": ["<", 100], "payment_status": ["!=", "Bekor"], "mp_aloqa_natija": "Oladi"}
 
 
 def _state(so):

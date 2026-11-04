@@ -185,9 +185,12 @@ def sales_order_query(user=None):
 		return ""
 	cond += " and ifnull(`tabSales Order`.mp_placed, 1) = 1"
 	if is_courier(user):
+		# Kuryer — menejer mijoz bilan gaplashib "Oladi" deb tasdiqlagan yetkazishlar (sotuv/api.save_result)
+		# va o'zi topshirganlari (tarix)
 		cond += (
 			" and `tabSales Order`.delivery_method = 'Kuryer'"
-			" and ifnull(`tabSales Order`.mp_courier, '') in ('', {0})"
+			" and (ifnull(`tabSales Order`.mp_courier, '') = {0}"
+			" or (ifnull(`tabSales Order`.mp_courier, '') = '' and `tabSales Order`.mp_aloqa_natija = 'Oladi'))"
 		).format(frappe.db.escape(user))
 	return cond
 
@@ -198,7 +201,11 @@ def sales_order_has_permission(doc, ptype=None, user=None):
 		return False
 	if not is_courier(user):
 		return True
-	return doc.get("delivery_method") == "Kuryer" and doc.get("mp_courier") in (None, "", user)
+	if doc.get("delivery_method") != "Kuryer":
+		return False
+	if doc.get("mp_courier") == user:
+		return True
+	return not doc.get("mp_courier") and doc.get("mp_aloqa_natija") == "Oladi"
 
 
 def delivery_note_query(user=None):

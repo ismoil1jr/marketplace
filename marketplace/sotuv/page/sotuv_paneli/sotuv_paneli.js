@@ -11,6 +11,8 @@ frappe.pages["sotuv-paneli"].on_page_show = function (wrapper) {
 };
 
 const MP_VIEWS = [
+	// Yangi — menejer hali gaplashmagan: kuryer ularni ko'rmaydi (sotuv/api._filters)
+	["yangi", "Yangi (tekshirilmagan)"],
 	["tolanmagan", "To‘lanmagan"],
 	["bugun", "Bugun qayta qo‘ng‘iroq"],
 	["bekor", "Bekor qilingan"],
@@ -53,7 +55,7 @@ const mp_lead_pill = (holat) => `<span class="indicator-pill ${MP_LEAD_CLS[holat
 class SotuvPaneli {
 	constructor(page) {
 		this.page = page;
-		this.state = { mode: "buyurtma", view: "tolanmagan", q: "", open: null };
+		this.state = { mode: "buyurtma", view: "yangi", q: "", open: null };
 		this.page.set_secondary_action(__("Yangilash"), () => this.load(), "refresh");
 		this.$body = $(`<div class="mp-sp"></div>`).appendTo(page.main);
 		this.inject_style();
@@ -240,6 +242,9 @@ class SotuvPaneli {
 				<div class="mp-sp__total"><b>${this.money(d.grand_total)}</b><div class="small text-muted">${esc(d.name)}</div><div>${mp_state_pill(d.state)}</div></div>
 			</div>
 			${d.delivery_method ? `<div class="small text-muted mp-sp__deliv">🚚 ${esc(d.delivery_method)}${d.delivery_address ? ` — ${esc(d.delivery_address)}` : ""}</div>` : ""}
+			${d.courier_open ? (d.confirmed
+				? `<div class="small mp-sp__conf is-ok">✅ ${__("Tasdiqlangan — kuryer yetkazishni ko‘radi")}</div>`
+				: `<div class="small mp-sp__conf">⏳ ${__("Kuryer hali ko‘rmaydi: mijoz bilan gaplashib, manzilni aniqlang va «Oladi»ni belgilang")}</div>`) : ""}
 			${pin_html}
 			${this.must_html(d.mandatory)}
 			<div class="mp-sp__sec">${__("Xarid qilingan tovarlar")}</div>
@@ -252,6 +257,10 @@ class SotuvPaneli {
 					<button data-val="SMS">✉️ ${__("SMS yozildi")}</button>
 				</div>
 				<div class="mp-sp__seg" data-group="natija">${MP_RESULTS.map((r) => `<button data-val="${r}" class="is-${MP_RESULT_CLS[r]}">${__(r)}</button>`).join("")}</div>
+				${d.courier_open && !d.confirmed ? `<div class="small mp-sp__conf is-ok" data-oladi-hint hidden>✅ ${__("Saqlangach buyurtma kuryerga o‘tadi")}</div>` : ""}
+				${d.courier_open ? `<label class="small text-muted">${__("Yetkazish manzili — mijoz bilan aniqlashtiring")}
+					<textarea class="form-control" rows="2" data-manzil>${esc(d.delivery_address || "")}</textarea>
+				</label>` : ""}
 				<label class="mp-sp__cancel" hidden>
 					<input type="checkbox" data-cancel ${d.can_cancel ? "checked" : "disabled"}>
 					${d.can_cancel ? __("Buyurtma bekor qilinsin (tovar yana sotuvga chiqadi)") : __("Bu buyurtmani bekor qilib bo‘lmaydi (topshirilgan, to‘langan yoki allaqachon bekor)")}
@@ -287,7 +296,10 @@ class SotuvPaneli {
 			const group = $b.closest(".mp-sp__seg").data("group");
 			pick[group] = $b.data("val");
 			$b.addClass("is-active").siblings().removeClass("is-active");
-			if (group === "natija") $card.find(".mp-sp__cancel").prop("hidden", pick.natija !== "Olmaydi");
+			if (group === "natija") {
+				$card.find(".mp-sp__cancel").prop("hidden", pick.natija !== "Olmaydi");
+				$card.find("[data-oladi-hint]").prop("hidden", pick.natija !== "Oladi");
+			}
 		});
 		$card.find("[data-save]").on("click", async (e) => {
 			if (!pick.natija) return frappe.show_alert({ message: __("Natijani tanlang: Oladi, Olmaydi, Javob bermadi yoki Keyinroq"), indicator: "orange" });
@@ -298,6 +310,7 @@ class SotuvPaneli {
 					const r = await frappe.xcall("marketplace.sotuv.api.save_result", {
 						order: d.name, kanal: pick.kanal, natija: pick.natija, bekor,
 						izoh: $card.find("[data-izoh]").val() || null,
+						manzil: $card.find("[data-manzil]").val() || null,
 						keyingi_qongiroq: $card.find("[data-next]").val() || null,
 					});
 					frappe.show_alert({ message: r.cancelled ? __("Saqlandi, buyurtma bekor qilindi") : __("Saqlandi"), indicator: "green" });
@@ -554,6 +567,8 @@ class SotuvPaneli {
 			.mp-sp__contacts { display: flex; gap: 6px; margin-top: 4px; }
 			.mp-sp__total { text-align: right; } .mp-sp__total b { font-size: var(--text-lg); }
 			.mp-sp__deliv { margin-top: 6px; }
+			.mp-sp__conf { margin-top: 4px; color: var(--text-muted); }
+			.mp-sp__conf.is-ok { color: var(--green-600, #16a34a); }
 			.mp-sp__pin { margin-top: 12px; padding: 10px 12px; border-radius: var(--border-radius-md); background: var(--bg-yellow, #fef9c3);
 				border-left: 4px solid var(--yellow-500, #eab308); display: grid; gap: 4px; }
 			.mp-sp__pin-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }

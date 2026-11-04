@@ -42,6 +42,10 @@ def _order(name, shop):
 
 def _filters(view, shop):
 	base = {"shop": shop}
+	if view == "yangi":
+		# Menejer hali gaplashmagan buyurtmalar: kuryer ularni ko'rmaydi, avval "Oladi" bilan tasdiqlanadi
+		return {**base, "docstatus": 1, "payment_status": ["!=", CANCELLED], "per_delivered": ["<", 100],
+		        "mp_aloqa_natija": ["is", "not set"]}
 	if view == "tolanmagan":
 		return {**base, "docstatus": 1, "payment_status": ["not in", [PAID, CANCELLED]]}
 	if view == "bugun":
@@ -96,7 +100,7 @@ def get_orders(view: str = "tolanmagan", q: str | None = None):
 		r.state = _state(r)
 		note = notes.get(r.customer_phone)
 		r.last_note = note.izoh if note else None
-	counts = {v: frappe.db.count("Sales Order", _filters(v, shop)) for v in ("tolanmagan", "bugun", "bekor", "hammasi")}
+	counts = {v: frappe.db.count("Sales Order", _filters(v, shop)) for v in ("yangi", "tolanmagan", "bugun", "bekor", "hammasi")}
 	return {
 		"shop": shop, "shop_name": frappe.db.get_value("Shop", shop, "shop_name"), "rows": rows, "counts": counts,
 		# Rejim almashtirgichida "Murojaatlar · N yangi"
@@ -183,7 +187,14 @@ def get_order(name: str):
 		"payment_method": so.payment_method, "delivery_method": so.get("delivery_method"),
 		"delivery_address": so.get("delivery_address"), "items": items, "calls": calls, "logs": logs, "unlinked": unlinked,
 		"can_cancel": _can_cancel(so), "mandatory": mandatory_info(shop, so.customer_phone),
+		# Kuryer buyurtmani faqat menejer "Oladi" deganidan keyin ko'radi (permissions.sales_order_query)
+		"courier_open": _courier_open(so), "confirmed": so.get("mp_aloqa_natija") == "Oladi",
 	}
+
+
+def _courier_open(so):
+	"""Kuryer yetkazishi kerak bo'lgan, hali topshirilmagan buyurtma — manzilni aniqlashtirsa bo'ladi."""
+	return so.get("delivery_method") == "Kuryer" and so.docstatus == 1 and so.payment_status != CANCELLED and flt(so.per_delivered) < 100
 
 
 def mandatory_info(shop, phone):
@@ -275,13 +286,19 @@ def attach_call(call: str, order: str):
 
 @frappe.whitelist(methods=["POST"])
 def save_result(order: str, kanal: str, natija: str, izoh: str | None = None, keyingi_qongiroq: str | None = None,
-                bekor: int = 0):
-	"""Menejer natijasi. Oladi — saytda yakunlanmagan buyurtma tasdiqlanadi (naqd) va do'konga tushadi;
-	Olmaydi + bekor — buyurtma bekor qilinadi (zaxira bo'shaydi, tovar sotuvga qaytadi)."""
+                bekor: int = 0, manzil: str | None = None):
+	"""Menejer natijasi. Oladi — saytda yakunlanmagan buyurtma tasdiqlanadi (naqd) va do'konga tushadi, kuryer
+	yetkazishni shundan keyingina ko'radi (xabar ham oladi); Olmaydi + bekor — buyurtma bekor qilinadi
+	(zaxira bo'shaydi, tovar sotuvga qaytadi). manzil — menejer mijoz bilan aniqlashtirgan yetkazish manzili."""
 	shop = _shop()
 	so = _order(order, shop)
 	if kanal not in CHANNELS or natija not in RESULTS:
 		frappe.throw(_("Kanal va natijani tanlang"))
+	was_confirmed = so.get("mp_aloqa_natija") == "Oladi"
+	manzil = (manzil or "").strip()[:500]
+	if manzil and _courier_open(so) and manzil != (so.get("delivery_address") or "").strip():
+		so.db_set("delivery_address", manzil, update_modified=False)
+		so.add_comment("Info", _("Manzil aniqlashtirildi: {0}").format(manzil))
 	date = getdate(keyingi_qongiroq) if keyingi_qongiroq else None
 	if date and date < getdate(today()):
 		frappe.throw(_("Qayta qo'ng'iroq sanasi o'tib ketgan kun bo'lmasin"))
@@ -315,6 +332,10 @@ def save_result(order: str, kanal: str, natija: str, izoh: str | None = None, ke
 		with as_system():
 			so.reload()
 			so.cancel()
+	elif natija == "Oladi" and not was_confirmed and _courier_open(so):
+		from marketplace.seller_desk import notify_couriers
+
+		notify_couriers(so)
 	return {"name": log.name, "cancelled": bool(cancel)}
 
 

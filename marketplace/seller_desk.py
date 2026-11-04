@@ -157,8 +157,19 @@ def notify_new_order(doc, method=None):
 
 
 def notify_shop(doc, subject):
-	"""Do'kon a'zolariga: qo'ng'iroqcha (Notification Log) + ochiq Desk'da ovoz va ekrandagi xabar."""
-	users = set(frappe.get_all("Shop Member", filters={"parent": doc.shop, "parenttype": "Shop"}, pluck="user"))
+	"""Do'kon a'zolariga (kuryerdan tashqari): qo'ng'iroqcha (Notification Log) + ochiq Desk'da ovoz va ekrandagi xabar.
+	Kuryer buyurtmani menejer tasdiqlaganda oladi (notify_couriers)."""
+	_notify_users(doc, subject, {"role": ["!=", "Kuryer"]})
+
+
+def notify_couriers(doc):
+	"""Menejer mijoz bilan gaplashib "Oladi" deb tasdiqlagan yetkazish — do'kon kuryerlariga (sotuv/api.save_result)."""
+	subject = _("Yetkazish {0}: {1} — {2}").format(doc.name, doc.customer_name, doc.get("delivery_address") or _("manzil yo'q"))
+	_notify_users(doc, subject, {"role": "Kuryer"})
+
+
+def _notify_users(doc, subject, member_filters):
+	users = set(frappe.get_all("Shop Member", filters={"parent": doc.shop, "parenttype": "Shop", **member_filters}, pluck="user"))
 	for user in users:
 		frappe.get_doc(
 			{
@@ -992,6 +1003,13 @@ def mark_delivered(order: str):
 		dn.insert()
 		dn.submit()
 	so.add_comment("Info", _("Mijozga topshirildi: {0}").format(dn.name))
+	# Tovarni olgan mijoz — do'konning doimiy mijozi. Xato bo'lsa ham topshirish to'xtamasin
+	from marketplace.marketplace.doctype.doimiy_mijoz.doimiy_mijoz import register_from_delivery
+
+	try:
+		register_from_delivery(so)
+	except Exception:
+		frappe.log_error("Doimiy mijozga yozib bo'lmadi", so.name)
 	return dn.name
 
 
