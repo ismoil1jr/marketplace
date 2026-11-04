@@ -20,7 +20,9 @@
   "telegram_webhook_secret",
   "telegram_mode",
   "sb_session",
-  "session_days"
+  "session_days",
+  "sb_platform",
+  "aloqa_telefon"
  ],
  "fields": [
   {
@@ -122,10 +124,23 @@
    "fieldtype": "Data",
    "label": "Bot holati",
    "read_only": 1
+  },
+  {
+   "fieldname": "sb_platform",
+   "fieldtype": "Section Break",
+   "label": "magazinlar.uz bosh sahifasi"
+  },
+  {
+   "fieldname": "aloqa_telefon",
+   "fieldtype": "Data",
+   "label": "Aloqa telefoni",
+   "options": "Phone",
+   "default": "+998 90 910 22 02",
+   "description": "Bosh sahifadagi «Do'koningizni oching» tugmasi shu raqamga qo'ng'iroq qiladi"
   }
  ],
  "links": [],
- "modified": "2026-10-16 09:00:00.000000",
+ "modified": "2026-11-05 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "Marketplace",
  "name": "Marketplace Settings",

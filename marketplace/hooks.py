@@ -78,7 +78,9 @@ doctype_tree_js = {"Item Group": "public/js/item_group_seller.js"}
 # ----------
 
 # application home page (will override Website Settings)
-# home_page = "login"
+# magazinlar.uz/ — barcha do'konlar va platforma haqida (www/magazinlar.py); admin panel — /admin (/desk)
+home_page = "magazinlar"
+website_redirects = [{"source": "/admin", "target": "/desk"}]
 
 # website user home page (by Role)
 # role_home_page = {

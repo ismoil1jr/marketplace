@@ -1,0 +1,189 @@
+{% autoescape true %}
+<!doctype html>
+<html lang="uz">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+	<title>magazinlar.uz — O‘zbekiston do‘konlari bir joyda</title>
+	<meta name="description" content="magazinlar.uz — O‘zbekiston do‘konlari uchun onlayn savdo maydoni: do‘kondan to‘g‘ridan-to‘g‘ri xarid, Payme, Click yoki naqd to‘lov, kuryer orqali yetkazib berish.">
+	<meta name="theme-color" content="#F2F1EE">
+	<meta property="og:type" content="website">
+	<meta property="og:title" content="magazinlar.uz — O‘zbekiston do‘konlari bir joyda">
+	<meta property="og:description" content="Do‘kondan to‘g‘ridan-to‘g‘ri xarid: Payme, Click yoki naqd to‘lov, kuryer orqali yetkazib berish.">
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="/assets/marketplace/css/storefront.css?v={{ asset_version }}">
+	<style>
+		/* Platforma bosh sahifasi: do'kon saytlari bilan bir xil asos (storefront.css), rangi — ORANGE TEAM */
+		:root { --brand: #E8611A; --brand-soft: #FDEEE4; }
+		.mh { max-width: 1120px; margin: 0 auto; padding: 0 var(--gutter); }
+		.mh-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 0; }
+		.mh-logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; letter-spacing: -.01em; }
+		.mh-logo i { width: 30px; height: 30px; border-radius: 50%; background: var(--brand);
+			box-shadow: inset 0 0 0 5px #FFB27A; flex: none; }
+		.mh-logo span { color: var(--brand); }
+		.mh-top nav { display: flex; gap: 8px; }
+		.mh-btn { display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 16px; border-radius: 999px;
+			background: var(--surface); border: 1px solid var(--line); font-weight: 600; font-size: 14px; white-space: nowrap; }
+		.mh-btn--brand { background: var(--brand); border-color: var(--brand); color: #fff; }
+		.mh-hero { padding: 28px 0 8px; }
+		.mh-hero h1 { margin: 0 0 10px; font-size: clamp(28px, 6vw, 44px); line-height: 1.08; letter-spacing: -.02em; }
+		.mh-hero p { margin: 0 0 18px; max-width: 640px; color: var(--muted); font-size: 16px; }
+		.mh-search { display: flex; align-items: center; gap: 10px; max-width: 520px; height: 50px; padding: 0 16px;
+			background: var(--surface); border: 1px solid var(--line); border-radius: 999px; box-shadow: var(--shadow); }
+		.mh-search input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; font-size: 15px; }
+		.mh-sec { margin: 34px 0 14px; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+		.mh-sec h2 { margin: 0; font-size: 22px; letter-spacing: -.01em; }
+		.mh-sec small { color: var(--muted); }
+		.mh-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+		.mh-shop { display: flex; flex-direction: column; gap: 10px; padding: 16px; background: var(--surface);
+			border-radius: var(--radius); box-shadow: var(--shadow); transition: transform .15s ease, box-shadow .15s ease; }
+		.mh-shop:hover { transform: translateY(-2px); box-shadow: 0 2px 4px rgb(0 0 0 / .05), 0 14px 32px rgb(0 0 0 / .08); }
+		.mh-shop__logo { width: 56px; height: 56px; border-radius: 50%; overflow: hidden; display: grid; place-items: center;
+			color: #fff; font-weight: 700; font-size: 18px; flex: none; }
+		.mh-shop__logo img { width: 100%; height: 100%; object-fit: cover; }
+		.mh-shop b { font-size: 16px; line-height: 1.2; }
+		.mh-shop p { margin: 0; color: var(--muted); font-size: 13px; display: -webkit-box; -webkit-line-clamp: 2;
+			-webkit-box-orient: vertical; overflow: hidden; }
+		.mh-shop__meta { margin-top: auto; display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; }
+		.mh-tag { padding: 3px 9px; border-radius: 999px; background: var(--bg); color: var(--muted); }
+		.mh-tag--soon { background: var(--brand-soft); color: var(--brand); }
+		.mh-empty { padding: 28px; text-align: center; color: var(--muted); background: var(--surface); border-radius: var(--radius); }
+		.mh-about { margin-top: 48px; padding: 28px 20px; background: var(--surface); border-radius: calc(var(--radius) + 6px); }
+		.mh-about h2 { margin: 0 0 10px; font-size: 24px; letter-spacing: -.01em; }
+		.mh-about > p { margin: 0 0 22px; max-width: 760px; color: var(--muted); font-size: 15px; }
+		.mh-cols { display: grid; gap: 12px; }
+		.mh-col { padding: 18px; border-radius: var(--radius); background: var(--bg); }
+		.mh-col h3 { margin: 0 0 10px; font-size: 17px; }
+		.mh-col ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+		.mh-col li { position: relative; padding-left: 22px; font-size: 14px; }
+		.mh-col li::before { content: ""; position: absolute; left: 4px; top: .55em; width: 8px; height: 8px; border-radius: 50%; background: var(--brand); }
+		.mh-steps { margin: 26px 0 0; padding: 0; list-style: none; display: grid; gap: 10px; counter-reset: s; }
+		.mh-steps li { display: flex; align-items: center; gap: 12px; font-weight: 500; }
+		.mh-steps li::before { counter-increment: s; content: counter(s); width: 32px; height: 32px; flex: none; border-radius: 50%;
+			display: grid; place-items: center; background: var(--brand-soft); color: var(--brand); font-weight: 700; }
+		.mh-cta { margin-top: 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+		.mh-cta small { color: var(--muted); }
+		.mh-foot { margin: 36px 0 0; padding: 20px 0 calc(28px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line);
+			display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 13px; }
+		.mh-foot a { text-decoration: underline; text-underline-offset: 2px; }
+		@media (min-width: 640px) {
+			.mh-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+			.mh-cols { grid-template-columns: 1fr 1fr; }
+			.mh-about { padding: 36px; }
+		}
+		@media (min-width: 1100px) {
+			.mh-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+			.mh-hero { padding-top: 48px; }
+		}
+	</style>
+</head>
+<body>
+<div class="mh">
+	<header class="mh-top">
+		<a class="mh-logo" href="/" aria-label="magazinlar.uz"><i></i><b>magazinlar<span>.uz</span></b></a>
+		<nav>
+			{% if is_staff %}<a class="mh-btn" href="/desk">Kabinet</a>{% endif %}
+			<a class="mh-btn mh-btn--brand" href="#ochish">Do‘kon ochish</a>
+		</nav>
+	</header>
+
+	<section class="mh-hero">
+		<h1>O‘zbekiston do‘konlari — bir joyda</h1>
+		<p>Do‘koningizni toping, tovarni tanlang va bir necha bosishda buyurtma bering. To‘lov — Payme, Click yoki naqd, yetkazib berish — kuryer orqali.</p>
+		<label class="mh-search">
+			<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+			<input type="search" placeholder="Do‘kon nomi yoki shahar…" data-shop-search aria-label="Do‘konlarni qidirish">
+		</label>
+	</section>
+
+	<div class="mh-sec"><h2>Do‘konlar</h2><small data-shop-count>{{ shops|length }} ta</small></div>
+	{% if shops %}
+	<div class="mh-grid" data-shop-grid>
+		{% for s in shops %}
+		<a class="mh-shop" href="/s/{{ s.name|urlencode }}" data-q="{{ (s.shop_name ~ ' ' ~ (s.tagline or '') ~ ' ' ~ (s.city or ''))|lower }}">
+			<span class="mh-shop__logo" style="background: {{ s.brand_color or '#1F5C4A' }}">
+				{% if s.logo %}<img src="{{ s.logo }}" alt="" loading="lazy">{% else %}{{ s.initials }}{% endif %}
+			</span>
+			<b>{{ s.shop_name }}</b>
+			{% if s.tagline %}<p>{{ s.tagline }}</p>{% endif %}
+			<span class="mh-shop__meta">
+				{% if s.city %}<span class="mh-tag">{{ s.city }}</span>{% endif %}
+				{% if s.item_count %}<span class="mh-tag">{{ s.item_count }} ta tovar</span>{% else %}<span class="mh-tag mh-tag--soon">Tez kunda</span>{% endif %}
+			</span>
+		</a>
+		{% endfor %}
+	</div>
+	<div class="mh-empty" data-shop-empty hidden>Bunday do‘kon topilmadi</div>
+	{% else %}
+	<div class="mh-empty">Do‘konlar tez orada qo‘shiladi</div>
+	{% endif %}
+
+	<section class="mh-about" id="ochish">
+		<h2>magazinlar.uz nima?</h2>
+		<p>magazinlar.uz — O‘zbekistondagi do‘konlar uchun onlayn savdo maydoni. Har bir do‘konning o‘z sahifasi, o‘z kassasi va o‘z mijozlari bor: siz to‘g‘ridan-to‘g‘ri do‘kondan xarid qilasiz, pul ham do‘konning o‘ziga tushadi.</p>
+		<div class="mh-cols">
+			<div class="mh-col">
+				<h3>Xaridorlar uchun</h3>
+				<ul>
+					<li>Telegram orqali bir daqiqada kirish — parol shart emas</li>
+					<li>Payme, Click yoki naqd to‘lov</li>
+					<li>Kuryer buyurtmani eshigingizgacha olib keladi</li>
+					<li>Buyurtmangiz holatini saytda kuzatasiz</li>
+				</ul>
+			</div>
+			<div class="mh-col">
+				<h3>Do‘kon egalari uchun</h3>
+				<ul>
+					<li>O‘z havolasi bilan tayyor onlayn do‘kon</li>
+					<li>Tovar, ombor va kirim nazorati</li>
+					<li>To‘lov to‘g‘ridan-to‘g‘ri do‘kon kassasiga — Payme, Click</li>
+					<li>Kuryerlar va naqd pul hisobi</li>
+					<li>Instagram reklamadan kelgan murojaatlar va sotuv menejeri paneli</li>
+					<li>Yangi buyurtmalar haqida Telegram xabarlari</li>
+				</ul>
+			</div>
+		</div>
+		<ol class="mh-steps">
+			<li>Biz bilan bog‘lanasiz</li>
+			<li>Do‘koningizni ochamiz va sozlab beramiz</li>
+			<li>Tovarlarni qo‘shasiz — sotuv boshlanadi</li>
+		</ol>
+		{% if phone %}
+		<div class="mh-cta">
+			<a class="mh-btn mh-btn--brand" href="tel:{{ phone_href }}">Do‘koningizni oching</a>
+			<small>yoki qo‘ng‘iroq qiling: {{ phone }}</small>
+		</div>
+		{% endif %}
+	</section>
+
+	<footer class="mh-foot">
+		<span>© {{ year }} magazinlar.uz · «ORANGE TEAM» MChJ</span>
+		<a href="/login">Do‘kon egalari uchun kirish</a>
+	</footer>
+</div>
+<script>
+	// Do'konlarni nomi, tavsifi yoki shahri bo'yicha qidirish (sahifadagi kartalar orasida)
+	(() => {
+		const input = document.querySelector("[data-shop-search]");
+		const cards = [...document.querySelectorAll("[data-shop-grid] .mh-shop")];
+		const empty = document.querySelector("[data-shop-empty]");
+		const count = document.querySelector("[data-shop-count]");
+		if (!input || !cards.length) return;
+		input.addEventListener("input", () => {
+			const q = input.value.trim().toLowerCase();
+			let shown = 0;
+			for (const c of cards) {
+				const ok = !q || c.dataset.q.includes(q);
+				c.hidden = !ok;
+				shown += ok;
+			}
+			empty.hidden = shown > 0;
+			count.textContent = `${shown} ta`;
+		});
+	})();
+</script>
+</body>
+</html>
+{% endautoescape %}
