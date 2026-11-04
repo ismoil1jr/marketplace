@@ -1126,7 +1126,24 @@
 		start();
 	}
 
+	// Karusel rasmi slayd o'lchamiga yaqin bo'lsa — to'liq yoyiladi, aks holda butunligicha (xira fon ustida)
+	function initSlideFit() {
+		const imgs = $$("[data-slide-img]");
+		if (!imgs.length) return;
+		const fit = (img) => {
+			const box = img.closest(".sf-slide");
+			if (!img.naturalWidth || !box.clientHeight || box.classList.contains("sf-slide--item")) return;
+			const ratio = img.naturalWidth / img.naturalHeight;
+			const slot = box.clientWidth / box.clientHeight;
+			box.classList.toggle("is-fill", Math.abs(ratio - slot) / slot < 0.18);
+		};
+		for (const img of imgs) img.complete ? fit(img) : img.addEventListener("load", () => fit(img), { once: true });
+		let t;
+		addEventListener("resize", () => { clearTimeout(t); t = setTimeout(() => imgs.forEach(fit), 150); }, { passive: true });
+	}
+
 	applyCartLink();
+	initSlideFit();
 	initCarousel();
 	renderCartSummary();
 	initFavorites();

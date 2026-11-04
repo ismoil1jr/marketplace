@@ -130,7 +130,9 @@
 	<div class="sf-carousel__track" data-carousel-track>
 		{% for b in shop.banners %}
 		<article class="sf-slide{{ ' sf-slide--item' if b.is_item else '' }}" aria-roledescription="slide" aria-label="{{ loop.index }} / {{ shop.banners|length }}">
-			<img src="{{ b.image }}" alt="{{ b.title or '' }}" {{ 'fetchpriority=high' if loop.first else 'loading=lazy' }} decoding="async">
+			{# Rasm har qanday o'lchamda bo'lishi mumkin: o'zi butunligicha, orqasida — shu rasmning xira nusxasi #}
+			<img class="sf-slide__bg" src="{{ b.image }}" alt="" aria-hidden="true" {{ '' if loop.first else 'loading=lazy' }} decoding="async">
+			<img class="sf-slide__img" src="{{ b.image }}" alt="{{ b.title or '' }}" {{ 'fetchpriority=high' if loop.first else 'loading=lazy' }} decoding="async" data-slide-img>
 			{% if b.title or b.label or b.url or b.item_group %}
 			<div class="sf-slide__text">
 				{% if b.label %}<small>{{ b.label }}</small>{% endif %}

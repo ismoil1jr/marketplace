@@ -1,5 +1,7 @@
 {% from "marketplace/templates/storefront/macros.html" import product_card, shop_avatar, carousel %}
 {% autoescape true %}
+{# Qidiruv maslahati — do'konning o'z kategoriyalaridan (kitob do'konida "ko'ylak" chiqmasin) #}
+{% set search_hint = ("Qidirish: " ~ (catalog.groups[:2] | join(", ")) | lower ~ "…") if catalog.groups else "Mahsulot qidirish…" %}
 <header class="sf-top">
 	<div class="sf-top__inner">
 		<div class="sf-brand">
@@ -12,7 +14,7 @@
 
 		<label class="sf-search sf-search--top">
 			<svg><use href="#i-search"/></svg>
-			<input type="search" placeholder="Ko‘ylak, shim, kurtka…" data-search aria-label="Mahsulot qidirish">
+			<input type="search" placeholder="{{ search_hint }}" data-search aria-label="Mahsulot qidirish">
 		</label>
 
 		<div class="sf-top__actions">
@@ -56,7 +58,7 @@
 
 		<label class="sf-search sf-search--inline">
 			<svg><use href="#i-search"/></svg>
-			<input type="search" placeholder="Ko‘ylak, shim, kurtka…" data-search aria-label="Mahsulot qidirish">
+			<input type="search" placeholder="{{ search_hint }}" data-search aria-label="Mahsulot qidirish">
 		</label>
 
 		{{ carousel(shop) }}
