@@ -23,19 +23,20 @@ frappe.ui.form.on("Shop", {
 		frm.add_custom_button(__("Tovarlar"), () => frappe.set_route("List", "Item", { shop: frm.doc.name }), __("Ko'rish"));
 		frm.add_custom_button(__("Buyurtmalar"), () => frappe.set_route("List", "Sales Order", { shop: frm.doc.name }), __("Ko'rish"));
 
-		// Admin: Payme/Click kabinetiga yoziladigan webhook manzillari (hamma do'konlar uchun bir xil)
+		// Admin: Payme/Click kabinetiga yoziladigan webhook manzillari — har bir do'konning o'zi (?dokon=, payments.url_shop)
 		if (frappe.user.has_role("System Manager") || frappe.user.has_role("Marketplace Manager")) {
 			frm.add_custom_button(__("Do'kon paneliga kirish"), () => marketplace_enter_shop(frm.doc.name));
 			const api = `${base}/api/method/marketplace`;
+			const own = `?dokon=${encodeURIComponent(frm.doc.name)}`;
 			frm.set_df_property(
 				"sb_payme",
 				"description",
-				`Payme Business → kassa → Endpoint URL: <code>${api}.payme.callback</code><br>Hisob maydoni (account): <code>order_id</code>. Kalitni shu yerga qo'ying — u shifrlanib saqlanadi.`
+				`Shu do'kon kassasi uchun Payme Business → kassa → Endpoint URL: <code>${api}.payme.callback${own}</code><br>Hisob maydoni (account): <code>order_id</code>. Kalitni shu yerga qo'ying — u shifrlanib saqlanadi.`
 			);
 			frm.set_df_property(
 				"sb_click",
 				"description",
-				`Click merchant → xizmat → Prepare URL: <code>${api}.click.prepare</code>, Complete URL: <code>${api}.click.complete</code>`
+				`Shu do'kon xizmati uchun Click merchant → Prepare URL: <code>${api}.click.prepare${own}</code>, Complete URL: <code>${api}.click.complete${own}</code>`
 			);
 		}
 

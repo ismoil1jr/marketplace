@@ -1,10 +1,11 @@
 """Click SHOP API (Prepare / Complete): https://docs.click.uz/click-api-request/
 
-Manzillar hamma do'konlar uchun bitta, Click kabinetida har bir MChJ xizmatiga shular yoziladi:
-    Prepare:  https://<domen>/api/method/marketplace.click.prepare
-    Complete: https://<domen>/api/method/marketplace.click.complete
-Do'kon `service_id` bo'yicha topiladi, so'rov imzosi (sign_string, MD5) o'sha do'konning
-shifrlangan secret key'i bilan tekshiriladi. Javob har doim JSON, `error` 0 — muvaffaqiyat.
+Har bir do'konning o'z manzillari (Shop formasida ko'rsatiladi), Click kabinetida shu do'kon xizmatiga yoziladi:
+    Prepare:  https://<domen>/api/method/marketplace.click.prepare?dokon=<Shop>
+    Complete: https://<domen>/api/method/marketplace.click.complete?dokon=<Shop>
+`service_id` shu do'konniki bo'lishi, so'rov imzosi (sign_string, MD5) esa o'sha do'konning
+shifrlangan secret key'i bilan tekshiriladi. ?dokon'siz eski manzilda do'kon service_id'dan topiladi.
+Javob har doim JSON, `error` 0 — muvaffaqiyat.
 """
 
 import hashlib
@@ -15,7 +16,7 @@ import frappe
 from frappe.utils import cint, flt
 from werkzeug.wrappers import Response
 
-from marketplace.payments import mark_paid
+from marketplace.payments import mark_paid, url_shop
 
 ACTION_PREPARE, ACTION_COMPLETE = 0, 1
 STATE_CREATED, STATE_DONE, STATE_CANCELLED = 1, 2, -1
@@ -74,7 +75,11 @@ def _handle(expected_action):
 
 
 def _shop(p):
-	name = frappe.db.get_value("Shop", {"click_service_id": str(p.service_id or "")}, "name")
+	filters = {"click_service_id": str(p.service_id or "")}
+	# Do'konning o'z manzili (?dokon=): service_id shu do'konniki bo'lishi shart
+	if shop_name := url_shop():
+		filters["name"] = shop_name
+	name = frappe.db.get_value("Shop", filters, "name")
 	if not name or not p.click_trans_id or not p.merchant_trans_id:
 		raise ClickError(-8)
 	return frappe.get_doc("Shop", name)

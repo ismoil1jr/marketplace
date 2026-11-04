@@ -22,6 +22,13 @@ PAYME_URL = {False: "https://checkout.paycom.uz", True: "https://checkout.test.p
 CLICK_URL = "https://my.click.uz/services/pay"
 
 
+def url_shop():
+	"""Har bir do'konning o'z endpoint'i: .../payme.callback?dokon=<Shop> (Click Prepare/Complete'da ham).
+	Havoladan (query) o'qiladi — so'rov tanasidagi qiymat uni almashtira olmaydi. Parametrsiz eski manzil — None."""
+	request = getattr(frappe.local, "request", None)
+	return ((request.args.get("dokon") if request else None) or "").strip() or None
+
+
 def gateway_status(shop_name):
 	"""{"Payme": "live"|None, "Click": "live"|None}. live — do'konda yoqilgan va kassa kalitlari kiritilgan."""
 	shop = frappe.get_doc("Shop", shop_name)

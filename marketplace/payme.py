@@ -1,10 +1,10 @@
 """Payme Merchant API (JSON-RPC): https://developer.help.paycom.uz/protokol-merchant-api/
 
-Bitta manzil hamma do'konlar uchun:
-    https://<domen>/api/method/marketplace.payme.callback
-Payme kabinetida har bir MChJ kassasiga shu manzil va hisob maydoni `order_id` yoziladi.
-Qaysi do'kon ekanini `Authorization: Basic base64("Paycom:<kalit>")` dagi kalit aniqlaydi:
-kalit o'sha do'konning Shop formasidagi (shifrlangan) kalitga mos kelishi shart.
+Har bir do'konning o'z manzili (Shop formasida ko'rsatiladi):
+    https://<domen>/api/method/marketplace.payme.callback?dokon=<Shop>
+Payme kabinetida shu do'kon (MChJ) kassasiga o'z manzili va hisob maydoni `order_id` yoziladi.
+Kalit `Authorization: Basic base64("Paycom:<kalit>")` da keladi va o'sha do'konning Shop formasidagi
+(shifrlangan) kalitiga mos kelishi shart. ?dokon'siz eski manzilda do'kon kalitning o'zidan topiladi.
 
 Har doim HTTP 200 va {"result": ...} yoki {"error": {...}} qaytadi — Payme shuni kutadi.
 """
@@ -18,7 +18,7 @@ import frappe
 from frappe.utils import cint, flt
 from werkzeug.wrappers import Response
 
-from marketplace.payments import mark_paid, mark_refunded, to_tiyin
+from marketplace.payments import mark_paid, mark_refunded, to_tiyin, url_shop
 
 TIMEOUT_MS = 43_200_000  # 12 soat: shu vaqtda to'lanmagan tranzaksiya bekor bo'ladi
 
@@ -79,7 +79,11 @@ def _authenticate():
 	if scheme.lower() != "basic" or login != "Paycom" or not key:
 		raise PaymeError(-32504)
 
-	for name in frappe.get_all("Shop", filters={"payme_merchant_id": ["is", "set"]}, pluck="name"):
+	filters = {"payme_merchant_id": ["is", "set"]}
+	# Do'konning o'z manzili (?dokon=): faqat shu do'kon kaliti bilan kiriladi
+	if shop_name := url_shop():
+		filters["name"] = shop_name
+	for name in frappe.get_all("Shop", filters=filters, pluck="name"):
 		shop = frappe.get_doc("Shop", name)
 		field = "payme_test_key" if cint(shop.payme_test_mode) else "payme_key"
 		expected = shop.get_password(field, raise_exception=False)
