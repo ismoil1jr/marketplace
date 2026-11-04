@@ -12,8 +12,10 @@ frappe.ui.form.on("Shop", {
 		if (frm.is_new()) return;
 
 		const url = `/s/${encodeURIComponent(frm.doc.name)}`;
+		// Asosiy domen (host_name, seller_desk.extend_bootinfo): IP orqali kirilganda ham to'g'ri manzil
+		const base = frappe.boot.marketplace_site_url || location.origin;
 		frm.add_custom_button(__("Saytni ochish"), () => window.open(url, "_blank"));
-		frm.add_custom_button(__("Havolani nusxalash"), () => frappe.utils.copy_to_clipboard(location.origin + url));
+		frm.add_custom_button(__("Havolani nusxalash"), () => frappe.utils.copy_to_clipboard(base + url));
 
 		for (const [layout, label] of [["vitrina", "A — Vitrina"], ["story", "B — Instagram uslubi"], ["katalog", "C — Katalog (ulgurji)"]]) {
 			frm.add_custom_button(__(label), () => window.open(`${url}?layout=${layout}`, "_blank"), __("Shablonni ko'rish"));
@@ -24,7 +26,7 @@ frappe.ui.form.on("Shop", {
 		// Admin: Payme/Click kabinetiga yoziladigan webhook manzillari (hamma do'konlar uchun bir xil)
 		if (frappe.user.has_role("System Manager") || frappe.user.has_role("Marketplace Manager")) {
 			frm.add_custom_button(__("Do'kon paneliga kirish"), () => marketplace_enter_shop(frm.doc.name));
-			const api = `${location.origin}/api/method/marketplace`;
+			const api = `${base}/api/method/marketplace`;
 			frm.set_df_property(
 				"sb_payme",
 				"description",
@@ -39,7 +41,7 @@ frappe.ui.form.on("Shop", {
 
 		frm.set_intro(
 			frm.doc.status === "Active"
-				? __("Sayt mijozlarga ochiq: {0}", [`<a href="${url}" target="_blank">${location.host}${url}</a>`])
+				? __("Sayt mijozlarga ochiq: {0}", [`<a href="${base}${url}" target="_blank">${base.replace(/^https?:\/\//, "")}${url}</a>`])
 				: __("Sayt mijozlarga yopiq. Ochish uchun Status'ni Active qiling."),
 			frm.doc.status === "Active" ? "green" : "orange"
 		);

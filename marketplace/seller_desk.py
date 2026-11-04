@@ -123,7 +123,11 @@ def extend_bootinfo(bootinfo):
 	  aks holda "Do'konim" menyusi umuman ko'rinmaydi. Boshqa brauzer/sessiyaga bu belgi o'tmaydi."""
 	from marketplace.permissions import admin_view_shop
 
-	if frappe.session.user == "Guest" or _is_seller():
+	if frappe.session.user == "Guest":
+		return
+	# Sayt manzili (host_name): IP orqali kirilganda ham Payme/Click manzillari va do'kon havolasi domen bilan chiqsin
+	bootinfo.marketplace_site_url = frappe.utils.get_url()
+	if _is_seller():
 		return
 	if not {"System Manager", "Marketplace Manager"} & set(frappe.get_roles()):
 		return
