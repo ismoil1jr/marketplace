@@ -308,46 +308,71 @@
 		d.show();
 	}
 
-	// SMM'ga beriladigan havola: reklama lead-formasi (Make, Zapier va h.k.) murojaatni shu manzilga POST qiladi
+	// SMM: Instagram lead-formasi (Instant Form) → Make → murojaat.qabul. Dialog Make'dagi HTTP modul sozlamalarini
+	// qatorma-qator beradi; kalit havolada emas, sarlavhada (murojaat.smm_link)
 	async function show_smm_link(frm) {
 		const r = await frappe.xcall("marketplace.sotuv.murojaat.smm_link", { item: frm.doc.name });
-		const esc = frappe.utils.escape_html;
-		// murojaat.SAMPLE bilan bir xil + shu tovar kodi
-		const sample = { ism: "Ali", familiya: "Valiyev", telefon: "+998901234567", tovar: r.item };
-		const example = JSON.stringify(sample, null, 2);
 		const d = new frappe.ui.Dialog({
 			title: `SMM havolasi: ${r.item_name || frm.doc.item_name}`,
 			size: "large",
 			fields: [{ fieldtype: "HTML", fieldname: "body" }],
 		});
-		const local = /\/\/(localhost|127\.|10\.|192\.168\.)/.test(r.url);
-		const curl = `curl -X POST '${r.url}' -H 'Content-Type: application/json' -d '${JSON.stringify(sample)}'`;
-		d.fields_dict.body.$wrapper.html(`
-			<p>Instagram reklamasidagi forma to'ldirilganda murojaat <b>shu tovar bo'yicha</b> Sotuv panelining
-				«Murojaatlar» bo'limiga tushadi. Havolani SMM mutaxassisiga bering: <b>har bir kitob (forma) — o'z havolasi</b>,
-				shunda mijoz qaysi reklama bo'yicha yozgani ko'rinadi.</p>
-			${local ? `<div class="alert alert-warning small">Bu havola hozir faqat shu kompyuter / tarmoqda ishlaydi. Instagram va SMM vositalari
-				unga yeta olmaydi — sayt serverga (domen bilan) qo'yilgach, havolani shu yerdan qayta oling.</div>` : ""}
-			<div style="display:flex;gap:6px;align-items:center">
-				<input class="form-control" readonly value="${esc(r.url)}" style="font-family:monospace;font-size:12px">
-				<button class="btn btn-primary btn-sm" data-copy>Nusxalash</button>
-			</div>
-			<p class="text-muted small" style="margin-top:8px">Tekshirish: havolani brauzerda oching — do'kon va tovar nomi chiqadi.
-				Murojaat esa faqat <b>POST</b> bilan yoziladi.</p>
-			<p class="small"><b>Instagram lead-formasini ulash:</b> Make.com, Zapier yoki Albato'da
-				«Facebook Lead Ads → yangi lead» → «HTTP so'rov (POST)» shu havolaga.</p>
-			<p class="small">Yuboriladigan JSON — 4 ta maydon: <code>ism</code>, <code>familiya</code>, <code>telefon</code> (majburiy)
-				va <code>tovar</code> (havolada bor — tanada shart emas). Shahar va boshqa savollar shart emas.</p>
-			<pre style="font-size:12px">${esc(example)}</pre>
-			<p class="text-muted small">Javobda nima yozilgani qaytadi: ism, familiya, telefon va <code>tovar_nomi</code> — tovar to'g'ri
-				ulanganini shundan ko'rasiz. Inglizcha nomlar (<code>first_name</code>, <code>last_name</code>, <code>phone</code>) ham bo'ladi.</p>
-			<p class="text-muted small">Dasturchi uchun sinov (havola qo'shtirnoqda bo'lsin, aks holda <code>&amp;tovar=</code> tushib qoladi):</p>
-			<pre style="font-size:11px;white-space:pre-wrap;word-break:break-all">${esc(curl)}</pre>
-			<p class="text-muted small">Havolada do'kon kaliti bor — uni faqat SMM vositasiga qo'ying, ochiq joyga yozmang.</p>`);
-		d.fields_dict.body.$wrapper.find("[data-copy]").on("click", () => {
-			frappe.utils.copy_to_clipboard(r.url);
-		});
+		render_smm(d, r, frm);
 		d.show();
+	}
+
+	function render_smm(d, r, frm) {
+		const esc = frappe.utils.escape_html;
+		// Make'da qiymatlar 1-moduldan (Watch Leads) tanlab qo'yiladi; lead_id — qayta yuborilsa ikki marta yozilmasin
+		const body = JSON.stringify({ ism: "{{First name}}", familiya: "{{Last name}}", telefon: "{{Phone number}}", lead_id: "{{Lead ID}}" }, null, 2);
+		const local = /\/\/(localhost|127\.|10\.|192\.168\.)/.test(r.url);
+		const curl = `curl -X POST '${r.url}' -H '${r.header}: ${r.kalit}' -H 'Content-Type: application/json' -d '{"ism":"Ali","familiya":"Valiyev","telefon":"+998901234567"}'`;
+		const row = (label, value, copy, extra = "") => `
+			<tr><td class="text-muted" style="width:150px;vertical-align:middle">${label}</td>
+				<td style="vertical-align:middle"><div style="display:flex;gap:6px;align-items:center">
+					<code style="flex:1;word-break:break-all;font-size:12px" ${extra}>${esc(value)}</code>
+					${copy ? `<button class="btn btn-default btn-xs" data-copy="${esc(copy)}">Nusxalash</button>` : ""}
+				</div></td></tr>`;
+		d.fields_dict.body.$wrapper.html(`
+			<p>Instagram reklamasidagi forma (<b>Instant Form</b>) to'ldirilganda murojaat <b>shu tovar bo'yicha</b> Sotuv panelining
+				«Murojaatlar» bo'limiga tushadi. Har bir tovar (reklama) — o'z havolasi.</p>
+			${local ? `<div class="alert alert-warning small">Bu manzil hozir faqat shu kompyuterda ishlaydi — Instagram va Make unga yeta olmaydi.
+				Serverdagi saytdan (domen bilan) qayta oching.</div>` : ""}
+			<p class="small"><b>Make.com:</b> 1-modul — <b>Facebook Lead Ads → Watch Leads</b> (sahifa va formani tanlang),
+				2-modul — <b>HTTP → Make a request</b>, sozlamalari:</p>
+			<table class="table table-bordered table-sm small" style="margin-bottom:8px">
+				${row("URL", r.url, r.url)}
+				${row("Method", "POST")}
+				${row("Header: Name", r.header, r.header)}
+				${row("Header: Value", "•".repeat(12), r.kalit, "data-key")}
+				${row("Body type", "Raw · JSON (application/json)")}
+			</table>
+			<div style="display:flex;justify-content:space-between;align-items:center">
+				<span class="small"><b>Request content</b> — qiymatlarni 1-moduldan tanlab qo'ying:</span>
+				<button class="btn btn-default btn-xs" data-copy="${esc(body)}">Nusxalash</button>
+			</div>
+			<pre style="font-size:12px;margin-top:4px">${esc(body)}</pre>
+			<p class="text-muted small">Formada bitta «Full name» maydoni bo'lsa — <code>ism</code> o'rniga <code>full_name</code> yuboring, server o'zi
+				ism va familiyaga ajratadi. Faqat <code>telefon</code> majburiy; tovar URL'da bor.</p>
+			<p class="text-muted small"><b>Tekshirish:</b> Meta'ning «Lead Ads Testing Tool»ida sinov lead yuboring — murojaat «Murojaatlar»da chiqadi,
+				Make'dagi javobda esa <code>tovar_nomi</code> ko'rinadi.</p>
+			<details class="small text-muted"><summary>Dasturchi uchun sinov (curl)</summary>
+				<pre style="font-size:11px;white-space:pre-wrap;word-break:break-all;margin-top:6px">${esc(curl)}</pre></details>
+			<div class="alert alert-warning small" style="margin-top:12px;display:flex;gap:10px;align-items:center;justify-content:space-between">
+				<span>Kalit — do'kon paroli kabi: faqat Make'ga qo'ying, chat va hujjatlarga yozmang. Begona qo'lga o'tgan bo'lsa — yangilang.</span>
+				<button class="btn btn-default btn-xs" data-reset>Kalitni yangilash</button>
+			</div>`);
+		const $w = d.fields_dict.body.$wrapper;
+		$w.find("[data-copy]").on("click", (e) => frappe.utils.copy_to_clipboard($(e.currentTarget).attr("data-copy")));
+		// Kalit ekranda ochiq turmasin: bosilsa ko'rinadi
+		$w.find("[data-key]").css("cursor", "pointer").attr("title", "Ko'rsatish").one("click", (e) => $(e.currentTarget).text(r.kalit));
+		$w.find("[data-reset]").on("click", () =>
+			frappe.confirm("Eski kalit darhol ishlamay qoladi — Make'dagi Header: Value'ni yangisiga almashtirish kerak. Davom etilsinmi?", async () => {
+				const fresh = await frappe.xcall("marketplace.sotuv.murojaat.reset_smm_key", { item: frm.doc.name });
+				render_smm(d, fresh, frm);
+				frappe.show_alert({ message: "Yangi kalit yaratildi — Make'ga qo'ying", indicator: "green" });
+			})
+		);
 	}
 
 	// Variantli tovarda narx variant_price'ga yoziladi (ERPNext andozaga narx qo'ymaydi), qoldiq esa har variantda

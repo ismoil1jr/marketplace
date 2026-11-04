@@ -1,8 +1,9 @@
 """Instagram (lead-forma) murojaatlari: reklama formasini to'ldirgan mijoz saytga "Murojaat" bo'lib tushadi,
 do'konning sotuv menejeri Sotuv panelidagi "Murojaatlar" bo'limida qo'ng'iroq qiladi va natija yozadi.
 
-Qabul: POST /api/method/marketplace.sotuv.murojaat.qabul?kalit=<do'kon kaliti>&tovar=<tovar kodi>
-* kalit — do'konning "Murojaat API kaliti" (Shop.murojaat_kaliti): murojaat qaysi do'konga tushishini shu belgilaydi;
+Qabul: POST /api/method/marketplace.sotuv.murojaat.qabul?tovar=<tovar kodi>, sarlavha "X-Murojaat-Kalit: <do'kon kaliti>"
+* kalit — do'konning "Murojaat API kaliti" (Shop.murojaat_kaliti): murojaat qaysi do'konga tushishini shu belgilaydi.
+  Sarlavhada yuboriladi (havolada ?kalit=... ham ishlaydi, lekin havola server logiga tushadi);
 * tovar — reklama qaysi kitob (tovar) bo'yicha: har bir tovarning o'z havolasi (tovar formasidagi «SMM havolasi»);
 * tana — JSON: {"ism", "familiya", "telefon", "tovar"} (SAMPLE). Faqat telefon majburiy; tovar havolada bo'lsa
   tanada shart emas. Inglizcha nomlar (first_name, last_name, full_name, phone), qo'shimcha shahar/izoh/kampaniya
@@ -16,6 +17,7 @@ murojaat "Buyurtma berdi" bo'ladi.
 
 import json
 import secrets
+from urllib.parse import quote
 
 import frappe
 from frappe import _
@@ -64,7 +66,26 @@ def _shop_by_key(key):
 
 @frappe.whitelist()
 def smm_link(item: str | None = None, shop: str | None = None):
-	"""Do'kon egasi / admin uchun: SMM'ga beriladigan havola (tovar bo'yicha). Sotuv menejeri va kuryerga — yo'q."""
+	"""Do'kon egasi / admin uchun: Make (Instagram lead-formasi) sozlamalari — manzil (tovar bo'yicha) va kalit.
+	Kalit havolada emas, X-Murojaat-Kalit sarlavhasida yuboriladi: nginx sarlavhalarni logga yozmaydi, havolani esa yozadi.
+	Sotuv menejeri va kuryerga — yo'q."""
+	shop, item = _smm_scope(item, shop)
+	url = f"{get_url()}/api/method/marketplace.sotuv.murojaat.qabul"
+	if item:
+		url += f"?tovar={quote(item)}"
+	return {"url": url, "header": "X-Murojaat-Kalit", "kalit": ensure_key(shop), "shop": shop, "item": item,
+	        "item_name": item and frappe.db.get_value("Item", item, "item_name")}
+
+
+@frappe.whitelist(methods=["POST"])
+def reset_smm_key(item: str | None = None, shop: str | None = None):
+	"""Kalit begona qo'lga o'tgan bo'lsa: yangisi yaratiladi, eskisi darhol ishlamay qoladi (Make'dagi sarlavhani yangilash kerak)."""
+	shop, item = _smm_scope(item, shop)
+	frappe.db.set_value("Shop", shop, "murojaat_kaliti", secrets.token_urlsafe(18), update_modified=False)
+	return smm_link(item=item, shop=shop)
+
+
+def _smm_scope(item, shop):
 	from marketplace.permissions import get_user_shop, is_admin
 
 	if item:
@@ -74,10 +95,7 @@ def smm_link(item: str | None = None, shop: str | None = None):
 	allowed = is_admin() or (own == shop and "Shop Seller" in frappe.get_roles())
 	if not shop or not allowed:
 		frappe.throw(_("SMM havolasini faqat do'kon egasi yoki admin ko'radi"), frappe.PermissionError)
-	url = f"{get_url()}/api/method/marketplace.sotuv.murojaat.qabul?kalit={ensure_key(shop)}"
-	if item:
-		url += f"&tovar={item}"
-	return {"url": url, "shop": shop, "item": item, "item_name": item and frappe.db.get_value("Item", item, "item_name")}
+	return shop, item
 
 
 # ---------------- Qabul (reklama formasi) ----------------
@@ -92,7 +110,12 @@ def qabul(**kwargs):
 	GET — faqat tekshirish: havolani brauzerda ochsa, qaysi do'kon va qaysi tovarga ulangani ko'rinadi."""
 	data = _payload()
 	# JSON tanali so'rovda Frappe havoladagi ?kalit=...&tovar=... ni form_dict'ga qo'shmaydi — _payload ularni o'zi oladi
-	shop = _shop_by_key(data.pop("kalit", None) or frappe.get_request_header("X-Murojaat-Kalit"))
+	# "X-Murojaat-Kaliti" — SMM vositalari ko'p shunday yozadi (Make AI ham), xato deb tashlamaymiz
+	shop = _shop_by_key(
+		data.pop("kalit", None)
+		or frappe.get_request_header("X-Murojaat-Kalit")
+		or frappe.get_request_header("X-Murojaat-Kaliti")
+	)
 	if not shop:
 		raise frappe.PermissionError(_("Murojaat kaliti noto'g'ri"))
 	if frappe.request and frappe.request.method == "GET":
