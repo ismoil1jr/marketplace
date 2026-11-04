@@ -40,6 +40,9 @@ svg { width: 20px; height: 20px; flex: none; }
 .sf-muted { color: var(--muted); font-size: 13px; }
 .sf-center { text-align: center; }
 .sf-pad { padding: 32px 0; }
+/* Sahifa tagidagi kichik qator; pastki qismi qotib turgan tugmalar (savat, buyurtma) tagida qolmasin */
+.sf-foot { padding: 8px var(--gutter) calc(100px + env(safe-area-inset-bottom)); text-align: center; color: var(--muted); font-size: 12px; }
+.sf-foot a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 
 /* ---------- Tugmalar ---------- */
 .sf-btn {

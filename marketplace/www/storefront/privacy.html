@@ -1,0 +1,63 @@
+{% extends "marketplace/templates/storefront/base.html" %}
+
+{% block title %}{% autoescape true %}Maxfiylik siyosati — {{ shop.shop_name }}{% endautoescape %}{% endblock %}
+{% block body_class %}page-privacy layout-{{ shop.layout }}{% endblock %}
+
+{% block content %}{% autoescape true %}
+<div class="sf-narrow">
+	<header class="sf-pagehead">
+		<a class="sf-round" href="{{ base }}" aria-label="Do‘konga qaytish"><svg><use href="#i-back"/></svg></a>
+		<h1>Maxfiylik siyosati</h1>
+	</header>
+
+	<section class="sf-box">
+		<p>Bu sahifa <b>{{ seller }}</b>{% if shop.stir %} (STIR {{ shop.stir }}){% endif %} — «{{ shop.shop_name }}» do‘koni — mijozlarning shaxsiy ma’lumotlarini qanday yig‘ishi, ishlatishi va saqlashini tushuntiradi. Do‘kon sayti magazinlar.uz platformasida ishlaydi. Ma’lumotlar O‘zbekiston Respublikasining «Shaxsga doir ma’lumotlar to‘g‘risida»gi Qonuniga muvofiq qayta ishlanadi.</p>
+	</section>
+
+	<section class="sf-box">
+		<h2>Qanday ma’lumotlar yig‘iladi</h2>
+		<ul>
+			<li><b>Reklama formasi (Instagram, Facebook):</b> ism, familiya, telefon raqami va formada o‘zingiz yozgan javoblar (masalan, shahar).</li>
+			<li><b>Buyurtma:</b> ism, telefon raqami, yetkazish manzili, buyurtma tarkibi va summasi.</li>
+			<li><b>Telegram orqali kirish:</b> Telegram’da o‘zingiz yuborgan telefon raqami, ism va Telegram ID.</li>
+			<li><b>Telefon suhbatlari:</b> do‘kon xodimi siz bilan buyurtma yoki murojaatingiz bo‘yicha gaplashganda suhbat xizmat sifati uchun yozib olinishi mumkin.</li>
+		</ul>
+	</section>
+
+	<section class="sf-box">
+		<h2>Nima uchun ishlatiladi</h2>
+		<ul>
+			<li>So‘rovingiz bo‘yicha siz bilan bog‘lanish va tovar haqida ma’lumot berish;</li>
+			<li>buyurtmani rasmiylashtirish, to‘lovni tasdiqlash va yetkazib berish;</li>
+			<li>xizmat sifatini nazorat qilish.</li>
+		</ul>
+		<p>Ma’lumotlaringiz shu maqsadlardan boshqasiga ishlatilmaydi va sotilmaydi.</p>
+	</section>
+
+	<section class="sf-box">
+		<h2>Kimga beriladi</h2>
+		<ul>
+			<li><b>To‘lov tizimlari (Payme, Click)</b> — faqat to‘lovni o‘tkazish uchun. Karta ma’lumotlari to‘lov tizimining o‘z sahifasida kiritiladi, do‘konga kelmaydi.</li>
+			<li><b>Kuryer</b> — buyurtmani yetkazish uchun ism, telefon va manzil.</li>
+			<li>Qonunda belgilangan hollarda — vakolatli davlat organlariga.</li>
+		</ul>
+	</section>
+
+	<section class="sf-box">
+		<h2>Saqlash va himoya</h2>
+		<p>Ma’lumotlar himoyalangan (HTTPS) aloqa orqali uzatiladi va faqat shu do‘kon xodimlariga ochiq. Ular xizmat ko‘rsatish uchun zarur bo‘lgan muddat davomida saqlanadi.{% if call_days %} Telefon suhbatlarining yozuvlari {{ call_days }} kundan keyin o‘chiriladi.{% endif %}</p>
+	</section>
+
+	<section class="sf-box">
+		<h2>Sizning huquqlaringiz</h2>
+		<p>Siz o‘zingiz haqingizdagi ma’lumotlarni ko‘rishni, tuzatishni yoki o‘chirishni so‘rashingiz, shuningdek ma’lumotlaringizni qayta ishlashga bergan roziligingizni qaytarib olishingiz mumkin. Buning uchun quyidagi aloqa orqali murojaat qiling.</p>
+	</section>
+
+	<section class="sf-box">
+		<h2>Aloqa</h2>
+		<p><b>{{ seller }}</b>{% if shop.stir %}<br>STIR: {{ shop.stir }}{% endif %}
+		{% if shop.phone %}<br>Telefon: <a href="tel:{{ shop.phone }}">{{ shop.phone }}</a>{% endif %}
+		{% if shop.pickup_address %}<br>Manzil: {{ shop.pickup_address }}{% elif shop.city %}<br>Shahar: {{ shop.city }}{% endif %}</p>
+	</section>
+</div>
+{% endautoescape %}{% endblock %}
