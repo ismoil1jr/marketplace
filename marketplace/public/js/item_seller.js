@@ -323,10 +323,10 @@
 
 	function render_smm(d, r, frm) {
 		const esc = frappe.utils.escape_html;
-		// Make'da qiymatlar 1-moduldan (Watch Leads) tanlab qo'yiladi; lead_id — qayta yuborilsa ikki marta yozilmasin
-		const body = JSON.stringify({ ism: "{{First name}}", familiya: "{{Last name}}", telefon: "{{Phone number}}", lead_id: "{{Lead ID}}" }, null, 2);
+		// Faqat ism va telefon (CEO): qaysi tovar — URL'da. Make'da qiymatlar 1-moduldan (Watch Leads) tanlab qo'yiladi
+		const body = JSON.stringify({ ism: "{{Full name}}", telefon: "{{Phone number}}" }, null, 2);
 		const local = /\/\/(localhost|127\.|10\.|192\.168\.)/.test(r.url);
-		const curl = `curl -X POST '${r.url}' -H '${r.header}: ${r.kalit}' -H 'Content-Type: application/json' -d '{"ism":"Ali","familiya":"Valiyev","telefon":"+998901234567"}'`;
+		const curl = `curl -X POST '${r.url}' -H '${r.header}: ${r.kalit}' -H 'Content-Type: application/json' -d '{"ism":"Ali","telefon":"+998901234567"}'`;
 		const row = (label, value, copy, extra = "") => `
 			<tr><td class="text-muted" style="width:150px;vertical-align:middle">${label}</td>
 				<td style="vertical-align:middle"><div style="display:flex;gap:6px;align-items:center">
@@ -352,8 +352,8 @@
 				<button class="btn btn-default btn-xs" data-copy="${esc(body)}">Nusxalash</button>
 			</div>
 			<pre style="font-size:12px;margin-top:4px">${esc(body)}</pre>
-			<p class="text-muted small">Formada bitta «Full name» maydoni bo'lsa — <code>ism</code> o'rniga <code>full_name</code> yuboring, server o'zi
-				ism va familiyaga ajratadi. Faqat <code>telefon</code> majburiy; tovar URL'da bor.</p>
+			<p class="text-muted small">Faqat 2 ta maydon: <code>ism</code> va <code>telefon</code> (majburiy faqat telefon). Qaysi tovar ekani URL'da —
+				tanada shart emas. Bir xil mijoz 10 daqiqa ichida qayta yuborilsa, ikkinchi marta yozilmaydi.</p>
 			<p class="text-muted small"><b>Tekshirish:</b> Meta'ning «Lead Ads Testing Tool»ida sinov lead yuboring — murojaat «Murojaatlar»da chiqadi,
 				Make'dagi javobda esa <code>tovar_nomi</code> ko'rinadi.</p>
 			<details class="small text-muted"><summary>Dasturchi uchun sinov (curl)</summary>
