@@ -22,7 +22,13 @@
   "sb_session",
   "session_days",
   "sb_platform",
-  "aloqa_telefon"
+  "aloqa_telefon",
+  "sb_meta",
+  "meta_app_id",
+  "meta_app_secret",
+  "cb_meta",
+  "meta_verify_token",
+  "meta_graph_version"
  ],
  "fields": [
   {
@@ -137,10 +143,44 @@
    "options": "Phone",
    "default": "+998 90 910 22 02",
    "description": "Bosh sahifadagi «Do'koningizni oching» tugmasi shu raqamga qo'ng'iroq qiladi"
+  },
+  {
+   "fieldname": "sb_meta",
+   "fieldtype": "Section Break",
+   "label": "Meta (Instagram) lead-formalari",
+   "description": "Instagram/Facebook reklamasidagi Instant Form to'ldirilganda Meta murojaatni to'g'ridan-to'g'ri saytga yuboradi (Make kerak emas). developers.facebook.com → Meta App → Settings → Basic: App ID va App Secret shu yerga. Keyin do'kon formasida «Meta'ga ulash»."
+  },
+  {
+   "fieldname": "meta_app_id",
+   "fieldtype": "Data",
+   "label": "Meta App ID"
+  },
+  {
+   "fieldname": "meta_app_secret",
+   "fieldtype": "Password",
+   "label": "Meta App Secret",
+   "description": "Meta yuborgan har bir so'rovning imzosi shu bilan tekshiriladi"
+  },
+  {
+   "fieldname": "cb_meta",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "meta_verify_token",
+   "fieldtype": "Data",
+   "label": "Webhook verify token",
+   "read_only": 1,
+   "description": "O'zi yaratiladi. Webhook obunasini sayt o'zi qiladi (do'konni ulaganda)"
+  },
+  {
+   "fieldname": "meta_graph_version",
+   "fieldtype": "Data",
+   "label": "Graph API versiyasi",
+   "default": "v23.0"
   }
  ],
  "links": [],
- "modified": "2026-11-05 10:00:00.000000",
+ "modified": "2026-11-05 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Marketplace",
  "name": "Marketplace Settings",

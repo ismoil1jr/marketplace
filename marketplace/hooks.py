@@ -301,6 +301,8 @@ scheduler_events = {
 		"0 9 * * *": ["marketplace.inventory.daily_low_stock_digest"],
 		# Qo'ng'iroq yozuvlari: o'tkazib yuborilgan transkripsiyalar (AI) va saqlash muddati o'tgan fayllar
 		"*/15 * * * *": ["marketplace.sotuv.stt.process_queue"],
+		# Instagram lead-formalari: webhook kelmay qolgan lidlar ham murojaat bo'lib tushadi (sotuv/meta.py)
+		"*/10 * * * *": ["marketplace.sotuv.meta.poll_leads"],
 		"30 3 * * *": ["marketplace.sotuv.stt.cleanup_old_recordings"],
 	},
 }

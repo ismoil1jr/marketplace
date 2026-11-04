@@ -403,6 +403,7 @@ class SotuvPaneli {
 					<button data-val="SMS">✉️ ${__("SMS yozildi")}</button>
 				</div>
 				<div class="mp-sp__seg" data-group="natija">${MP_RESULTS.map((r) => `<button data-val="${r}" class="is-${MP_RESULT_CLS[r]}">${__(r)}</button>`).join("")}</div>
+				${this.lead_order_html(d)}
 				<label class="small text-muted">${__("Qayta qo‘ng‘iroq sanasi (shu kuni eslatiladi)")}
 					<input class="form-control input-sm" type="date" data-next min="${frappe.datetime.get_today()}">
 				</label>
@@ -413,34 +414,170 @@ class SotuvPaneli {
 			<div class="mp-sp__logs">${logs}</div>
 			<div class="mp-sp__sec">${__("Qo‘ng‘iroqlar")} <span class="text-muted">${d.calls.length || ""}</span></div>
 			<div class="mp-sp__calls">${calls}</div>
-			<div class="mp-sp__sec">${__("Saytdagi buyurtmalari")}</div>
+			<div class="mp-sp__sec">${__("Buyurtmalari")}</div>
 			<div class="mp-sp__logs">${orders}</div>`;
 	}
 
 	bind_lead_card($card, d) {
 		mp.voice_init($card);
 		this.bind_must($card, d.telefon, () => this.open(d.name, false));
-		const pick = { kanal: "Qo‘ng‘iroq", natija: null };
+		const pick = { kanal: "Qo‘ng‘iroq", natija: null, yetkazish: "Kuryer" };
 		$card.find(".mp-sp__seg button").on("click", (e) => {
 			const $b = $(e.currentTarget);
-			pick[$b.closest(".mp-sp__seg").data("group")] = $b.data("val");
+			const group = $b.closest(".mp-sp__seg").data("group");
+			pick[group] = $b.data("val");
 			$b.addClass("is-active").siblings().removeClass("is-active");
+			if (group === "natija") $card.find("[data-order-box]").prop("hidden", pick.natija !== "Oladi");
+			if (group === "yetkazish") $card.find("[data-order-addr]").prop("hidden", pick.yetkazish !== "Kuryer");
 		});
+		const order = this.bind_lead_order($card, d);
 		$card.find("[data-save]").on("click", async (e) => {
 			if (!pick.natija) return frappe.show_alert({ message: __("Natijani tanlang: Oladi, Olmaydi, Javob bermadi yoki Keyinroq"), indicator: "orange" });
+			const buyurtma = pick.natija === "Oladi" ? order.value(pick.yetkazish) : null;
+			if (buyurtma && buyurtma.error) return frappe.show_alert({ message: buyurtma.error, indicator: "orange" });
 			e.currentTarget.disabled = true;
 			try {
-				await frappe.xcall("marketplace.sotuv.murojaat.save_lead_result", {
+				const r = await frappe.xcall("marketplace.sotuv.murojaat.save_lead_result", {
 					name: d.name, kanal: pick.kanal, natija: pick.natija,
 					izoh: $card.find("[data-izoh]").val() || null,
 					keyingi_qongiroq: $card.find("[data-next]").val() || null,
+					buyurtma: buyurtma ? JSON.stringify(buyurtma) : null,
 				});
-				frappe.show_alert({ message: __("Saqlandi"), indicator: "green" });
+				frappe.show_alert({
+					message: r.order ? __("Buyurtma {0} yaratildi ({1}) — kuryerga o‘tdi", [r.order, this.money(r.total)]) : __("Saqlandi"),
+					indicator: "green",
+				}, r.order ? 8 : 4);
 				await this.load();
 			} finally {
 				e.currentTarget.disabled = false;
 			}
 		});
+	}
+
+	// «Oladi»: menejer mijoz bilan kelishgan buyurtma — tovar (boshqasini ham tanlasa bo'ladi), rang/o'lcham, soni, manzil
+	lead_order_html(d) {
+		const esc = frappe.utils.escape_html;
+		const f = d.order_form || {};
+		return `<div class="mp-sp__order" data-order-box hidden>
+			${f.existing ? `<div class="small mp-sp__conf">ℹ️ ${__("Bu murojaatdan buyurtma bor: {0}", [esc(f.existing)])}</div>` : ""}
+			<label class="mp-sp__chk"><input type="checkbox" data-make-order ${f.existing ? "" : "checked"}> <b>${__("Buyurtma yaratilsin")}</b>
+				<span class="small text-muted">${__("— naqd, yetkazganda to‘laydi; kuryer darhol ko‘radi")}</span></label>
+			<div class="mp-sp__order-fields" data-order-fields ${f.existing ? "hidden" : ""}>
+				<div class="mp-sp__order-item" data-order-item></div>
+				<div class="mp-sp__order-must" data-order-must></div>
+				<div class="mp-sp__picker">
+					<input class="form-control input-sm" data-item-q placeholder="${__("Boshqa tovar: nomi yoki kodi…")}" autocomplete="off">
+					<div class="mp-sp__picker-list" data-item-list hidden></div>
+				</div>
+				<div class="mp-sp__order-row">
+					<label class="small text-muted">${__("Soni")}<input class="form-control input-sm" type="number" min="1" max="99" value="1" data-order-qty></label>
+					${f.pickup ? `<div class="mp-sp__seg" data-group="yetkazish">
+						<button data-val="Kuryer" class="is-active">🚚 ${__("Kuryer")}</button>
+						<button data-val="O'zim olaman">🏬 ${__("O‘zi olib ketadi")}</button></div>` : ""}
+				</div>
+				<label class="small text-muted" data-order-addr>${__("Yetkazish manzili: shahar, ko‘cha, uy, mo‘ljal")}
+					<textarea class="form-control" rows="2" data-order-manzil>${esc(f.address || "")}</textarea></label>
+				<div class="small mp-sp__order-sum" data-order-sum></div>
+			</div>
+		</div>`;
+	}
+
+	must_for(d, item) {
+		return ((d.order_form || {}).must || []).filter((m) => !item || m.code !== item.code);
+	}
+
+	bind_lead_order($card, d) {
+		const esc = frappe.utils.escape_html;
+		const state = { item: (d.order_form || {}).item, code: null };
+		const $item = $card.find("[data-order-item]");
+		const draw = () => {
+			const it = state.item;
+			if (!it) {
+				$item.html(`<div class="small text-muted">${__("Tovar tanlanmagan — pastdan qidiring")}</div>`);
+				return sum();
+			}
+			const sellable = it.options.filter((o) => o.qty === null || o.qty > 0);
+			state.code = it.has_variants ? (sellable.length === 1 ? sellable[0].code : null) : it.code;
+			const warn = it.soon ? __("«Tez kunda» — hali sotuvda yo‘q") : !it.published ? __("Saytda yopiq — avval saytga chiqaring") : !sellable.length ? __("Omborda qolmagan") : "";
+			$item.html(`<div class="mp-sp__book-card">
+				${it.image ? `<img src="${esc(it.image)}" alt="">` : ""}
+				<div class="mp-sp__order-main"><b>${esc(it.name)}</b>
+					${warn ? `<div class="small text-danger">⚠️ ${warn}</div>` : ""}
+					${it.has_variants ? `<select class="form-control input-sm" data-order-variant>
+						<option value="">${__("Rang / o‘lcham tanlang")}</option>
+						${it.options.map((o) => `<option value="${esc(o.code)}" ${o.qty === 0 ? "disabled" : ""} ${o.code === state.code ? "selected" : ""}>
+							${esc(o.label || o.code)} — ${o.qty === 0 ? __("tugagan") : `${o.qty} ${__("dona")}`}</option>`).join("")}
+					</select>` : `<div class="small text-muted">${it.options[0].qty === null ? "" : __("Omborda: {0} dona", [it.options[0].qty])}</div>`}
+				</div></div>`);
+			$item.find("[data-order-variant]").on("change", (e) => { state.code = e.currentTarget.value || null; sum(); });
+			draw_must();
+		};
+		// Majburiy tovar: mijoz hali olmagan bo'lsa buyurtmaga 1 dona o'zi qo'shiladi (asosiy tovarning o'zi bo'lsa — yo'q)
+		const draw_must = () => {
+			const list = this.must_for(d, state.item);
+			$card.find("[data-order-must]").html(list.map((m) => `<div class="mp-sp__must small">
+				<b>➕ ${__("Majburiy tovar ham qo‘shiladi")}: ${esc(m.name)}</b>
+				${m.has_variants ? `<select class="form-control input-sm" data-must-variant="${esc(m.code)}">
+					<option value="">${__("Rang / o‘lcham tanlang")}</option>
+					${m.options.map((o) => `<option value="${esc(o.code)}" ${o.qty === 0 ? "disabled" : ""}>${esc(o.label || o.code)} — ${o.qty === 0 ? __("tugagan") : `${o.qty} ${__("dona")}`}</option>`).join("")}
+				</select>` : ""}</div>`).join(""));
+			$card.find("[data-must-variant]").on("change", sum);
+			sum();
+		};
+		const sum = () => {
+			const it = state.item;
+			const opt = it && it.options.find((o) => o.code === state.code);
+			const qty = Math.max(1, parseInt($card.find("[data-order-qty]").val(), 10) || 1);
+			const extra = this.must_for(d, it).reduce((t, m) => {
+				const code = m.has_variants ? $card.find(`[data-must-variant="${m.code}"]`).val() : m.code;
+				const o = m.options.find((x) => x.code === code) || m.options[0];
+				return t + ((o && o.price) || 0);
+			}, 0);
+			$card.find("[data-order-sum]").html(opt && opt.price ? `${__("Taxminan")}: <b>${this.money(opt.price * qty + extra)}</b> <span class="text-muted">(${__("aniq narx — server hisoblaydi, ulgurji chegirma bilan")})</span>` : "");
+		};
+		$card.find("[data-order-qty]").on("input", sum);
+		$card.find("[data-make-order]").on("change", (e) => $card.find("[data-order-fields]").prop("hidden", !e.currentTarget.checked));
+
+		// Boshqa tovar qidirish (sotuv menejerida Item ruxsati yo'q — o'z endpoint'i: faqat shu do'kon tovarlari)
+		const $q = $card.find("[data-item-q]");
+		const $list = $card.find("[data-item-list]");
+		let timer;
+		$q.on("input", () => {
+			clearTimeout(timer);
+			timer = setTimeout(async () => {
+				const q = $q.val().trim();
+				if (q.length < 2) return $list.prop("hidden", true);
+				const rows = await frappe.xcall("marketplace.sotuv.murojaat.item_search", { q });
+				$list.html(rows.length ? rows.map((r) => `<button type="button" data-code="${esc(r.name)}">
+					${r.image ? `<img src="${esc(r.image)}" alt="">` : ""}<span>${esc(r.item_name)}</span><span class="text-muted small">${esc(r.name)}</span></button>`).join("")
+					: `<div class="small text-muted">${__("Topilmadi")}</div>`).prop("hidden", false);
+			}, 250);
+		});
+		$list.on("click", "button[data-code]", async (e) => {
+			state.item = await frappe.xcall("marketplace.sotuv.murojaat.order_item", { item: e.currentTarget.dataset.code });
+			$q.val("");
+			$list.prop("hidden", true);
+			draw();
+		});
+		draw();
+
+		return {
+			value: (yetkazish) => {
+				if (!$card.find("[data-make-order]").is(":checked")) return null;
+				if (!state.item) return { error: __("Buyurtma uchun tovarni tanlang") };
+				if (!state.code) return { error: __("Rang / o‘lchamni tanlang") };
+				const qoshimcha = [];
+				for (const m of this.must_for(d, state.item)) {
+					if (!m.has_variants) continue;
+					const code = $card.find(`[data-must-variant="${m.code}"]`).val();
+					if (!code) return { error: __("Majburiy tovar «{0}»: rang / o‘lchamni tanlang", [m.name]) };
+					qoshimcha.push(code);
+				}
+				const manzil = ($card.find("[data-order-manzil]").val() || "").trim();
+				if (yetkazish === "Kuryer" && manzil.length < 5) return { error: __("Yetkazish manzilini to‘liq yozing") };
+				return { item: state.code, qty: parseInt($card.find("[data-order-qty]").val(), 10) || 1, yetkazish, manzil, qoshimcha };
+			},
+		};
 	}
 
 	// Majburiy tovar (masalan, o'qiydigan ruchka): mijoz olganmi. Olmagan bo'lsa — call-center eski raqamni tekshiradi
@@ -590,6 +727,19 @@ class SotuvPaneli {
 			.mp-sp__seg button.is-orange.is-active { background: var(--bg-orange); } .mp-sp__seg button.is-blue.is-active { background: var(--bg-blue); }
 			.mp-sp__cancel { display: flex; gap: 6px; align-items: center; font-size: var(--text-sm); color: var(--red-600, #dc2626); }
 			.mp-sp__form input[type=date] { max-width: 200px; margin-top: 2px; }
+			.mp-sp__order { display: grid; gap: 8px; padding: 10px; border: 1px solid var(--green-300, #86efac); border-radius: var(--border-radius-md); background: var(--card-bg); }
+			.mp-sp__order-fields { display: grid; gap: 8px; }
+			.mp-sp__chk { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0; }
+			.mp-sp__order-main { display: grid; gap: 4px; min-width: 0; flex: 1; }
+			.mp-sp__order-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+			.mp-sp__order-row input { width: 90px; margin-top: 2px; }
+			.mp-sp__picker { position: relative; }
+			.mp-sp__picker-list { position: absolute; z-index: 5; left: 0; right: 0; top: calc(100% + 2px); max-height: 260px; overflow-y: auto;
+				background: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--border-radius-md); box-shadow: var(--shadow-md); padding: 4px; }
+			.mp-sp__picker-list button { display: flex; gap: 8px; align-items: center; width: 100%; padding: 6px; border: 0; background: none; text-align: left; border-radius: 6px; }
+			.mp-sp__picker-list button:hover { background: var(--subtle-fg); }
+			.mp-sp__picker-list img { width: 28px; height: 28px; object-fit: cover; border-radius: 4px; }
+			.mp-sp__order-sum b { color: var(--heading-color); }
 			.mp-sp__call { padding: 6px 0; border-top: 1px solid var(--border-color); display: grid; gap: 4px; }
 			.mp-sp__call:first-child { border-top: 0; }
 			.mp-sp__call .btn { justify-self: start; }

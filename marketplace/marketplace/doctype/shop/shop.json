@@ -57,6 +57,14 @@
   "click_secret_key",
   "sb_murojaat",
   "murojaat_kaliti",
+  "sb_meta",
+  "meta_forms",
+  "sb_meta_page",
+  "meta_page_name",
+  "meta_page_id",
+  "cb_meta",
+  "meta_holat",
+  "meta_page_token",
   "sb_team",
   "warehouse",
   "members"
@@ -394,6 +402,60 @@
    "description": "Do'kon yaratilganda o'zi beriladi (sotuv/murojaat.ensure_key)"
   },
   {
+   "fieldname": "sb_meta",
+   "fieldtype": "Section Break",
+   "label": "Instagram reklama formalari (Meta)",
+   "description": "Instagram/Facebook reklamasidagi har bir formaga tovarni tanlang va saqlang: shu formani to'ldirgan mijoz Sotuv paneli → Murojaatlar'ga shu tovar bo'yicha tushadi. Facebook sahifani admin ulaydi (yuqorida Instagram (Meta) → «Meta'ga ulash»); yangi formalar o'zi har 10 daqiqada qo'shiladi."
+  },
+  {
+   "fieldname": "meta_forms",
+   "fieldtype": "Table",
+   "label": "Formalar → tovar",
+   "options": "Meta Forma",
+   "no_copy": 1,
+   "cannot_add_rows": 1
+  },
+  {
+   "fieldname": "sb_meta_page",
+   "fieldtype": "Section Break",
+   "collapsible": 0
+  },
+  {
+   "fieldname": "meta_page_name",
+   "fieldtype": "Data",
+   "label": "Ulangan Facebook sahifa",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "meta_page_id",
+   "fieldtype": "Data",
+   "label": "Sahifa ID",
+   "read_only": 1,
+   "no_copy": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "cb_meta",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "meta_holat",
+   "fieldtype": "Small Text",
+   "label": "Oxirgi holat",
+   "read_only": 1,
+   "no_copy": 1,
+   "description": "Meta'dan oxirgi kelgan lid yoki xato"
+  },
+  {
+   "fieldname": "meta_page_token",
+   "fieldtype": "Password",
+   "label": "Sahifa tokeni",
+   "permlevel": 2,
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
    "fieldname": "sb_team",
    "fieldtype": "Section Break",
    "label": "Ombor va a'zolar",
@@ -420,7 +482,7 @@
  "image_field": "logo",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-10-31 11:00:00.000000",
+ "modified": "2026-11-05 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Marketplace",
  "name": "Shop",

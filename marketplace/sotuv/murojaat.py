@@ -22,7 +22,7 @@ from urllib.parse import quote
 import frappe
 from frappe import _
 from frappe.rate_limiter import rate_limit
-from frappe.utils import add_to_date, get_url, getdate, now_datetime, today
+from frappe.utils import add_to_date, cint, get_url, getdate, now_datetime, today
 
 from marketplace.sotuv.telefoniya import normalize_phone
 
@@ -120,13 +120,20 @@ def qabul(**kwargs):
 		raise frappe.PermissionError(_("Murojaat kaliti noto'g'ri"))
 	if frappe.request and frappe.request.method == "GET":
 		return _link_check(shop, _pick(data, "tovar"))
+	asked = _pick(data, "tovar")
+	name, duplicate = save_lead(shop, data, asked)
+	return _answer(name, duplicate, asked)
+
+
+def save_lead(shop, data, asked=None):
+	"""Bitta murojaat: data — tekis lug'at (kalitlar kichik harfda, KEYS bo'yicha o'qiladi), asked — tovar kodi yoki nomi.
+	SMM havolasi (qabul) va Meta lead webhook'i (sotuv/meta.py) shu yerdan yozadi. Qaytaradi: (nomi, dublikatmi)."""
 	phone = _pick(data, "telefon")
 	normal = normalize_phone(phone)
 	if not normal or len(normal) < 9:
 		frappe.throw(_("Telefon raqami yo'q yoki noto'g'ri"))
 
 	lead_id = _pick(data, "lead_id")[:140]
-	asked = _pick(data, "tovar")
 	tovar, tovar_nomi = _item(shop, asked)
 	# Qayta yuborilgan lead (SMM vositasi takrorlasa) yoki 10 daqiqa ichida aynan o'sha mijoz + tovar — dublikat
 	dup = (lead_id and frappe.db.get_value("Murojaat", {"shop": shop, "tashqi_id": lead_id})) or frappe.db.get_value(
@@ -135,7 +142,7 @@ def qabul(**kwargs):
 		 "creation": [">", add_to_date(now_datetime(), minutes=-10)]},
 	)
 	if dup:
-		return _answer(dup, True, asked)
+		return dup, True
 
 	ism, familiya = _pick(data, "ism"), _pick(data, "familiya")
 	full = _pick(data, "to'liq")
@@ -165,7 +172,7 @@ def qabul(**kwargs):
 	)
 	doc.insert(ignore_permissions=True)
 	_notify(doc)
-	return _answer(doc.name, False, asked)
+	return doc.name, False
 
 
 def _answer(name, duplicate, asked):
@@ -390,12 +397,19 @@ def get_lead(name: str):
 		"keyingi_qongiroq": str(doc.keyingi_qongiroq or ""), "tovar_nomi": doc.tovar_nomi, "item": item,
 		"calls": calls, "logs": logs, "orders": orders,
 		"mandatory": mandatory_info(shop, "+" + doc.normal_telefon if doc.normal_telefon else None),
+		# «Oladi» bosilsa — shu yerdan buyurtma (tovar, variant, soni, manzil): save_lead_result(buyurtma=...)
+		"order_form": {"item": _order_item(shop, doc.tovar) if doc.tovar else None, "address": doc.shahar or "",
+		               "pickup": cint(frappe.db.get_value("Shop", shop, "enable_pickup")), "existing": doc.buyurtma,
+		               "must": _must_items(shop, doc.normal_telefon)},
 	}
 
 
 @frappe.whitelist(methods=["POST"])
-def save_lead_result(name: str, kanal: str, natija: str, izoh: str | None = None, keyingi_qongiroq: str | None = None):
-	"""Menejer natijasi murojaat bo'yicha: Aloqa Yozuvi + murojaat holati va qayta qo'ng'iroq sanasi."""
+def save_lead_result(name: str, kanal: str, natija: str, izoh: str | None = None, keyingi_qongiroq: str | None = None,
+                     buyurtma: str | dict | None = None):
+	"""Menejer natijasi murojaat bo'yicha: Aloqa Yozuvi + murojaat holati va qayta qo'ng'iroq sanasi.
+	«Oladi» + buyurtma ({"item", "qty", "yetkazish", "manzil"}) — menejer mijoz bilan kelishgan buyurtma darhol
+	yaratiladi: naqd (yetkazganda), tasdiqlangan — kuryer ko'radi; murojaat «Buyurtma berdi»."""
 	from marketplace.sotuv.api import _shop
 
 	shop = _shop()
@@ -405,17 +419,130 @@ def save_lead_result(name: str, kanal: str, natija: str, izoh: str | None = None
 	date = getdate(keyingi_qongiroq) if keyingi_qongiroq else None
 	if date and date < getdate(today()):
 		frappe.throw(_("Qayta qo'ng'iroq sanasi o'tib ketgan kun bo'lmasin"))
+	order = _make_order(doc, shop, frappe.parse_json(buyurtma), kanal) if natija == "Oladi" and buyurtma else None
 	log = frappe.get_doc(
 		{
 			"doctype": "Aloqa Yozuvi", "murojaat": doc.name, "mijoz_ismi": doc.mijoz_ismi, "telefon": doc.telefon,
 			"shop": shop, "kanal": kanal, "natija": natija, "izoh": (izoh or "").strip() or None,
-			"keyingi_qongiroq": date, "menejer": frappe.session.user,
+			"keyingi_qongiroq": date, "menejer": frappe.session.user, "buyurtma": order and order.name,
 		}
 	)
 	log.insert(ignore_permissions=True)
 	doc.db_set(
-		{"holat": "Buyurtma berdi" if doc.holat == "Buyurtma berdi" else natija, "keyingi_qongiroq": date,
-		 "menejer": frappe.session.user, "aloqa_vaqt": now_datetime()},
+		{"holat": "Buyurtma berdi" if order or doc.holat == "Buyurtma berdi" else natija, "keyingi_qongiroq": date,
+		 "menejer": frappe.session.user, "aloqa_vaqt": now_datetime(), "buyurtma": order.name if order else doc.buyurtma},
 		update_modified=False,
 	)
-	return {"name": log.name}
+	return {"name": log.name, "order": order and order.name, "total": order and order.grand_total}
+
+
+# ---------------- Murojaatdan buyurtma ----------------
+
+ORDER_SOURCE = {"Instagram": "Instagram", "Facebook": "Instagram", "Telegram": "Telegram"}
+
+
+@frappe.whitelist()
+def item_search(q: str | None = None):
+	"""Murojaatdan buyurtma: mijoz boshqa tovarni so'rasa — do'kon tovarlari (andozalar) nomi yoki kodi bo'yicha."""
+	from marketplace.sotuv.api import _shop
+
+	shop = _shop()
+	like = f"%{(q or '').strip()}%"
+	return frappe.get_all(
+		"Item", filters={"shop": shop, "disabled": 0, "variant_of": ["is", "not set"]},
+		or_filters=[["item_name", "like", like], ["name", "like", like]],
+		fields=["name", "item_name", "image"], order_by="item_name asc", limit_page_length=20,
+	)
+
+
+@frappe.whitelist()
+def order_item(item: str):
+	from marketplace.sotuv.api import _shop
+
+	return _order_item(_shop(), item)
+
+
+def _order_item(shop, code):
+	"""Tovar va uning sotiladigan variantlari (rang · o'lcham): qoldiq va narx bilan."""
+	from marketplace import storefront
+
+	row = frappe.db.get_value(
+		"Item", {"name": code, "shop": shop, "disabled": 0},
+		["name", "item_name", "image", "has_variants", "variant_of", "is_published", "is_stock_item", "mp_tez_kunda"], as_dict=True,
+	)
+	if row and row.variant_of:
+		return _order_item(shop, row.variant_of)
+	if not row:
+		return None
+	warehouse = frappe.db.get_value("Shop", shop, "warehouse")
+	codes = frappe.get_all("Item", filters={"variant_of": row.name, "disabled": 0}, pluck="name", order_by="creation asc") \
+		if row.has_variants else [row.name]
+	stock = storefront._get_stock(codes, warehouse) if codes else {}
+	prices = storefront._get_prices(codes) if codes else {}
+	labels = storefront.variant_labels(codes) if row.has_variants else {}
+	return {
+		"code": row.name, "name": row.item_name, "image": row.image, "has_variants": cint(row.has_variants),
+		"published": cint(row.is_published), "soon": cint(row.mp_tez_kunda),
+		"options": [
+			{"code": c, "label": labels.get(c) or "", "price": prices.get(c),
+			 "qty": max(cint(stock.get(c, 0)), 0) if (row.is_stock_item or row.has_variants) else None}
+			for c in codes
+		],
+	}
+
+
+def _must_items(shop, normal_phone, codes=()):
+	"""Mijoz hali olmagan majburiy tovarlar (variantlari bilan) — murojaatdan buyurtmaga o'zi qo'shiladi."""
+	from marketplace import orders, storefront
+
+	if not normal_phone or not frappe.db.get_value("Shop", {"name": shop, "status": "Active"}):
+		return []
+	need = orders.mandatory_status(storefront.get_shop(shop), frappe._dict(phone="+" + normal_phone), list(codes))
+	return [x for x in (_order_item(shop, i["code"]) for i in need.get("items") or []) if x]
+
+
+def _make_order(lead, shop_name, data, kanal):
+	"""Sotuv menejeri mijoz bilan kelishgan buyurtma: narx va qoldiq — serverdan (orders.place_order), to'lov — naqd
+	(yetkazganda), menejer tasdiqlagan (mp_aloqa_natija = Oladi) — kuryer darhol ko'radi va xabar oladi."""
+	from marketplace import customers, orders, storefront
+	from marketplace.seller_desk import notify_couriers
+
+	data = frappe._dict(data or {})
+	code, qty = (data.item or "").strip(), cint(data.qty) or 1
+	method = data.yetkazish or "Kuryer"
+	info = _order_item(shop_name, code) if code else None
+	if not info:
+		frappe.throw(_("Buyurtma uchun tovarni tanlang"))
+	if info["soon"]:
+		frappe.throw(_("«{0}» — «Tez kunda»: hali sotuvda yo'q").format(info["name"]))
+	if not info["published"]:
+		frappe.throw(_("«{0}» saytda yopiq — avval tovarni saytga chiqaring").format(info["name"]))
+	if info["has_variants"] and code == info["code"]:
+		frappe.throw(_("«{0}»: rang / o'lchamni tanlang").format(info["name"]))
+	if not 1 <= qty <= 99:
+		frappe.throw(_("Soni 1 dan 99 gacha bo'lsin"))
+	if not lead.normal_telefon:
+		frappe.throw(_("Murojaatda telefon raqami yo'q"))
+
+	shop = storefront.get_shop(shop_name)
+	phone = "+" + lead.normal_telefon
+	# Bor mijozning ismi o'zgartirilmaydi (raqam oila a'zosiniki bo'lishi mumkin) — yangisi murojaatdagi ism bilan
+	customer = frappe._dict(phone=phone, customer=frappe.db.get_value("Customer", {"mp_phone": phone})
+	                        or customers.get_or_create_customer(phone, lead.ism or lead.mijoz_ismi, lead.familiya, shop=shop.name))
+	lines = [{"code": code, "qty": qty}]
+	# Majburiy tovar (masalan, o'qiydigan ruchka) — mijoz hali olmagan bo'lsa buyurtmaga 1 dona qo'shiladi
+	# (panelda ko'rinib turadi); variantlisining rang / o'lchamini menejer tanlaydi (qoshimcha)
+	chosen = set(data.qoshimcha or [])
+	for must in _must_items(shop_name, lead.normal_telefon, [code]):
+		pick = next((o["code"] for o in must["options"] if o["code"] in chosen), None)
+		if not pick and must["has_variants"]:
+			frappe.throw(_("Majburiy tovar «{0}»: rang / o'lchamni tanlang").format(must["name"]))
+		lines.append({"code": pick or must["code"], "qty": 1})
+	so = orders.place_order(shop, lines, method, data.manzil, customer)
+	so.db_set({"payment_method": "Naqd", "order_source": ORDER_SOURCE.get(lead.manba, "Web"), "mp_aloqa_natija": "Oladi",
+	           "mp_aloqa_kanal": kanal}, update_modified=False)
+	so.add_comment("Info", _("Murojaat {0} bo'yicha sotuv menejeri yaratdi: {1}").format(lead.name, frappe.utils.get_fullname()))
+	orders.confirm_order(so.name)
+	if method == "Kuryer":
+		notify_couriers(so)
+	return so
