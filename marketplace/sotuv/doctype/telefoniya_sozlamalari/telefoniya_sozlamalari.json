@@ -8,6 +8,7 @@
   "saqlash_kuni",
   "column_break_saqlash",
   "maks_fayl_mb",
+  "hammasini_saqlash",
   "section_ai",
   "stt_holat_html",
   "ai_yoqilgan",
@@ -42,6 +43,13 @@
    "label": "Maksimal fayl hajmi (MB)",
    "default": "25",
    "description": "Bundan katta fayl qabul qilinmaydi. 3 daqiqali suhbat ~1–2 MB."
+  },
+  {
+   "fieldname": "hammasini_saqlash",
+   "fieldtype": "Check",
+   "label": "Shaxsiy qo'ng'iroqlarni ham saqlash",
+   "default": "0",
+   "description": "O'chiq bo'lsa (tavsiya), faqat do'konda buyurtmasi yoki murojaati bor raqam bilan bo'lgan qo'ng'iroq saqlanadi. Boshqa qo'ng'iroqlar yozuvi serverga kelsa ham saqlanmaydi."
   },
   {
    "fieldname": "section_ai",
@@ -108,7 +116,7 @@
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-10-27 19:00:00.000000",
+ "modified": "2026-11-04 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "Sotuv",
  "name": "Telefoniya Sozlamalari",

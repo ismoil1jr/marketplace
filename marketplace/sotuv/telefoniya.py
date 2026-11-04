@@ -8,6 +8,8 @@ contact_name, device_model, client_call_id, file_hash + audio fayl.
 
 Qo'ng'iroq mijozga RAQAM bo'yicha bog'lanadi: "998XXXXXXXXX" saytdagi buyurtmaning customer_phone'i bilan solishtiriladi
 (shu menejer do'koni buyurtmalari ichida) — mos kelsa mijoz va uning oxirgi buyurtmasi qo'ng'iroqqa yoziladi.
+Buyurtmada ham, murojaatda ham bo'lmagan raqam (shaxsiy qo'ng'iroq) saqlanmaydi — Telefoniya Sozlamalari'dagi
+"Shaxsiy qo'ng'iroqlarni ham saqlash" yoqilmagan bo'lsa.
 """
 
 import json
@@ -49,17 +51,22 @@ def ingest_call(**kwargs):
 		if value and (old := frappe.db.get_value("Telefon Qongiroq", {field: value})):
 			return {"status": "ok", "name": old, "duplicate": True, "matched": bool(frappe.db.get_value("Telefon Qongiroq", old, "mijoz"))}
 
-	upload, content = _upload()
-	limit_mb = cint(frappe.db.get_single_value("Telefoniya Sozlamalari", "maks_fayl_mb")) or 25
-	if content and len(content) > limit_mb * 1024 * 1024:
-		# 4xx: ilova qayta yubormaydi (5xx bo'lganda qayta urinadi)
-		raise frappe.ValidationError(_("Yozuv fayli juda katta: {0} MB (chegara {1} MB)").format(round(len(content) / 1048576, 1), limit_mb))
-
 	phone = next((str(form.get(k)).strip() for k in PHONE_KEYS if str(form.get(k) or "").strip()), "")
 	normal = normalize_phone(phone)
 	own_shop = get_user_shop()
 	order = _match_order(normal, own_shop)
 	lead = _match_lead(normal, order.shop if order else own_shop)
+	if not (order or lead) and not cint(frappe.db.get_single_value("Telefoniya Sozlamalari", "hammasini_saqlash")):
+		# Do'kon mijozi bo'lmagan raqam (shaxsiy qo'ng'iroq): yozuv ham, audio ham saqlanmaydi.
+		# Javob 2xx — ilova faylni "yuborildi" deb hisoblaydi va qayta yubormaydi
+		return {"status": "ok", "name": None, "duplicate": False, "matched": False, "skipped": True,
+		        "sabab": _("Bu raqam do'kon mijozlari (buyurtma, murojaat) orasida yo'q — qo'ng'iroq saqlanmadi")}
+
+	upload, content = _upload()
+	limit_mb = cint(frappe.db.get_single_value("Telefoniya Sozlamalari", "maks_fayl_mb")) or 25
+	if content and len(content) > limit_mb * 1024 * 1024:
+		# 4xx: ilova qayta yubormaydi (5xx bo'lganda qayta urinadi)
+		raise frappe.ValidationError(_("Yozuv fayli juda katta: {0} MB (chegara {1} MB)").format(round(len(content) / 1048576, 1), limit_mb))
 	direction = (form.get("direction") or "").strip().lower()
 
 	doc = frappe.get_doc(
