@@ -13,6 +13,7 @@ Buyurtmada ham, murojaatda ham bo'lmagan raqam (shaxsiy qo'ng'iroq) saqlanmaydi 
 """
 
 import json
+import logging
 import re
 from datetime import datetime, timezone
 
@@ -28,8 +29,11 @@ PHONE_KEYS = ("phone_number", "phone", "number", "remote_number", "other_number"
 
 
 def normalize_phone(raw):
-	"""'+998 90 123-45-67', '901234567', '998901234567' -> '998901234567'. O'zbek raqami bo'lmasa — faqat raqamlar."""
+	"""'+998 90 123-45-67', '901234567', '998901234567' -> '998901234567'. O'zbek raqami bo'lmasa — faqat raqamlar.
+	Telefon jurnalida eski mahalliy ko'rinish ham uchraydi: '8 90 123 45 67', '0901234567' (10 raqam) — ular ham 998..."""
 	digits = re.sub(r"\D", "", raw or "")
+	if len(digits) == 10 and digits[0] in "08":
+		digits = digits[1:]
 	if len(digits) == 9:
 		digits = "998" + digits
 	return digits or None
@@ -59,6 +63,7 @@ def ingest_call(**kwargs):
 	if not (order or lead) and not cint(frappe.db.get_single_value("Telefoniya Sozlamalari", "hammasini_saqlash")):
 		# Do'kon mijozi bo'lmagan raqam (shaxsiy qo'ng'iroq): yozuv ham, audio ham saqlanmaydi.
 		# Javob 2xx — ilova faylni "yuborildi" deb hisoblaydi va qayta yubormaydi
+		_log_skipped(phone, form)
 		return {"status": "ok", "name": None, "duplicate": False, "matched": False, "skipped": True,
 		        "sabab": _("Bu raqam do'kon mijozlari (buyurtma, murojaat) orasida yo'q — qo'ng'iroq saqlanmadi")}
 
@@ -102,6 +107,20 @@ def ingest_call(**kwargs):
 
 		stt.enqueue(doc.name)  # AI yoqilgan bo'lsa — yozuv fonda matnga aylanadi va qisqa tahlil yoziladi
 	return {"status": "ok", "name": doc.name, "duplicate": False, "matched": bool(order or lead)}
+
+
+def _log_skipped(phone, form):
+	"""Saqlanmagan qo'ng'iroq — logs/telefoniya.log: mijoz qo'ng'irog'i "tushmadi" desa, ilova nima yuborganini shu yerdan
+	ko'ramiz. Raqam yashiriladi (format va oxirgi 4 raqam), audio va kontakt nomi yozilmaydi."""
+	digits = re.sub(r"\D", "", phone or "")
+	masked = f"{phone[:1]}{'*' * max(len(digits) - 5, 0)}{digits[-4:]}" if digits else "bo'sh"
+	log = frappe.logger("telefoniya")
+	log.setLevel(logging.INFO)  # Frappe prod'da standart darajasi ERROR — bu diagnostika esa doim yozilsin
+	log.info(
+		f"saqlanmadi: user={frappe.session.user} raqam={masked} ({len(digits)} raqam) "
+		f"yonalish={form.get('direction') or '-'} sek={form.get('duration_sec') or '-'} boshlandi={form.get('started_at') or '-'} "
+		f"id={(form.get('client_call_id') or '')[:16]}"
+	)
 
 
 def _match_order(normal, shop):
