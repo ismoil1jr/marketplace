@@ -10,13 +10,16 @@
 	<meta property="og:type" content="website">
 	<meta property="og:title" content="{{ t.title }}">
 	<meta property="og:description" content="{{ t.description }}">
+	<meta property="og:image" content="{{ og_image }}">
+	<link rel="icon" type="image/svg+xml" href="/assets/marketplace/images/favicon.svg?v={{ asset_version }}">
 	<link rel="alternate" hreflang="uz" href="/?til=uz">
 	<link rel="alternate" hreflang="ru" href="/?til=ru">
 	<link rel="preconnect" href="https://fonts.googleapis.com">
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-	<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Unbounded:wght@500;600&display=swap" rel="stylesheet">
+	<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Unbounded:wght@600;700&display=swap" rel="stylesheet">
 	<style>
-		/* magazinlar.uz bosh sahifasi. Ranglar: Rishton kulolchiligining kobalti + ORANGE TEAM apelsini */
+		/* magazinlar.uz bosh sahifasi. Ranglar: Rishton kulolchiligining kobalti + ORANGE TEAM apelsini.
+		   Sahifa tushuntirmaydi — chek-sxema ko'rsatadi va qo'ng'iroqqa chaqiradi. */
 		:root {
 			--paper: #F4F6FA; --surface: #FFFFFF; --ink: #16213A; --muted: #586179; --line: #DFE4EE;
 			--cobalt: #1D3F8F; --cobalt-deep: #142E6B; --orange: #E8611A; --orange-soft: #FDE9DC; --teal: #0F8F86;
@@ -29,42 +32,42 @@
 			-webkit-font-smoothing: antialiased; }
 		a { color: inherit; text-decoration: none; }
 		:focus-visible { outline: 3px solid var(--orange); outline-offset: 3px; border-radius: 6px; }
-		h1, h2, h3 { margin: 0; text-wrap: balance; }
+		h1, h2 { margin: 0; text-wrap: balance; }
 		.mh { max-width: 1160px; margin: 0 auto; padding: 0 var(--gutter); }
 
-		/* Yuqori panel */
+		/* Yuqori panel: logo, til, telefon */
 		.mh-top { display: flex; align-items: center; gap: 10px; padding: 14px 0; }
-		.mh-logo { display: flex; align-items: center; gap: 9px; margin-right: auto; font-weight: 700; font-size: 17px; letter-spacing: -.01em; }
-		.mh-logo i { width: 28px; height: 28px; border-radius: 50%; background: var(--orange); box-shadow: inset 0 0 0 5px #FFB27A; flex: none; }
-		.mh-logo b span { color: var(--orange); }
+		.mh-logo { display: flex; align-items: center; gap: 9px; margin-right: auto; font: 700 18px/1 var(--display); letter-spacing: -.02em; color: var(--cobalt); }
+		.mh-logo svg { width: 30px; height: 30px; flex: none; }
+		.mh-logo span { color: var(--orange); }
 		.mh-lang { display: flex; padding: 3px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); }
 		.mh-lang a { min-width: 38px; padding: 5px 8px; border-radius: 999px; text-align: center; font-size: 13px; font-weight: 600; color: var(--muted); }
 		.mh-lang a[aria-current] { background: var(--ink); color: #fff; }
 		.mh-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 0 22px;
-			border-radius: 14px; font-weight: 700; font-size: 16px; white-space: nowrap; border: 2px solid transparent; }
+			border-radius: 14px; font-weight: 700; font-size: 16px; white-space: nowrap; border: 2px solid transparent; font-variant-numeric: tabular-nums; }
 		.mh-btn svg { width: 20px; height: 20px; flex: none; }
 		.mh-btn--orange { background: var(--orange); color: var(--ink); }
 		.mh-btn--orange:hover { background: #F0712D; }
 		.mh-btn--line { border-color: var(--ink); color: var(--ink); }
 		.mh-btn--line:hover { background: var(--surface); }
-		.mh-top .mh-btn { min-height: 40px; padding: 0 14px; font-size: 14px; border-radius: 12px; }
-		.mh-top .mh-cab, .mh-top .mh-btn--orange { display: none; }
-		@media (min-width: 480px) { .mh-top .mh-btn--orange { display: inline-flex; } }
+		/* Telefonda faqat go'shak belgisi, kengroq ekranda raqam ham */
+		.mh-top__phone { min-height: 40px; padding: 0 10px; border-radius: 12px; font-size: 14px; }
+		.mh-top__phone span { display: none; }
+		@media (min-width: 560px) { .mh-top__phone { padding: 0 14px; } .mh-top__phone span { display: inline; } }
 
 		/* Hero */
 		.mh-hero { display: grid; gap: 34px; padding: 22px 0 56px; }
-		.mh-hero h1 { font: 600 clamp(29px, 8.2vw, 58px)/1.06 var(--display); letter-spacing: -.025em; color: var(--ink); max-width: 15ch; }
-		.mh-hero p { margin: 18px 0 26px; max-width: 34em; color: var(--muted); font-size: 17px; }
+		.mh-hero h1 { font: 600 clamp(29px, 8.2vw, 58px)/1.06 var(--display); letter-spacing: -.025em; max-width: 15ch; }
+		.mh-hero p { margin: 18px 0 26px; max-width: 32em; color: var(--muted); font-size: 17px; }
 		.mh-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 		.mh-actions .mh-btn { flex: 1 1 200px; }
 
-		/* Chek: Instagram formadan kuryergacha */
+		/* Chek: Instagram formadan kuryergacha — sahifaning asosiy elementi */
 		.mh-receipt { position: relative; margin: 0 8px 8px 0; padding: 20px 20px 28px; background: var(--surface); border: 2px solid var(--ink);
 			border-radius: 18px 18px 6px 6px; box-shadow: 8px 8px 0 var(--cobalt); }
 		.mh-receipt ol { margin: 0; padding: 0; list-style: none; display: grid; }
 		.mh-receipt li { position: relative; display: grid; grid-template-columns: 26px 1fr auto; gap: 4px 12px; align-items: start; padding: 0 0 18px; }
 		.mh-receipt li:last-child { padding-bottom: 0; }
-		/* Bosqichlarni bog'lovchi chiziq */
 		.mh-receipt li:not(:last-child)::after { content: ""; position: absolute; left: 12px; top: 26px; bottom: 2px; border-left: 2px dashed var(--line); }
 		.mh-dot { grid-row: span 2; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--orange-soft); color: var(--orange); }
 		.mh-dot svg { width: 15px; height: 15px; }
@@ -82,11 +85,11 @@
 		}
 		@keyframes mh-in { from { opacity: 0; transform: translateY(8px); } }
 
-		/* Bo'lim sarlavhalari */
+		/* Bo'limlar */
 		.mh-h2 { font: 600 clamp(24px, 5.6vw, 36px)/1.12 var(--display); letter-spacing: -.02em; }
 		.mh-sec { padding: 8px 0 56px; }
-		.mh-sec__head { display: grid; gap: 8px; margin-bottom: 18px; }
-		.mh-sec__head p { margin: 0; color: var(--muted); max-width: 36em; }
+		.mh-sec__head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; margin-bottom: 18px; }
+		.mh-sec__head span { color: var(--muted); font-size: 14px; }
 
 		/* Do'konlar */
 		.mh-search { display: flex; align-items: center; gap: 10px; height: 50px; margin-bottom: 14px; padding: 0 16px; background: var(--surface);
@@ -94,11 +97,10 @@
 		.mh-search:focus-within { border-color: var(--ink); }
 		.mh-search svg { width: 20px; height: 20px; color: var(--muted); flex: none; }
 		.mh-search input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; font: inherit; font-size: 16px; color: var(--ink); }
-		.mh-search span { color: var(--muted); font-size: 14px; white-space: nowrap; }
 		.mh-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 		.mh-shop { display: grid; grid-template-rows: auto auto 1fr auto; gap: 6px; padding: 14px; background: var(--surface);
-			border: 1px solid var(--line); border-radius: 16px; }
-		.mh-shop:hover { border-color: var(--ink); }
+			border: 1px solid var(--line); border-radius: 16px; transition: border-color .15s ease, box-shadow .2s ease; }
+		.mh-shop:hover { border-color: var(--ink); box-shadow: 0 10px 24px rgb(22 33 58 / .08); }
 		.mh-shop__logo { width: 52px; height: 52px; margin-bottom: 4px; border-radius: 50%; overflow: hidden; display: grid; place-items: center;
 			color: #fff; font-weight: 700; font-size: 17px; }
 		.mh-shop__logo img { width: 100%; height: 100%; object-fit: cover; }
@@ -108,36 +110,16 @@
 		.mh-shop__meta .is-soon { color: var(--orange); font-weight: 600; }
 		.mh-empty { padding: 26px; text-align: center; color: var(--muted); background: var(--surface); border: 1px dashed var(--line); border-radius: 16px; }
 
-		/* Do'kon egasi nima oladi — kobalt bo'lim */
-		.mh-get { background: var(--cobalt); color: #fff; }
-		.mh-get .mh { padding-top: 52px; padding-bottom: 56px; }
-		.mh-get .mh-h2 { margin-bottom: 28px; max-width: 18ch; }
-		.mh-feats { margin: 0; padding: 0; list-style: none; display: grid; gap: 22px; }
-		.mh-feats li { display: grid; grid-template-columns: 40px 1fr; gap: 2px 14px; }
-		.mh-feats svg { grid-row: span 2; width: 40px; height: 40px; padding: 9px; border-radius: 12px; background: var(--cobalt-deep); color: #FFB27A; }
-		.mh-feats b { font-size: 17px; font-weight: 600; }
-		.mh-feats span { color: rgb(255 255 255 / .78); font-size: 15px; line-height: 1.5; }
-
-		/* Qanday ochiladi — haqiqiy ketma-ketlik */
+		/* Qanday ochiladi — 3 qadam */
 		.mh-steps { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; counter-reset: step; }
 		.mh-steps li { display: flex; align-items: center; gap: 16px; padding: 16px 18px; background: var(--surface); border: 1px solid var(--line);
 			border-radius: 16px; font-weight: 600; font-size: 17px; line-height: 1.35; }
 		.mh-steps li::before { counter-increment: step; content: counter(step); flex: none; width: 44px; font: 600 30px/1 var(--display); color: var(--orange); }
 
-		/* Savollar */
-		.mh-faq { display: grid; border-top: 1px solid var(--line); }
-		.mh-faq details { border-bottom: 1px solid var(--line); }
-		.mh-faq summary { display: flex; justify-content: space-between; gap: 16px; padding: 18px 0; cursor: pointer; list-style: none; font-weight: 600; font-size: 17px; }
-		.mh-faq summary::-webkit-details-marker { display: none; }
-		.mh-faq summary::after { content: "+"; flex: none; width: 28px; height: 28px; margin-top: -2px; border-radius: 50%; display: grid; place-items: center;
-			background: var(--surface); border: 1px solid var(--line); font-weight: 500; font-size: 20px; line-height: 1; }
-		.mh-faq details[open] summary::after { content: "−"; }
-		.mh-faq p { margin: -6px 0 18px; max-width: 42em; color: var(--muted); }
-
-		/* Yakuniy chaqiriq */
+		/* Yakuniy chaqiriq: raqam katta, ikki tugma */
 		.mh-cta { margin-bottom: 40px; padding: 30px 20px; border-radius: 22px; background: var(--orange); color: var(--ink); display: grid; gap: 14px; }
-		.mh-cta p { margin: 0; max-width: 34em; font-size: 17px; }
-		.mh-cta__phone { font: 600 clamp(24px, 6.6vw, 40px)/1.1 var(--display); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+		.mh-cta p { margin: 0; font-size: 17px; }
+		.mh-cta__phone { font: 600 clamp(26px, 7vw, 42px)/1.1 var(--display); letter-spacing: -.02em; font-variant-numeric: tabular-nums; white-space: nowrap; }
 		.mh-cta .mh-actions { margin-top: 6px; }
 		.mh-cta .mh-btn--orange { background: var(--ink); color: #fff; }
 		.mh-cta .mh-btn--orange:hover { background: var(--cobalt-deep); }
@@ -150,17 +132,16 @@
 		@media (min-width: 640px) {
 			:root { --gutter: 24px; }
 			.mh-top { padding: 20px 0; }
-			.mh-top .mh-cab { display: inline-flex; }
+			.mh-logo { font-size: 20px; } .mh-logo svg { width: 34px; height: 34px; }
 			.mh-actions .mh-btn { flex: 0 0 auto; }
 			.mh-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 			.mh-shop { padding: 18px; }
-			.mh-feats { grid-template-columns: 1fr 1fr; gap: 28px 40px; }
 			.mh-steps { grid-template-columns: repeat(3, 1fr); }
 			.mh-steps li { flex-direction: column; align-items: flex-start; gap: 14px; padding: 22px; }
-			.mh-cta { padding: 44px; grid-template-columns: 1.2fr 1fr; align-items: end; column-gap: 40px; }
+			.mh-cta { padding: 44px; grid-template-columns: 1.2fr auto; align-items: center; column-gap: 40px; }
 			.mh-cta .mh-h2, .mh-cta p { grid-column: 1; }
-			.mh-cta__phone, .mh-cta .mh-actions { grid-column: 2; }
-			.mh-cta__phone { grid-row: 1; align-self: start; text-align: right; }
+			.mh-cta__phone, .mh-cta .mh-actions { grid-column: 2; justify-self: end; }
+			.mh-cta__phone { grid-row: 1; }
 			.mh-cta .mh-actions { grid-row: 2; justify-content: flex-end; }
 		}
 		@media (min-width: 960px) {
@@ -169,25 +150,16 @@
 			.mh-receipt { transform: rotate(-1.5deg); }
 			.mh-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 			.mh-sec { padding-bottom: 80px; }
-			.mh-get .mh { padding-top: 72px; padding-bottom: 80px; }
-			.mh-faq-wrap { display: grid; grid-template-columns: 1fr 1.6fr; gap: 40px; }
 		}
 	</style>
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
 	<defs>
+		<symbol id="mh-mark" viewBox="0 0 48 48"><rect width="48" height="48" rx="12" fill="#1D3F8F"/><path fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" d="M8 19h32l-3 17H11zM15 19l4-8M33 19l-4-8M18 25v6M24 25v6M30 25v6"/><circle cx="36" cy="12" r="5" fill="#E8611A"/></symbol>
 		<symbol id="i-form" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/></symbol>
 		<symbol id="i-phone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h3l2 5-2.5 1.5a11 11 0 0 0 6 6L15 14l5 2v3a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></symbol>
 		<symbol id="i-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h3"/></symbol>
-		<symbol id="i-truck" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h11v10H3zM14 10h4l3 3v3h-7"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></symbol>
-		<symbol id="i-site" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9l1.5-5h13L20 9M4 9v11h16V9M4 9h16M9 20v-6h6v6"/></symbol>
-		<symbol id="i-cash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/></symbol>
-		<symbol id="i-insta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><path d="M17.5 6.5h.01"/></symbol>
-		<symbol id="i-call" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18v-5a8 8 0 0 1 16 0v5"/><rect x="3" y="14" width="4" height="6" rx="1.5"/><rect x="17" y="14" width="4" height="6" rx="1.5"/></symbol>
-		<symbol id="i-box" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9-4 9 4-9 4-9-4zM3 7v10l9 4 9-4V7M12 11v10"/></symbol>
-		<symbol id="i-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4zM10 21h4"/></symbol>
-		<symbol id="i-people" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6"/></symbol>
 		<symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></symbol>
 		<symbol id="i-send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 3L3 10.5l7 3 3 7z"/><path d="M10 13.5L21 3"/></symbol>
 		<symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
@@ -196,13 +168,12 @@
 
 <div class="mh">
 	<header class="mh-top">
-		<a class="mh-logo" href="/" aria-label="magazinlar.uz"><i></i><b>magazinlar<span>.uz</span></b></a>
+		<a class="mh-logo" href="/" aria-label="magazinlar.uz"><svg aria-hidden="true"><use href="#mh-mark"/></svg><b>magazinlar<span>.uz</span></b></a>
 		<nav class="mh-lang" aria-label="Til / Язык">
 			<a href="?til=uz" lang="uz" {% if lang == "uz" %}aria-current="true"{% endif %}>UZ</a>
 			<a href="?til=ru" lang="ru" {% if lang == "ru" %}aria-current="true"{% endif %}>RU</a>
 		</nav>
-		{% if is_staff %}<a class="mh-btn mh-btn--line mh-cab" href="/desk">{{ t.cabinet }}</a>{% endif %}
-		<a class="mh-btn mh-btn--orange" href="#ochish">{{ t.open }}</a>
+		{% if phone %}<a class="mh-btn mh-btn--line mh-top__phone" href="tel:{{ phone_href }}" aria-label="{{ t.call }}: {{ phone }}"><svg aria-hidden="true"><use href="#i-phone"/></svg><span>{{ phone }}</span></a>{% endif %}
 	</header>
 
 	<section class="mh-hero">
@@ -210,7 +181,7 @@
 			<h1>{{ t.h1 }}</h1>
 			<p>{{ t.lead }}</p>
 			<div class="mh-actions">
-				<a class="mh-btn mh-btn--orange" href="#ochish">{{ t.open }}</a>
+				{% if phone %}<a class="mh-btn mh-btn--orange" href="tel:{{ phone_href }}"><svg aria-hidden="true"><use href="#i-phone"/></svg>{{ t.call }}</a>{% endif %}
 				<a class="mh-btn mh-btn--line" href="#dokonlar">{{ t.see_shops }}</a>
 			</div>
 		</div>
@@ -232,13 +203,12 @@
 	<section class="mh-sec" id="dokonlar">
 		<div class="mh-sec__head">
 			<h2 class="mh-h2">{{ t.shops }}</h2>
-			<p>{{ t.shops_lead }}</p>
+			{% if shops %}<span data-shop-count>{{ t.shown.replace("{0}", shops|length|string) }}</span>{% endif %}
 		</div>
 		{% if shops %}
 		<label class="mh-search">
 			<svg><use href="#i-search"/></svg>
 			<input type="search" placeholder="{{ t.search }}" data-shop-search aria-label="{{ t.search_label }}">
-			<span data-shop-count>{{ t.shown.replace("{0}", shops|length|string) }}</span>
 		</label>
 		<div class="mh-grid" data-shop-grid>
 			{% for s in shops %}
@@ -260,21 +230,8 @@
 		<div class="mh-empty">{{ t.no_shops }}</div>
 		{% endif %}
 	</section>
-</div>
 
-<section class="mh-get">
-	<div class="mh">
-		<h2 class="mh-h2">{{ t.owner_h }}</h2>
-		<ul class="mh-feats">
-			{% for icon, title, text in t.features %}
-			<li><svg aria-hidden="true"><use href="#i-{{ icon }}"/></svg><b>{{ title }}</b><span>{{ text }}</span></li>
-			{% endfor %}
-		</ul>
-	</div>
-</section>
-
-<div class="mh">
-	<section class="mh-sec" id="ochish" style="padding-top: 56px">
+	<section class="mh-sec" id="ochish">
 		<div class="mh-sec__head"><h2 class="mh-h2">{{ t.how }}</h2></div>
 		<ol class="mh-steps">
 			{% for step in t.steps %}<li>{{ step }}</li>{% endfor %}
@@ -292,15 +249,6 @@
 		</div>
 	</section>
 	{% endif %}
-
-	<section class="mh-sec mh-faq-wrap">
-		<div class="mh-sec__head"><h2 class="mh-h2">{{ t.faq }}</h2></div>
-		<div class="mh-faq">
-			{% for q, a in t.faqs %}
-			<details><summary>{{ q }}</summary><p>{{ a }}</p></details>
-			{% endfor %}
-		</div>
-	</section>
 
 	<footer class="mh-foot">
 		<span>© {{ year }} magazinlar.uz, {{ t.company }}</span>

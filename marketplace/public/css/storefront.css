@@ -179,7 +179,9 @@ svg { width: 20px; height: 20px; flex: none; }
 .sf-card {
 	position: relative; display: flex; flex-direction: column;
 	background: var(--surface); border-radius: var(--radius); overflow: hidden;
+	transition: box-shadow .2s ease, transform .2s ease;
 }
+@media (hover: hover) { .sf-card:hover { box-shadow: 0 12px 28px rgb(0 0 0 / .09); transform: translateY(-2px); } }
 .sf-card__media {
 	position: relative; display: grid; place-items: center;
 	aspect-ratio: 4 / 5; background: var(--tile); overflow: hidden;
@@ -507,6 +509,9 @@ html.sf-noscroll, html.sf-noscroll body { overflow: hidden; }
 	.sf-orders-btn__label { display: inline; }
 
 	.sf-layout { display: grid; grid-template-columns: 230px minmax(0, 1fr) 310px; gap: 26px; padding-top: 26px; padding-bottom: 60px; }
+	/* Savat bo'sh — o'ng panel yo'q, kartalar kengroq (storefront.js renderCartSummary) */
+	.sf-layout[data-cart-empty] { grid-template-columns: 230px minmax(0, 1fr); }
+	.sf-layout[data-cart-empty] .sf-side-cart { display: none; }
 
 	.sf-filters { display: block; position: sticky; top: 100px; align-self: start; }
 	.sf-filters__title { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
@@ -519,15 +524,16 @@ html.sf-noscroll, html.sf-noscroll body { overflow: hidden; }
 	.sf-reset { width: 100%; height: 40px; margin-top: 10px; border-radius: 12px; border: 1px dashed var(--line); color: var(--muted); font-size: 14px; font-weight: 500; }
 	.sf-reset:hover { color: var(--ink); border-color: var(--muted); }
 
-	.sf-info { display: none; }
+	.sf-info { padding-top: 0; }
 	.sf-chips { display: none; }
-	.sf-banner, .sf-carousel { margin-top: 0; }
+	.sf-banner, .sf-carousel { margin-top: 14px; }
+	.sf-slide { aspect-ratio: 3 / 1; }
 	.sf-toolbar { display: flex; align-items: center; justify-content: space-between; margin: 26px 0 0; font-weight: 600; }
 	.sf-sort { display: flex; align-items: center; gap: 10px; color: var(--muted); font-weight: 400; font-size: 13px; }
 	.sf-sort select { height: 44px; padding: 0 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); font-size: 14px; }
-	.sf-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-	.sf-card__body { padding: 12px; }
-	.sf-price__now { font-size: 15px; }
+	.sf-grid { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 18px; }
+	.sf-card__body { padding: 14px; }
+	.sf-price__now { font-size: 16px; }
 	.sf-add { width: 44px; height: 44px; }
 
 	.sf-side-cart { display: block; position: sticky; top: 100px; align-self: start; }

@@ -14,3 +14,4 @@ marketplace.patches.telegram_mijoz_sync
 marketplace.patches.seed_standard_sizes
 marketplace.patches.per_shop_colors
 marketplace.patches.murojaat_keys
+marketplace.patches.aloqa_telefon

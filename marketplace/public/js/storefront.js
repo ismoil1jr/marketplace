@@ -83,6 +83,9 @@
 		renderRowSteppers(items);
 		const bar = $("[data-cartbar]");
 		if (bar) bar.hidden = !count;
+		// Noutbukda o'ng "Savat" paneli faqat savatda narsa bo'lganda (bo'sh panel joy olmasin — kartalar kengroq)
+		const layout = $(".sf-layout");
+		if (layout) layout.toggleAttribute("data-cart-empty", !count);
 
 		$$("[data-add]").forEach((btn) => {
 			const q = items[btn.dataset.add] || 0;
