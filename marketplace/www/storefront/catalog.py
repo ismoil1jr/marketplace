@@ -1,6 +1,6 @@
 import frappe
 
-from marketplace import storefront
+from marketplace import customers, storefront
 
 no_cache = 1
 
@@ -29,3 +29,5 @@ def get_context(context):
 	context.og_image = shop.logo or (catalog["items"][0]["thumb"] if catalog["items"] else None)
 	context.asset_version = storefront.asset_version()
 	context.csrf_token = frappe.session.data.csrf_token or ""
+	# Sarlavhadagi tugma: kirmagan mijozga «Kirish», kirganiga «Buyurtmalarim»
+	context.customer = customers.current_customer()

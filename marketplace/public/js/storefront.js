@@ -159,9 +159,13 @@
 	const onFavChange = [];
 
 	function initFavorites() {
-		const syncFilter = () => $$("[data-fav-filter]").forEach((b) => (b.hidden = !favs.size));
+		const syncFilter = () => {
+			$$("[data-fav-filter]").forEach((b) => (b.hidden = !favs.size));
+			$$("[data-fav-count]").forEach((el) => { el.textContent = favs.size; el.hidden = !favs.size; });
+		};
 		syncFilter();
 		onFavChange.push(syncFilter);
+		$$("[data-fav-top]").forEach((b) => b.addEventListener("click", () => { if (!favs.size) toast("Sevimlilar bo‘sh — kartadagi ♥ ni bosing"); }));
 		$$("[data-fav]").forEach((btn) => {
 			btn.classList.toggle("is-on", favs.has(btn.dataset.fav));
 			btn.addEventListener("click", (e) => {
@@ -1180,6 +1184,7 @@
 			dots.forEach((d, i) => d.setAttribute("aria-selected", String(i === current)));
 		}, { passive: true });
 		dots.forEach((d) => d.addEventListener("click", () => { stop(); go(+d.dataset.carouselDot); }));
+		$$("[data-carousel-step]", root).forEach((b) => b.addEventListener("click", () => { stop(); go(current + +b.dataset.carouselStep); }));
 		const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
 		const start = () => { if (!reduce && !timer) timer = setInterval(() => go(current + 1), 5000); };
 		const stop = () => { clearInterval(timer); timer = null; };

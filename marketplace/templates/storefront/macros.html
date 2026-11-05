@@ -145,6 +145,8 @@
 		{% endfor %}
 	</div>
 	{% if shop.banners|length > 1 %}
+	<button type="button" class="sf-carousel__nav sf-carousel__nav--prev" data-carousel-step="-1" aria-label="Oldingi slayd"><svg><use href="#i-back"/></svg></button>
+	<button type="button" class="sf-carousel__nav sf-carousel__nav--next" data-carousel-step="1" aria-label="Keyingi slayd"><svg><use href="#i-back"/></svg></button>
 	<div class="sf-carousel__dots" role="tablist">
 		{% for b in shop.banners %}<button type="button" role="tab" aria-label="{{ loop.index }}-slayd" data-carousel-dot="{{ loop.index0 }}" {{ 'aria-selected=true' if loop.first else '' }}></button>{% endfor %}
 	</div>

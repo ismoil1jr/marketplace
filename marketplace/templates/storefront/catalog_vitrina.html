@@ -18,10 +18,17 @@
 		</label>
 
 		<div class="sf-top__actions">
-			<a class="sf-icon-btn sf-orders-btn" href="{{ base }}/buyurtmalarim" aria-label="Buyurtmalarim" title="Buyurtmalarim">
-				<svg><use href="#i-receipt"/></svg>
-				<span class="sf-orders-btn__label">Buyurtmalarim</span>
+			{% set orders_label = "Buyurtmalarim" if customer else "Kirish" %}
+			<a class="sf-icon-btn sf-orders-btn" href="{{ base }}/buyurtmalarim" aria-label="{{ orders_label }}" title="{{ orders_label }}">
+				<svg><use href="#{{ 'i-receipt' if customer else 'i-user' }}"/></svg>
+				<span class="sf-orders-btn__label">{{ orders_label }}</span>
 			</a>
+			{# Noutbukda: Uzum kabi «Sevimlilar» — bosilsa faqat sevimli tovarlar (storefront.js setGroup "__fav") #}
+			<button class="sf-icon-btn sf-fav-btn sf-only-desktop" type="button" data-group="__fav" data-fav-top aria-label="Sevimlilar">
+				<svg><use href="#i-heart"/></svg>
+				<span class="sf-fav-btn__label">Sevimlilar</span>
+				<span class="sf-count" data-fav-count hidden>0</span>
+			</button>
 			<button class="sf-icon-btn sf-only-mobile" type="button" data-focus-search aria-label="Qidirish">
 				<svg><use href="#i-search"/></svg>
 			</button>
@@ -69,6 +76,8 @@
 			{% for g in catalog.groups %}<button type="button" data-group="{{ g }}">{{ g }}</button>{% endfor %}
 		</nav>
 
+		{# Noutbukda .sf-main "display: contents" — karusel to'liq kenglikda tepada, shu blok esa filtr yonida #}
+		<div class="sf-main__body">
 		<div class="sf-toolbar">
 			<span data-result-count>{{ catalog["items"] | length }} ta mahsulot</span>
 			<label class="sf-sort">Saralash
@@ -88,6 +97,7 @@
 		{% else %}
 		<p class="sf-empty">Hozircha tovarlar yo‘q. Tez orada qo‘shiladi.</p>
 		{% endif %}
+		</div>
 	</main>
 
 	<aside class="sf-side-cart" aria-label="Savat">

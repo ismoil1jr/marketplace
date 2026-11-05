@@ -169,6 +169,15 @@ svg { width: 20px; height: 20px; flex: none; }
 .sf-slide--item .sf-slide__img { object-fit: contain; padding: 14px 14px 14px 48%; filter: drop-shadow(0 10px 16px rgb(0 0 0 / .22)); }
 .sf-slide--item .sf-slide__text { inset: 0 auto 0 0; width: 50%; display: flex; flex-direction: column; justify-content: center; background: none; color: var(--ink); }
 .sf-slide--item .sf-slide__text .sf-btn { align-self: flex-start; background: var(--dark); color: #fff; }
+.sf-carousel__nav {
+	display: none; position: absolute; top: 50%; z-index: 2; width: 44px; height: 44px; margin-top: -22px; padding: 0;
+	border: 0; border-radius: 50%; background: rgb(255 255 255 / .9); color: var(--dark); box-shadow: 0 2px 10px rgb(0 0 0 / .15);
+	cursor: pointer; place-items: center;
+}
+.sf-carousel__nav svg { width: 18px; height: 18px; }
+.sf-carousel__nav--prev { left: 14px; }
+.sf-carousel__nav--next { right: 14px; }
+.sf-carousel__nav--next svg { transform: rotate(180deg); }
 .sf-carousel__dots { position: absolute; right: 12px; bottom: 12px; display: flex; gap: 6px; }
 .sf-carousel__dots button { width: 8px; height: 8px; padding: 0; border: 0; border-radius: 99px; background: rgb(255 255 255 / .6);
 	box-shadow: 0 0 0 1px rgb(0 0 0 / .14); transition: width .2s; }
@@ -530,20 +539,31 @@ html.sf-noscroll, html.sf-noscroll body { overflow: hidden; }
 
 /* ================= NOUTBUK (≥1100px) ================= */
 @media (min-width: 1100px) {
+	/* Uzum kabi sarlavha: do'kon · katta qidiruv · Kirish / Sevimlilar / Savat */
 	.sf-top { position: sticky; top: 0; z-index: 30; padding: 14px var(--gutter); background: var(--surface); border-bottom: 1px solid var(--line); }
-	.sf-search--top { width: auto; flex: 0 1 540px; margin: 0 auto; background: var(--bg); }
+	.sf-top__inner { gap: 18px; }
+	.sf-search--top { width: auto; flex: 0 1 640px; margin: 0 auto; background: var(--bg); }
 	.sf-brand { margin-right: 0; flex: 0 0 auto; }
 	.sf-only-desktop { display: inline-flex !important; }
 	.sf-cart-btn { display: inline-flex; align-items: center; width: auto; height: 46px; padding: 0 18px; gap: 8px; border-radius: 12px; background: var(--dark); border-color: var(--dark); color: #fff; font-weight: 600; }
 	.sf-cart-btn__label { display: inline; }
 	.sf-cart-btn .sf-count { position: static; background: #fff; color: var(--dark); }
-	.sf-orders-btn { display: inline-flex; align-items: center; width: auto; height: 46px; padding: 0 16px; gap: 8px; border-radius: 12px; font-weight: 600; }
-	.sf-orders-btn__label { display: inline; }
+	.sf-orders-btn, .sf-fav-btn { display: inline-flex; align-items: center; width: auto; height: 46px; padding: 0 16px; gap: 8px; border-radius: 12px; font-weight: 600; }
+	.sf-orders-btn__label, .sf-fav-btn__label { display: inline; }
+	.sf-fav-btn .sf-count { position: static; }
+	.sf-fav-btn.is-active { background: var(--dark); border-color: var(--dark); color: #fff; }
+	.sf-fav-btn.is-active .sf-count { background: #fff; color: var(--dark); }
 
-	.sf-layout { display: grid; grid-template-columns: 230px minmax(0, 1fr) 310px; gap: 26px; padding-top: 26px; padding-bottom: 60px; }
-	/* Savat bo'sh — o'ng panel yo'q, kartalar kengroq (storefront.js renderCartSummary) */
+	/* Uzum kabi: karusel to'liq kenglikda tepada; ostida chapda kategoriya/narx, o'rtada tovarlar, savatda narsa bo'lsa — o'ngda savat.
+	   .sf-main "display: contents" — ichidagilar to'g'ridan-to'g'ri gridga tushadi (telefon tartibi o'zgarmaydi) */
+	.sf-layout { display: grid; grid-template-columns: 230px minmax(0, 1fr) 310px; gap: 22px 26px; padding-top: 22px; padding-bottom: 60px; }
 	.sf-layout[data-cart-empty] { grid-template-columns: 230px minmax(0, 1fr); }
 	.sf-layout[data-cart-empty] .sf-side-cart { display: none; }
+	.sf-main { display: contents; }
+	.sf-carousel, .sf-banner { grid-column: 1 / -1; order: -3; margin-top: 0; }
+	.sf-info { grid-column: 1 / -1; order: -2; padding-top: 0; }
+	.sf-info:not(:has(.sf-pill)) { display: none; }
+	.sf-main__body { min-width: 0; }
 
 	.sf-filters { display: block; position: sticky; top: 100px; align-self: start; }
 	.sf-filters__title { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
@@ -556,11 +576,11 @@ html.sf-noscroll, html.sf-noscroll body { overflow: hidden; }
 	.sf-reset { width: 100%; height: 40px; margin-top: 10px; border-radius: 12px; border: 1px dashed var(--line); color: var(--muted); font-size: 14px; font-weight: 500; }
 	.sf-reset:hover { color: var(--ink); border-color: var(--muted); }
 
-	.sf-info { padding-top: 0; }
 	.sf-chips { display: none; }
-	.sf-banner, .sf-carousel { margin-top: 14px; }
 	.sf-slide { aspect-ratio: 3 / 1; }
-	.sf-toolbar { display: flex; align-items: center; justify-content: space-between; margin: 26px 0 0; font-weight: 600; }
+	.sf-carousel { border-radius: 24px; }
+	.sf-carousel__nav { display: grid; }
+	.sf-toolbar { display: flex; align-items: center; justify-content: space-between; margin: 0; font-weight: 600; }
 	.sf-sort { display: flex; align-items: center; gap: 10px; color: var(--muted); font-weight: 400; font-size: 13px; }
 	.sf-sort select { height: 44px; padding: 0 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); font-size: 14px; }
 	.sf-grid { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 18px; }
