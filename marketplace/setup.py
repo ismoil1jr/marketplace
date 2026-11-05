@@ -61,6 +61,18 @@ CUSTOM_FIELDS = {
 			"description": "Belgilansa: saytda och rangda «Tez kunda» bo'lib chiqadi, mijoz ko'radi va sevimlilarga qo'shadi, lekin sotib ololmaydi",
 		},
 		{
+			# Instagram formasi (Google Sheets) murojaati qaysi tovar bo'yicha: SMM varaq/forma nomiga yoki tovar_id ustuniga
+			# shu raqamni yozadi (murojaat._item). Do'kon ichida takrorlanmaydi, bo'sh bo'lsa — o'zi beriladi (item_tovar_id)
+			"fieldname": "mp_tovar_id",
+			"label": "Tovar ID (reklama)",
+			"fieldtype": "Int",
+			"insert_after": "mp_tez_kunda",
+			"no_copy": 1,
+			"search_index": 1,
+			"depends_on": "eval:!doc.variant_of",
+			"description": "Instagram formasi uchun qisqa raqam: SMM jadvalda (varaq nomi yoki tovar_id) shu raqamni yozadi — murojaat shu tovar bo'yicha tushadi. Bo'sh qoldirilsa — o'zi beriladi",
+		},
+		{
 			"fieldname": "variant_price",
 			"label": "Sotish narxi (barcha variantlarga)",
 			"fieldtype": "Currency",
@@ -614,6 +626,9 @@ def after_migrate():
 	assign_item_groups_to_shops()
 	setup_sales_order_list()
 	setup_admin_forms()
+	from marketplace.sotuv.murojaat import fill_tovar_ids
+
+	fill_tovar_ids()
 	# Tovar qo'shishda kichik dialog emas, to'liq (soddalashtirilgan) forma ochilsin
 	if not frappe.db.exists("Property Setter", {"doc_type": "Item", "property": "quick_entry"}):
 		make_property_setter("Item", None, "quick_entry", "0", "Check", for_doctype=True, validate_fields_for_doctype=False)

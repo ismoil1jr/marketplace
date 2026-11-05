@@ -248,6 +248,7 @@ doc_events = {
 			"marketplace.seller_desk.item_template_price",
 			"marketplace.permissions.item_validate",
 			"marketplace.images.process_gallery",
+			"marketplace.sotuv.murojaat.item_tovar_id",
 		],
 		"after_insert": "marketplace.seller_desk.item_after_insert",
 		"on_update": [

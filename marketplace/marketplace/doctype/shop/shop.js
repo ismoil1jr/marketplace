@@ -59,8 +59,11 @@ frappe.ui.form.on("Shop", {
 
 function marketplace_meta_buttons(frm) {
 	const admin = frappe.user.has_role("System Manager") || frappe.user.has_role("Marketplace Manager");
-	const group = __("Instagram (Meta)");
+	const group = __("Instagram forma");
 	const connected = !!frm.doc.meta_page_id;
+	if (admin || frappe.user.has_role("Shop Seller")) {
+		frm.add_custom_button(__("Google Sheets orqali"), () => marketplace_sheets(frm), group);
+	}
 	if (admin) {
 		frm.add_custom_button(connected ? __("Boshqa sahifani ulash") : __("Meta'ga ulash"), () => marketplace_meta_connect(frm), group);
 	}
@@ -82,6 +85,45 @@ function marketplace_meta_buttons(frm) {
 				), group);
 		}
 	}
+}
+
+// Meta Instant Form → Google Sheets (Meta'ning o'z integratsiyasi) → jadvaldagi Apps Script → murojaat.qabul.
+// Meta developer akkaunti kerak emas; kodda do'kon kaliti bor, ekranda yashirilgan (murojaat.sheets_setup)
+async function marketplace_sheets(frm) {
+	const r = await frappe.xcall("marketplace.sotuv.murojaat.sheets_setup", { shop: frm.doc.name });
+	const esc = frappe.utils.escape_html;
+	const shown = r.script.replace(/(const KALIT = ")[^"]+/, "$1••••••••••••");
+	const items = r.items.length
+		? r.items.map((i) => `<tr><td style="width:90px"><b>${i.id}</b></td><td>${esc(i.name)}`
+			+ (i.published ? "" : ` <span class="text-muted">— ${__("saytda yashirin")}</span>`)
+			+ (i.soon ? ` <span class="text-muted">— ${__("tez kunda")}</span>` : "") + "</td></tr>").join("")
+		: `<tr><td class="text-muted">${__("Do'konda hali tovar yo'q")}</td></tr>`;
+	const d = new frappe.ui.Dialog({
+		title: __("Instagram forma → Google Sheets → Murojaatlar"),
+		size: "large",
+		fields: [{ fieldtype: "HTML", fieldname: "body" }],
+	});
+	d.fields_dict.body.$wrapper.html(`
+		${r.local ? `<div class="alert alert-warning small">${__("Bu nusxa lokal: Google unga yeta olmaydi. Kodni magazinlar.uz'dan oling.")}</div>` : ""}
+		<ol style="padding-left:18px;line-height:1.75;margin-bottom:14px">
+			<li><b>Meta Business Suite</b> → ${__("Barcha vositalar")} → <b>Instant Forms</b> (Мгновенные формы) → <b>CRM setup</b> → <b>Google Sheets</b> → ${__("Google akkaunt bilan kiring.")}</li>
+			<li><b>New integration</b>: ${__("bitta jadvalni tanlang, har bir formani o'z varag'iga ulang.")}
+				<b>${__("Varaq nomini Tovar ID bilan boshlang")}</b>: «1 Audio kitob». ${__("Forma nomi «1 …» bilan boshlansa ham bo'ladi.")}</li>
+			<li>${__("Jadvalda")}: <b>${__("Kengaytmalar → Apps Script")}</b> → ${__("pastdagi kodni qo'ying")} → ${__("Saqlash")} → <b>sozlash</b> → <b>Run</b> → ${__("ruxsat bering.")}
+				<div class="text-muted small">${__("Google «tasdiqlanmagan ilova» desa: Advanced (Дополнительно) → Go to … → Allow. Bu sizning o'z skriptingiz.")}</div></li>
+			<li>${__("Meta'da «Send test lead» bosing: «magazinlar.uz» varag'ida «o'tkazildi: Telefon raqami…» chiqadi — sinov lid shunday bo'ladi. Haqiqiy murojaat 1 daqiqada Sotuv paneli → Murojaatlar'ga tushadi.")}</li>
+		</ol>
+		<div style="font-weight:600;margin-bottom:6px">${__("Tovar ID'lar")}</div>
+		<table class="table table-bordered table-sm small" style="margin-bottom:6px">${items}</table>
+		<p class="text-muted small">${__("ID tovar formasida («Tovar ID (reklama)») o'zgartiriladi. Jadvalda «tovar_id» ustuni bo'lsa — o'sha olinadi.")}</p>
+		<div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px">
+			<span style="font-weight:600">${__("Apps Script kodi")}</span>
+			<button class="btn btn-primary btn-sm" data-copy>${__("Kodni nusxalash")}</button>
+		</div>
+		<pre style="font-size:11px;max-height:220px;overflow:auto;margin-top:6px">${esc(shown)}</pre>
+		<div class="alert alert-warning small" style="margin-top:10px">${__("Kod ichida do'kon kaliti bor: jadvalni faqat ishonchli odamlar bilan bo'lishing. Kalit yangilansa (tovar → «SMM havolasi» → Kalitni yangilash), kodni qayta qo'ying.")}</div>`);
+	d.fields_dict.body.$wrapper.find("[data-copy]").on("click", () => frappe.utils.copy_to_clipboard(r.script));
+	d.show();
 }
 
 function marketplace_meta_connect(frm) {

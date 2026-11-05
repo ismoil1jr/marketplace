@@ -9,6 +9,9 @@ Qabul: POST /api/method/marketplace.sotuv.murojaat.qabul?tovar=<tovar kodi>, sar
   tanada shart emas. Inglizcha nomlar (first_name, last_name, full_name, phone), qo'shimcha shahar/izoh/kampaniya
   va Meta lead-formasi ko'rinishi ({"field_data": [{"name", "values"}]}) ham tushuniladi.
 SMM vositasi (Make, Zapier va h.k.) formani shu manzilga yuboradi. Bir xil lead qayta kelsa — yangisi yaratilmaydi.
+Google Sheets: Meta Instant Form'ni jadvalga o'zi yozadi, jadvaldagi Apps Script (sotuv/google_sheets.gs, do'kon formasidagi
+«Google Sheets» oynasi — sheets_setup) har daqiqada yangi qatorlarni shu yerga yuboradi. Tovar tovar_id ustunidan, bo'lmasa
+varaq/forma nomidagi «Tovar ID»dan (Item.mp_tovar_id: 1, 2, 3…) yoki tovar nomidan aniqlanadi (_hint_item).
 Javobda nima yozilgani qaytadi (ism, familiya, telefon, tovar) — SMM'chi tovar to'g'ri ulanganini shundan ko'radi.
 
 Qo'ng'iroq yozuvi murojaatga RAQAM bo'yicha bog'lanadi (telefoniya.ingest_call), mijoz keyin saytda buyurtma bersa —
@@ -16,6 +19,7 @@ murojaat "Buyurtma berdi" bo'ladi.
 """
 
 import json
+import re
 import secrets
 from urllib.parse import quote
 
@@ -120,7 +124,7 @@ def qabul(**kwargs):
 		raise frappe.PermissionError(_("Murojaat kaliti noto'g'ri"))
 	if frappe.request and frappe.request.method == "GET":
 		return _link_check(shop, _pick(data, "tovar"))
-	asked = _pick(data, "tovar")
+	asked = _pick(data, "tovar") or _hint_item(shop, data)
 	name, duplicate = save_lead(shop, data, asked)
 	return _answer(name, duplicate, asked)
 
@@ -128,12 +132,13 @@ def qabul(**kwargs):
 def save_lead(shop, data, asked=None):
 	"""Bitta murojaat: data — tekis lug'at (kalitlar kichik harfda, KEYS bo'yicha o'qiladi), asked — tovar kodi yoki nomi.
 	SMM havolasi (qabul) va Meta lead webhook'i (sotuv/meta.py) shu yerdan yozadi. Qaytaradi: (nomi, dublikatmi)."""
-	phone = _pick(data, "telefon")
+	# Meta jadvalga/CSV'ga "p:+998901234567" va "l:1234567890" ko'rinishida yozadi
+	phone = re.sub(r"^p:\s*", "", _pick(data, "telefon"))
 	normal = normalize_phone(phone)
 	if not normal or len(normal) < 9:
 		frappe.throw(_("Telefon raqami yo'q yoki noto'g'ri"))
 
-	lead_id = _pick(data, "lead_id")[:140]
+	lead_id = re.sub(r"^l:", "", _pick(data, "lead_id"))[:140]
 	tovar, tovar_nomi = _item(shop, asked)
 	# Qayta yuborilgan lead (SMM vositasi takrorlasa) yoki 10 daqiqa ichida aynan o'sha mijoz + tovar — dublikat
 	dup = (lead_id and frappe.db.get_value("Murojaat", {"shop": shop, "tashqi_id": lead_id})) or frappe.db.get_value(
@@ -238,18 +243,111 @@ def _pick(data, field):
 	return ""
 
 
+# «1», «#1», «1 Audio kitob», «1-kitob» — boshidagi raqam Tovar ID (Item.mp_tovar_id)
+TOVAR_ID = re.compile(r"#?\s*(\d{1,6})(?!\w)")
+
+
 def _item(shop, value):
-	"""Tovar kodi yoki nomi (shu do'kon ichida). Topilmasa — (None, kelgan matn)."""
+	"""Tovar kodi, Tovar ID yoki nomi (shu do'kon ichida). Topilmasa — (None, kelgan matn)."""
 	if not value:
 		return None, None
-	row = frappe.db.get_value("Item", {"name": value, "shop": shop}, ["name", "item_name", "variant_of"], as_dict=True) or frappe.db.get_value(
-		"Item", {"item_name": value, "shop": shop, "variant_of": ["is", "not set"]}, ["name", "item_name", "variant_of"], as_dict=True
+	value = str(value).strip()
+	fields = ["name", "item_name", "variant_of"]
+	row = frappe.db.get_value("Item", {"name": value, "shop": shop}, fields, as_dict=True) or frappe.db.get_value(
+		"Item", {"item_name": value, "shop": shop, "variant_of": ["is", "not set"]}, fields, as_dict=True
 	)
+	# To'liq nom birinchi: «2 kishilik divan» degan tovar 2-ID'li tovarga tushib qolmasin
+	number = not row and TOVAR_ID.match(value)
+	if number and int(number.group(1)) > 0:
+		row = frappe.db.get_value(
+			"Item", {"shop": shop, "mp_tovar_id": int(number.group(1)), "variant_of": ["is", "not set"]}, fields, as_dict=True
+		)
 	if not row:
 		return None, value[:140]
 	if row.variant_of:
 		return row.variant_of, frappe.db.get_value("Item", row.variant_of, "item_name")
 	return row.name, row.item_name
+
+
+def _hint_item(shop, data):
+	"""Tovar alohida yuborilmasa: Google Sheets varag'i yoki forma nomidagi Tovar ID / tovar nomi («1 Audio kitob»),
+	keyin reklama va kampaniya nomidagi tovar nomi. Topilsa — tovar kodi."""
+	from marketplace.sotuv.meta import _guess_item
+
+	hints = [(data.get("varaq"), True), (data.get("form_name") or data.get("forma"), True)]
+	hints += [(data.get(key), False) for key in ("ad_name", "adset_name", "campaign_name", "kampaniya")]
+	for text, exact in hints:
+		text = str(text or "").strip()
+		if not text:
+			continue
+		code = (exact and _item(shop, text)[0]) or _guess_item(shop, text)
+		if code:
+			return code
+	return None
+
+
+# ---------------- Tovar ID (reklama) ----------------
+
+
+def item_tovar_id(doc, method=None):
+	"""Item.validate: Tovar ID — do'kon ichida takrorlanmaydigan qisqa raqam (variantda yo'q). Bo'sh bo'lsa — keyingisi."""
+	if not frappe.get_meta("Item").has_field("mp_tovar_id"):
+		return
+	if doc.variant_of or not doc.shop:
+		doc.mp_tovar_id = 0
+		return
+	if cint(doc.mp_tovar_id) < 1:
+		doc.mp_tovar_id = _next_tovar_id(doc.shop)
+		return
+	busy = frappe.db.get_value(
+		"Item",
+		{"shop": doc.shop, "mp_tovar_id": doc.mp_tovar_id, "name": ["!=", doc.name], "variant_of": ["is", "not set"]},
+		"item_name",
+	)
+	if busy:
+		frappe.throw(
+			_("Tovar ID {0} band: «{1}». Boshqa raqam qo'ying yoki bo'sh qoldiring — o'zi beriladi").format(doc.mp_tovar_id, busy)
+		)
+
+
+def _next_tovar_id(shop):
+	return cint(frappe.db.sql("select max(mp_tovar_id) from `tabItem` where shop = %s", shop)[0][0]) + 1
+
+
+def fill_tovar_ids():
+	"""after_migrate: Tovar ID'si yo'q tovarlarga (eski tovarlar) — qo'shilgan tartibida keyingi raqam."""
+	for shop in frappe.get_all("Shop", pluck="name"):
+		rows = frappe.db.sql(
+			"""select name, ifnull(mp_tovar_id, 0) from `tabItem`
+			where shop = %s and ifnull(variant_of, '') = '' order by creation, name""",
+			shop,
+		)
+		last = max((cint(tid) for _name, tid in rows), default=0)
+		for name, tid in rows:
+			if cint(tid) < 1:
+				last += 1
+				frappe.db.set_value("Item", name, "mp_tovar_id", last, update_modified=False)
+
+
+@frappe.whitelist()
+def sheets_setup(shop: str):
+	"""Do'kon egasi / admin: Google Sheets uchun Apps Script (do'kon kaliti bilan) va Tovar ID ro'yxati."""
+	shop, _item_code = _smm_scope(None, shop)
+	script = frappe.read_file(frappe.get_app_path("marketplace", "sotuv", "google_sheets.gs"))
+	for key, value in {
+		"__DOKON__": frappe.db.get_value("Shop", shop, "shop_name") or shop,
+		"__MANZIL__": json.dumps(f"{get_url()}/api/method/marketplace.sotuv.murojaat.qabul"),
+		"__KALIT__": json.dumps(ensure_key(shop)),
+	}.items():
+		script = script.replace(key, value)
+	items = frappe.get_all(
+		"Item",
+		filters={"shop": shop, "variant_of": ["is", "not set"], "disabled": 0},
+		fields=["mp_tovar_id as id", "item_name as name", "is_published as published", "mp_tez_kunda as soon"],
+		order_by="mp_tovar_id asc",
+	)
+	# Google faqat ochiq HTTPS manzilga yuboradi — lokal nusxada ogohlantiramiz
+	return {"script": script, "items": items, "local": not get_url().startswith("https://")}
 
 
 def _notify(doc):
