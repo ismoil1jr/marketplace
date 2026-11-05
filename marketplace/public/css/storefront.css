@@ -267,10 +267,40 @@ svg { width: 20px; height: 20px; flex: none; }
 .sf-dots span { width: 6px; height: 6px; border-radius: 3px; background: rgb(0 0 0 / .25); transition: width .2s ease; }
 .sf-dots span.is-active { width: 20px; background: var(--dark); }
 
-/* Galereya: rasm butunligicha ko'rinadi (kesilmaydi), bosilsa to'liq ekranda ochiladi */
-.sf-gallery__main { position: relative; }
+/* Galereya: rasm butunligicha ko'rinadi (kesilmaydi), bosilsa to'liq ekranda ochiladi.
+   Telefonda rasm 4:5 (mahsulot suratlari ko'pincha tik), pastida tovarning barcha rasmlari qatori — bosib tanlanadi */
+.sf-gallery { display: flex; flex-direction: column; }
+.sf-gallery__main { position: relative; overflow: hidden; isolation: isolate; }
+.sf-gallery__backdrop { position: absolute; z-index: -1; inset: -10%; background: center / cover no-repeat; filter: blur(28px) saturate(1.15); opacity: .85; }
+.sf-gallery__backdrop::after { content: ""; position: absolute; inset: 0; background: color-mix(in srgb, var(--tile) 30%, transparent); }
+.sf-gallery__track { position: relative; aspect-ratio: 4 / 5; }
 .sf-gallery__track > img { object-fit: contain; cursor: zoom-in; }
-.sf-thumbs { display: none; }
+.sf-thumbs { display: flex; order: 2; gap: 8px; overflow-x: auto; scrollbar-width: none; padding: 10px var(--gutter) 34px; scroll-snap-type: x proximity; }
+.sf-thumbs::-webkit-scrollbar { display: none; }
+.sf-thumbs__item {
+	flex: 0 0 auto; width: 60px; height: 60px; padding: 0; border: 2px solid transparent; border-radius: 12px;
+	overflow: hidden; background: var(--surface); scroll-snap-align: start; cursor: pointer;
+}
+.sf-thumbs__item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.sf-thumbs__item.is-active { border-color: var(--dark); }
+.sf-thumbs__item[hidden] { display: none; }
+/* Kichik rasmlar bor — nuqtalar ortiqcha */
+.sf-gallery:has(.sf-thumbs) .sf-dots { display: none; }
+
+/* Ulashish: navigator.share bo'lmagan brauzerda (kompyuter) — Telegram / WhatsApp / nusxalash oynasi */
+.sf-share { position: fixed; inset: 0; z-index: 900; display: flex; align-items: flex-end; justify-content: center; background: rgb(0 0 0 / .4); }
+.sf-share[hidden] { display: none; }
+.sf-share__panel {
+	width: 100%; max-width: 480px; display: grid; gap: 8px;
+	padding: 16px var(--gutter) calc(16px + env(safe-area-inset-bottom)); background: var(--surface); border-radius: 22px 22px 0 0;
+}
+.sf-share__panel b { margin-bottom: 4px; font-size: 17px; }
+.sf-share__panel a, .sf-share__panel button {
+	display: flex; align-items: center; gap: 12px; height: 50px; padding: 0 16px; border: 0; border-radius: 14px;
+	background: var(--bg); color: var(--ink); font: inherit; font-weight: 500; font-size: 15px; text-align: left; cursor: pointer;
+}
+.sf-share__panel svg { width: 22px; height: 22px; flex: none; }
+.sf-share__close { justify-content: center; background: none !important; color: var(--muted) !important; }
 .sf-gallery__nav {
 	display: none; position: absolute; top: 50%; width: 40px; height: 40px; margin-top: -20px; padding: 0;
 	border: 0; border-radius: 50%; background: rgb(255 255 255 / .92); color: var(--dark);
@@ -283,7 +313,7 @@ svg { width: 20px; height: 20px; flex: none; }
 
 /* O'xshash mahsulotlar */
 .sf-related { padding: 0 var(--gutter) 120px; }
-.sf-product:has(+ .sf-related) .sf-sheet { padding-bottom: 96px; }
+.sf-product:has(+ .sf-related) .sf-sheet { padding-bottom: 28px; }
 
 /* To'liq ekran */
 html.sf-noscroll, html.sf-noscroll body { overflow: hidden; }
@@ -469,17 +499,14 @@ html.sf-noscroll, html.sf-noscroll body { overflow: hidden; }
 
 	/* Mahsulot sahifasi: rasm chapda, ma'lumot o'ngda */
 	.sf-product { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; max-width: 1180px; margin: 0 auto; padding: 24px var(--gutter); }
-	.sf-gallery { display: flex; gap: 12px; align-self: start; position: sticky; top: 24px; background: none; }
+	.sf-gallery { flex-direction: row; gap: 12px; align-self: start; position: sticky; top: 24px; background: none; }
 	.sf-gallery__main { flex: 1; min-width: 0; border-radius: 24px; overflow: hidden; background: var(--tile); }
+	.sf-gallery__track { aspect-ratio: 1 / 1; }
 	/* Uzum kabi: chapda kichik rasmlar ustuni, rasm ustida strelkalar */
-	.sf-thumbs { display: flex; flex-direction: column; gap: 8px; width: 68px; max-height: 560px; overflow-y: auto; scrollbar-width: thin; }
-	.sf-thumbs__item {
-		flex: 0 0 auto; width: 64px; height: 84px; padding: 0; border: 2px solid transparent; border-radius: 10px;
-		overflow: hidden; background: var(--tile); cursor: pointer;
-	}
-	.sf-thumbs__item img { width: 100%; height: 100%; object-fit: cover; display: block; }
-	.sf-thumbs__item.is-active { border-color: var(--dark); }
-	.sf-thumbs__item[hidden] { display: none; }
+	.sf-thumbs { order: 0; flex-direction: column; width: 68px; max-height: 560px; padding: 0; overflow: hidden auto; scrollbar-width: thin; }
+	.sf-thumbs__item { width: 64px; height: 84px; border-radius: 10px; background: var(--tile); }
+	.sf-share { align-items: center; }
+	.sf-share__panel { border-radius: 22px; padding-bottom: 16px; }
 	.sf-gallery__nav, .sf-lightbox__nav { display: grid; }
 	.sf-gallery__nav[hidden] { display: none; }
 	.sf-related { max-width: 1180px; margin: 8px auto 0; padding: 0 var(--gutter) 48px; }

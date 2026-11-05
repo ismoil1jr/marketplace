@@ -18,6 +18,8 @@
 		</div>
 		{% endif %}
 		<div class="sf-gallery__main">
+			{# Joriy rasmning xira nusxasi — rasm butunligicha ko'rinadi, bo'sh joy esa kulrang emas (storefront.js syncActive) #}
+			<div class="sf-gallery__backdrop" data-gallery-bg aria-hidden="true"></div>
 			<div class="sf-gallery__track" data-gallery>
 				{% for img in product.gallery %}
 				<img src="{{ img.src }}" data-full="{{ img.full }}" alt="{{ product.name }}" width="1200" height="1200" decoding="async" data-color="{{ img.color }}"

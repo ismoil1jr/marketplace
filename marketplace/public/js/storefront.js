@@ -416,10 +416,16 @@
 			track.scrollTo({ left: ((i + n) % n) * track.clientWidth, behavior: smooth ? "smooth" : "auto" });
 		};
 		// Nuqtalar va chapdagi kichik rasmlar joriy rasmga ergashadi
+		const backdrop = $("[data-gallery-bg]");
 		const syncActive = () => {
 			const cur = shownImgs()[currentIndex()];
+			if (backdrop && cur) backdrop.style.backgroundImage = `url("${cur.getAttribute("src")}")`;
 			if (dotsBox) [...dotsBox.children].forEach((d, k) => d.classList.toggle("is-active", k === currentIndex()));
-			thumbs.forEach((t, k) => t.classList.toggle("is-active", imgs[k] === cur));
+			thumbs.forEach((t, k) => {
+				const on = imgs[k] === cur;
+				t.classList.toggle("is-active", on);
+				if (on) t.scrollIntoView({ block: "nearest", inline: "nearest" });
+			});
 		};
 		if (track) track.addEventListener("scroll", syncActive, { passive: true });
 		thumbs.forEach((t, k) => {
@@ -428,6 +434,7 @@
 			t.addEventListener("mouseenter", pick);
 		});
 		$$("[data-gallery-step]").forEach((b) => b.addEventListener("click", () => goTo(currentIndex() + +b.dataset.galleryStep)));
+		syncActive();
 
 		// Rang tanlansa — faqat shu rangga bog'langan rasmlar; rang tanlanmagan bo'lsa — hammasi
 		const filterGallery = (color, fallback) => {
@@ -451,13 +458,41 @@
 
 		initLightbox(shownImgs, () => currentIndex(), (i) => goTo(i, false));
 
+		// Telefonda — tizimning o'z "Ulashish" oynasi; bo'lmasa (kompyuter) — Telegram / WhatsApp / nusxalash
 		$("[data-share]")?.addEventListener("click", async () => {
 			const data = { title: document.title, url: location.href };
-			try {
-				if (navigator.share) await navigator.share(data);
-				else { await navigator.clipboard.writeText(location.href); toast("Havola nusxalandi"); }
-			} catch { /* foydalanuvchi bekor qildi */ }
+			if (navigator.share) {
+				try { await navigator.share(data); } catch { /* foydalanuvchi bekor qildi */ }
+				return;
+			}
+			shareSheet(data);
 		});
+		function shareSheet({ title, url }) {
+			let box = $("[data-share-sheet]");
+			if (!box) {
+				const u = encodeURIComponent(url), t = encodeURIComponent(title);
+				box = document.createElement("div");
+				box.className = "sf-share";
+				box.setAttribute("data-share-sheet", "");
+				box.innerHTML = `<div class="sf-share__panel" role="dialog" aria-modal="true" aria-label="Ulashish">
+					<b>Ulashish</b>
+					<a href="https://t.me/share/url?url=${u}&text=${t}" target="_blank" rel="noopener"><svg><use href="#i-tg"/></svg>Telegram orqali yuborish</a>
+					<a href="https://wa.me/?text=${t}%20${u}" target="_blank" rel="noopener"><svg><use href="#i-wa"/></svg>WhatsApp orqali yuborish</a>
+					<button type="button" data-share-copy><svg><use href="#i-share"/></svg>Havolani nusxalash</button>
+					<button type="button" class="sf-share__close" data-share-close>Yopish</button>
+				</div>`;
+				document.body.append(box);
+				box.addEventListener("click", (e) => {
+					if (e.target === box || e.target.closest("[data-share-close], a")) box.hidden = true;
+				});
+				$("[data-share-copy]", box).addEventListener("click", async () => {
+					try { await navigator.clipboard.writeText(url); toast("Havola nusxalandi"); } catch { /* ruxsat yo'q */ }
+					box.hidden = true;
+				});
+				document.addEventListener("keydown", (e) => { if (e.key === "Escape") box.hidden = true; });
+			}
+			box.hidden = false;
+		}
 
 		// Pastdagi "O'xshash mahsulotlar" kartalaridagi "+" tugmasi
 		$$("[data-related] [data-add]").forEach((btn) =>
