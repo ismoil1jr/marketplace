@@ -19,9 +19,11 @@ const TELEFON = /phone|telefon|raqam|номер|телефон/;
 
 function sozlash() {
   for (const t of ScriptApp.getProjectTriggers()) ScriptApp.deleteTrigger(t);
+  // Meta qator qo'shishi bilan darhol (onChange), har daqiqada esa zaxira tekshiruv
+  ScriptApp.newTrigger("yuborish").forSpreadsheet(SpreadsheetApp.getActive()).onChange().create();
   ScriptApp.newTrigger("yuborish").timeBased().everyMinutes(1).create();
   const n = yuborish();
-  SpreadsheetApp.getActive().toast("Ulandi. Hozir yuborildi: " + n + ". Keyingilari — har daqiqada.", "magazinlar.uz", 15);
+  SpreadsheetApp.getActive().toast("Ulandi. Hozir yuborildi: " + n + ". Keyingilari — darhol.", "magazinlar.uz", 15);
 }
 
 function yuborish() {
