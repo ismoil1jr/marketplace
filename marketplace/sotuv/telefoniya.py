@@ -39,6 +39,14 @@ def normalize_phone(raw):
 	return digits or None
 
 
+def pretty_phone(raw):
+	"""Ko'rsatish uchun: O'zbekiston raqami '+998 90 123 45 67', boshqasi — kelganicha."""
+	d = normalize_phone(raw) or ""
+	if len(d) == 12 and d.startswith("998"):
+		return f"+{d[:3]} {d[3:5]} {d[5:8]} {d[8:10]} {d[10:]}"
+	return (raw or "").strip()
+
+
 @frappe.whitelist(methods=["POST"])
 def ingest_call(**kwargs):
 	"""Ilovadan kelgan bitta qo'ng'iroq. Qaytaradi: {"status": "ok", "name", "duplicate", "matched"}.

@@ -28,7 +28,7 @@ from frappe import _
 from frappe.rate_limiter import rate_limit
 from frappe.utils import add_to_date, cint, get_url, getdate, now_datetime, today
 
-from marketplace.sotuv.telefoniya import normalize_phone
+from marketplace.sotuv.telefoniya import normalize_phone, pretty_phone
 
 RESULTS = ("Oladi", "Olmaydi", "Javob bermadi", "Keyinroq")
 CHANNELS = ("Qo‘ng‘iroq", "SMS")
@@ -160,8 +160,8 @@ def save_lead(shop, data, asked=None):
 			"shop": shop,
 			"ism": ism[:140] or None,
 			"familiya": familiya.strip()[:140] or None,
-			"mijoz_ismi": (" ".join(x for x in (ism, familiya.strip()) if x) or full or phone)[:140],
-			"telefon": phone[:40],
+			"mijoz_ismi": (" ".join(x for x in (ism, familiya.strip()) if x) or full or pretty_phone(phone))[:140],
+			"telefon": pretty_phone(phone)[:40],
 			"normal_telefon": normal,
 			"izoh": _pick(data, "izoh")[:2000] or None,
 			"shahar": _pick(data, "shahar")[:140] or None,
