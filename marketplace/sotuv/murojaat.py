@@ -410,6 +410,11 @@ def get_leads(view: str = "yangi", q: str | None = None):
 		        "keyingi_qongiroq", "aloqa_vaqt", "creation", "buyurtma"],
 		order_by="creation desc", limit_page_length=300,
 	)
+	# Reklama uchun qisqa Tovar ID (SMM shu raqam bilan ishlaydi) — kartada kod o'rniga shu ko'rinadi
+	codes = list({r.tovar for r in rows if r.tovar})
+	tids = dict(frappe.get_all("Item", filters={"name": ["in", codes]}, fields=["name", "mp_tovar_id"], as_list=True)) if codes else {}
+	for r in rows:
+		r.tid = tids.get(r.tovar) or None
 	calls = {}
 	phones = list({r.normal_telefon for r in rows if r.normal_telefon})
 	if phones:
@@ -465,7 +470,7 @@ def get_lead(name: str):
 	doc = _lead(name, shop)
 	item = None
 	if doc.tovar:
-		row = frappe.db.get_value("Item", doc.tovar, ["name", "item_name", "image"], as_dict=True) or {}
+		row = frappe.db.get_value("Item", doc.tovar, ["name", "item_name", "image", "mp_tovar_id as tid"], as_dict=True) or {}
 		item = {**row, "price": _get_prices([doc.tovar]).get(doc.tovar), "url": f"{get_url()}/s/{shop}/p/{doc.tovar}"}
 	calls = frappe.get_all(
 		"Telefon Qongiroq", filters={"shop": shop},

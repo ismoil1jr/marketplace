@@ -126,7 +126,7 @@ class SotuvPaneli {
 				</div>
 				<div class="mp-sp__row-side">
 					${r.tovar_nomi ? `<b class="mp-sp__book">📘 ${esc(r.tovar_nomi)}</b>` : `<span class="text-muted small">${__("Tovar ko‘rsatilmagan")}</span>`}
-					${r.tovar ? `<span class="mp-sp__tid" title="${__("Tovar ID")}">ID: ${esc(r.tovar)}</span>` : ""}
+					${r.tovar ? `<span class="mp-sp__tid" title="${__("Tovar ID (reklama)")}">${__("Tovar ID")}: ${esc(r.tid || r.tovar)}</span>` : ""}
 					${mp_lead_pill(r.holat)}${due}
 				</div>
 			</div>`;
@@ -388,7 +388,7 @@ class SotuvPaneli {
 			${item ? `<div class="mp-sp__book-card">
 					${item.image ? `<img src="${esc(item.image)}" alt="">` : ""}
 					<div><b>${esc(item.item_name)}</b>
-						<div class="mp-sp__tid">${__("Tovar ID")}: ${esc(item.name)}</div>
+						<div class="mp-sp__tid">${__("Tovar ID")}: ${esc(item.tid || item.name)}</div>
 						${item.price ? `<div>${this.money(item.price)}</div>` : ""}
 						<a class="small" href="${esc(item.url)}" target="_blank" rel="noopener">${__("Saytda ko‘rish")} ↗</a></div>
 				</div>`
