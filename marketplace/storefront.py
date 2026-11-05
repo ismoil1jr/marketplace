@@ -211,18 +211,19 @@ def get_product(shop, code):
 	# src — sahifadagi o'rta o'lcham, full — bosganda ochiladigan asl rasm, thumb — chapdagi kichik rasmcha.
 	# Galereyada Rang ID ("Oq (clothes)"), variantda nomi ("Oq") — saytga nomi beriladi
 	names = color_names([g.get("rang") for g in item.get("gallery") or []])
-	gallery = [
-		{
-			"src": g.medium or g.image,
-			"full": g.image or g.medium,
-			"thumb": g.thumbnail or g.medium or g.image,
-			"color": names.get(g.get("rang"), ""),
-		}
-		for g in item.get("gallery") or []
-	]
+	gallery = []
+	for g in item.get("gallery") or []:
+		color = names.get(g.get("rang"), "")
+		poster = g.thumbnail or g.medium or g.image or ""
+		if g.get("video"):
+			gallery.append({"type": "video", "src": g.video, "full": g.video, "thumb": poster, "poster": g.medium or g.image or "", "color": color})
+		elif g.image:
+			gallery.append({"type": "image", "src": g.medium or g.image, "full": g.image or g.medium, "thumb": poster, "color": color})
+	# Video — Uzum'dagidek eng boshida, qolganlari sotuvchi tartibida
+	gallery.sort(key=lambda g: g["type"] != "video")
 	if not gallery and item.image:
-		gallery = [{"src": item.image, "full": item.image, "thumb": item.image, "color": ""}]
-	images = [g["src"] for g in gallery]
+		gallery = [{"type": "image", "src": item.image, "full": item.image, "thumb": item.image, "color": ""}]
+	images = [g["src"] for g in gallery if g["type"] == "image"]
 	options = get_variant_options(item, shop.warehouse) if item.has_variants else None
 	qty = sum(v["qty"] for v in options["variants"].values()) if options else _get_stock([code], shop.warehouse).get(code, 0)
 	old = flt(item.old_price)
@@ -592,7 +593,8 @@ def _get_gallery(codes):
 	)
 	out = {}
 	for r in rows:
-		out.setdefault(r.parent, []).append(r.medium or r.image)
+		if r.medium or r.image:  # faqat video bo'lgan qator kartaga chiqmaydi
+			out.setdefault(r.parent, []).append(r.medium or r.image)
 	return out
 
 
@@ -605,7 +607,8 @@ def _get_thumbnails(codes):
 	)
 	out = {}
 	for r in rows:
-		out.setdefault(r.parent, r.thumbnail or r.image)
+		if r.thumbnail or r.image:
+			out.setdefault(r.parent, r.thumbnail or r.image)
 	return out
 
 

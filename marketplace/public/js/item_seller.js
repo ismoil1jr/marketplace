@@ -45,7 +45,7 @@
 			has_variants: "O'lcham / rang variantlari bor",
 		},
 		story: {
-			gallery: "Rasmlar (birinchisi — asosiy, kvadrat yoki vertikal rasm yaxshi chiqadi)",
+			gallery: "Rasmlar va video (birinchi rasm — asosiy; video bo‘lsa «Video» ustuniga — saytda birinchi chiqadi)",
 		},
 	};
 	const LABELS = {

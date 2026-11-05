@@ -10,9 +10,10 @@
 	<section class="sf-gallery">
 		{% if product.gallery | length > 1 %}
 		<div class="sf-thumbs" data-thumbs>
-			{% for img in product.gallery %}
-			<button type="button" class="sf-thumbs__item{{ ' is-active' if loop.first else '' }}" data-color="{{ img.color }}" aria-label="{{ loop.index }}-rasm">
-				<img src="{{ img.thumb }}" alt="" width="72" height="72" loading="lazy" decoding="async">
+			{% for m in product.gallery %}
+			<button type="button" class="sf-thumbs__item{{ ' is-active' if loop.first else '' }}{{ ' sf-thumbs__item--video' if m.type == 'video' else '' }}" data-color="{{ m.color }}" aria-label="{{ loop.index }}-{{ 'video' if m.type == 'video' else 'rasm' }}">
+				{% if m.thumb %}<img src="{{ m.thumb }}" alt="" width="72" height="72" loading="lazy" decoding="async">{% endif %}
+				{% if m.type == "video" %}<span class="sf-thumbs__play"><svg><use href="#i-play"/></svg></span>{% endif %}
 			</button>
 			{% endfor %}
 		</div>
@@ -21,9 +22,15 @@
 			{# Joriy rasmning xira nusxasi — rasm butunligicha ko'rinadi, bo'sh joy esa kulrang emas (storefront.js syncActive) #}
 			<div class="sf-gallery__backdrop" data-gallery-bg aria-hidden="true"></div>
 			<div class="sf-gallery__track" data-gallery>
-				{% for img in product.gallery %}
-				<img src="{{ img.src }}" data-full="{{ img.full }}" alt="{{ product.name }}" width="1200" height="1200" decoding="async" data-color="{{ img.color }}"
+				{% for m in product.gallery %}
+				{% if m.type == "video" %}
+				{# Uzum'dagidek: ovozsiz o'zi aylanadi, boshqaruv (ovoz, to'liq ekran) ustida; faqat ko'rinib turgani ijro etiladi (storefront.js) #}
+				<video class="sf-gallery__video" src="{{ m.src }}"{% if m.poster %} poster="{{ m.poster }}"{% endif %} data-color="{{ m.color }}"
+					playsinline muted loop autoplay preload="metadata" controls controlslist="nodownload noplaybackrate" aria-label="{{ product.name }} — video"></video>
+				{% else %}
+				<img src="{{ m.src }}" data-full="{{ m.full }}" alt="{{ product.name }}" width="1200" height="1200" decoding="async" data-color="{{ m.color }}"
 					loading="{{ 'eager' if loop.first else 'lazy' }}">
+				{% endif %}
 				{% else %}
 				<div class="sf-gallery__ph"><svg><use href="#i-image"/></svg></div>
 				{% endfor %}

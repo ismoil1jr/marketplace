@@ -5,6 +5,7 @@ Kod orqali yaratilgani uchun har saytda bir xil bo'ladi va git'da saqlanadi.
 """
 
 import frappe
+from frappe.utils import cint
 from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 from frappe.custom.doctype.property_setter.property_setter import make_property_setter
 from frappe.permissions import add_permission, update_permission_property
@@ -617,6 +618,9 @@ def after_migrate():
 	setup_manager_role()
 	# Strict: shop maydoni bo'sh yozuvlar ham sotuvchiga ko'rinmaydi
 	frappe.db.set_single_value("System Settings", "apply_strict_user_permissions", 1)
+	# Tovar videosi (Item Gallery.video) 50 MB gacha; standart 25 MB telefon videosiga yetmaydi
+	if cint(frappe.db.get_single_value("System Settings", "max_file_size")) < 50:
+		frappe.db.set_single_value("System Settings", "max_file_size", 50)
 	disable_perpetual_inventory()
 	setup_link_results_limit()
 	setup_variant_attributes()

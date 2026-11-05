@@ -6,6 +6,7 @@
  "engine": "InnoDB",
  "field_order": [
   "image",
+  "video",
   "rang",
   "medium",
   "thumbnail",
@@ -17,7 +18,16 @@
    "fieldtype": "Attach Image",
    "in_list_view": 1,
    "label": "Rasm",
-   "reqd": 1
+   "columns": 3,
+   "description": "Video qatorida bo'lsa — video muqovasi"
+  },
+  {
+   "fieldname": "video",
+   "fieldtype": "Attach",
+   "in_list_view": 1,
+   "columns": 3,
+   "label": "Video",
+   "description": "MP4 yoki MOV, 50 MB gacha. Saytda birinchi chiqadi, ovozsiz o'zi aylanadi"
   },
   {
    "columns": 3,
@@ -51,7 +61,7 @@
  ],
  "istable": 1,
  "links": [],
- "modified": "2026-10-21 16:00:00.000000",
+ "modified": "2026-11-05 22:30:00.000000",
  "modified_by": "Administrator",
  "module": "Marketplace",
  "name": "Item Gallery",

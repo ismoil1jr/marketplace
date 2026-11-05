@@ -10,16 +10,23 @@ import io
 import os
 
 import frappe
+from frappe import _
 from frappe.utils.file_manager import save_file
 from PIL import Image, ImageOps
 
 SIZES = {"medium": 1200, "thumbnail": 480}
 VECTOR_EXTS = (".svg",)
+VIDEO_EXTS = (".mp4", ".m4v", ".webm", ".mov")
 
 
 def process_gallery(doc, method=None):
 	"""Item validate hook: yangi yoki almashtirilgan rasmlarni qayta ishlaydi."""
 	for row in doc.get("gallery") or []:
+		# Video (Uzum'dagidek tovar videosi) qayta ishlanmaydi — brauzer o'zi ko'rsatadi; faqat turi tekshiriladi
+		if row.get("video") and not row.video.lower().endswith(VIDEO_EXTS):
+			frappe.throw(_("Galereya {0}-qator: video faqat MP4, MOV yoki WebM bo'lishi mumkin").format(row.idx))
+		if not row.image and not row.get("video"):
+			frappe.throw(_("Galereya {0}-qator: rasm yoki video yuklang").format(row.idx))
 		if not row.image or row.processed_image == row.image:
 			continue
 		if row.image.lower().endswith(VECTOR_EXTS):
@@ -30,9 +37,10 @@ def process_gallery(doc, method=None):
 				row.set(field, make_webp(row.image, size, doc))
 		row.processed_image = row.image
 
-	# Desk ro'yxatlarida ham rasm ko'rinsin: birinchi galereya rasmi = Item.image
-	if doc.get("gallery"):
-		doc.image = doc.gallery[0].medium or doc.gallery[0].image
+	# Desk ro'yxatlarida ham rasm ko'rinsin: birinchi galereya RASMI = Item.image (video emas)
+	first = next((r for r in doc.get("gallery") or [] if r.image), None)
+	if first:
+		doc.image = first.medium or first.image
 
 
 def make_webp(file_url, max_side, doc):

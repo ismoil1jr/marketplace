@@ -55,35 +55,13 @@
 		.mh-top__phone span { display: none; }
 		@media (min-width: 560px) { .mh-top__phone { padding: 0 14px; } .mh-top__phone span { display: inline; } }
 
-		/* Hero */
-		.mh-hero { display: grid; gap: 34px; padding: 22px 0 56px; }
-		.mh-hero h1 { font: 600 clamp(29px, 8.2vw, 58px)/1.06 var(--display); letter-spacing: -.025em; max-width: 15ch; }
-		.mh-hero p { margin: 18px 0 26px; max-width: 32em; color: var(--muted); font-size: 17px; }
+		/* Hero: faqat sarlavha, bitta jumla va ikki tugma */
+		.mh-hero { padding: 26px 0 56px; }
+		.mh-hero h1 { font: 600 clamp(31px, 8.6vw, 64px)/1.06 var(--display); letter-spacing: -.025em; max-width: 16ch; }
+		.mh-hero p { margin: 18px 0 26px; max-width: 30em; color: var(--muted); font-size: 17px; }
 		.mh-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 		.mh-actions .mh-btn { flex: 1 1 200px; }
 
-		/* Chek: Instagram formadan kuryergacha — sahifaning asosiy elementi */
-		.mh-receipt { position: relative; margin: 0 8px 8px 0; padding: 20px 20px 28px; background: var(--surface); border: 2px solid var(--ink);
-			border-radius: 18px 18px 6px 6px; box-shadow: 8px 8px 0 var(--cobalt); }
-		.mh-receipt ol { margin: 0; padding: 0; list-style: none; display: grid; }
-		.mh-receipt li { position: relative; display: grid; grid-template-columns: 26px 1fr auto; gap: 4px 12px; align-items: start; padding: 0 0 18px; }
-		.mh-receipt li:last-child { padding-bottom: 0; }
-		.mh-receipt li:not(:last-child)::after { content: ""; position: absolute; left: 12px; top: 26px; bottom: 2px; border-left: 2px dashed var(--line); }
-		.mh-dot { grid-row: span 2; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--orange-soft); color: var(--orange); }
-		.mh-dot svg { width: 15px; height: 15px; }
-		.mh-receipt li:last-child .mh-dot { background: #DDF3F1; color: var(--teal); }
-		.mh-receipt b { font-weight: 600; line-height: 1.3; }
-		.mh-receipt small { grid-column: 2 / -1; color: var(--muted); font-size: 14px; line-height: 1.35; }
-		.mh-receipt em { font-style: normal; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
-		.mh-pill { padding: 2px 10px; border-radius: 999px; background: #DDF3F1; color: var(--teal); font-size: 13px; font-weight: 700; }
-		.mh-receipt figcaption { margin-top: 18px; padding-top: 14px; border-top: 2px dashed var(--line); color: var(--muted); font-size: 13px; text-align: center; }
-		@media (prefers-reduced-motion: no-preference) {
-			.mh-receipt li { animation: mh-in .45s cubic-bezier(.2, .7, .3, 1) both; }
-			.mh-receipt li:nth-child(2) { animation-delay: .45s; }
-			.mh-receipt li:nth-child(3) { animation-delay: .9s; }
-			.mh-receipt li:nth-child(4) { animation-delay: 1.35s; }
-		}
-		@keyframes mh-in { from { opacity: 0; transform: translateY(8px); } }
 
 		/* Bo'limlar */
 		.mh-h2 { font: 600 clamp(24px, 5.6vw, 36px)/1.12 var(--display); letter-spacing: -.02em; }
@@ -145,9 +123,10 @@
 			.mh-cta .mh-actions { grid-row: 2; justify-content: flex-end; }
 		}
 		@media (min-width: 960px) {
-			.mh-hero { grid-template-columns: 1.15fr 1fr; align-items: center; gap: 56px; padding: 44px 0 80px; }
-			.mh-hero h1 { font-size: clamp(44px, 4.4vw, 56px); max-width: 13em; }
-			.mh-receipt { transform: rotate(-1.5deg); }
+			.mh-hero { padding: 64px 0 88px; text-align: center; }
+			.mh-hero h1, .mh-hero p { margin-left: auto; margin-right: auto; }
+			.mh-hero p { font-size: 19px; }
+			.mh-actions { justify-content: center; }
 			.mh-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 			.mh-sec { padding-bottom: 80px; }
 		}
@@ -157,10 +136,7 @@
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
 	<defs>
 		<symbol id="mh-mark" viewBox="0 0 48 48"><rect width="48" height="48" rx="12" fill="#1D3F8F"/><path fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" d="M8 19h32l-3 17H11zM15 19l4-8M33 19l-4-8M18 25v6M24 25v6M30 25v6"/><circle cx="36" cy="12" r="5" fill="#E8611A"/></symbol>
-		<symbol id="i-form" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/></symbol>
 		<symbol id="i-phone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h3l2 5-2.5 1.5a11 11 0 0 0 6 6L15 14l5 2v3a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></symbol>
-		<symbol id="i-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h3"/></symbol>
-		<symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></symbol>
 		<symbol id="i-send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 3L3 10.5l7 3 3 7z"/><path d="M10 13.5L21 3"/></symbol>
 		<symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
 	</defs>
@@ -177,27 +153,12 @@
 	</header>
 
 	<section class="mh-hero">
-		<div>
-			<h1>{{ t.h1 }}</h1>
-			<p>{{ t.lead }}</p>
-			<div class="mh-actions">
-				{% if phone %}<a class="mh-btn mh-btn--orange" href="tel:{{ phone_href }}"><svg aria-hidden="true"><use href="#i-phone"/></svg>{{ t.call }}</a>{% endif %}
-				<a class="mh-btn mh-btn--line" href="#dokonlar">{{ t.see_shops }}</a>
-			</div>
+		<h1>{{ t.h1 }}</h1>
+		<p>{{ t.lead }}</p>
+		<div class="mh-actions">
+			{% if phone %}<a class="mh-btn mh-btn--orange" href="tel:{{ phone_href }}"><svg aria-hidden="true"><use href="#i-phone"/></svg>{{ t.call }}</a>{% endif %}
+			<a class="mh-btn mh-btn--line" href="#dokonlar">{{ t.see_shops }}</a>
 		</div>
-		<figure class="mh-receipt" aria-label="{{ t.r_caption }}">
-			<ol>
-				<li><span class="mh-dot"><svg><use href="#i-form"/></svg></span><b>{{ t.r_form }}</b><span></span>
-					<small>{{ t.r_name }}, +998 90 ••• 12 47 — {{ t.r_item }}</small></li>
-				<li><span class="mh-dot"><svg><use href="#i-phone"/></svg></span><b>{{ t.r_call }}</b><span class="mh-pill">{{ t.r_yes }}</span>
-					<small>1 × {{ t.r_item }}</small></li>
-				<li><span class="mh-dot"><svg><use href="#i-card"/></svg></span><b>{{ t.r_order }}</b><em>{{ t.r_sum }}</em>
-					<small>{{ t.r_paid }}</small></li>
-				<li><span class="mh-dot"><svg><use href="#i-check"/></svg></span><b>{{ t.r_courier }}</b><span></span>
-					<small>{{ t.r_addr }}</small></li>
-			</ol>
-			<figcaption>{{ t.r_caption }}</figcaption>
-		</figure>
 	</section>
 
 	<section class="mh-sec" id="dokonlar">

@@ -20,8 +20,8 @@
 <body class="{% block body_class %}{% endblock %}">
 	{% include "marketplace/templates/storefront/icons.html" %}
 	{% block content %}{% endblock %}
-	{# Har bir sahifa tagida: maxfiylik siyosati (Meta lead-formasi va to'lov tizimlari shu havolani so'raydi) #}
-	<footer class="sf-foot">© {{ shop.shop_name }} · <a href="/s/{{ shop.name | urlencode }}/maxfiylik">Maxfiylik siyosati</a></footer>
+	{# Maxfiylik siyosati havolasi faqat do'kon bosh sahifasida (catalog.html); sahifaning o'zi Meta va to'lov tizimlari uchun doim bor #}
+	{% block foot %}{% endblock %}
 	<div class="sf-toast" id="sf-toast" role="status" aria-live="polite"></div>
 	<script>
 		window.SF = {

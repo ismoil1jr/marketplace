@@ -275,6 +275,11 @@ svg { width: 20px; height: 20px; flex: none; }
 .sf-gallery__backdrop::after { content: ""; position: absolute; inset: 0; background: color-mix(in srgb, var(--tile) 30%, transparent); }
 .sf-gallery__track { position: relative; aspect-ratio: 4 / 5; }
 .sf-gallery__track > img { object-fit: contain; cursor: zoom-in; }
+.sf-gallery__track > video { object-fit: cover; background: #000; }
+.sf-thumbs__item { position: relative; }
+.sf-thumbs .sf-thumbs__item--video { background: #1B1B1A center / cover no-repeat; }
+.sf-thumbs__play { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; background: rgb(0 0 0 / .28); pointer-events: none; }
+.sf-thumbs__play svg { width: 20px; height: 20px; filter: drop-shadow(0 1px 2px rgb(0 0 0 / .5)); }
 .sf-thumbs { display: flex; order: 2; gap: 8px; overflow-x: auto; scrollbar-width: none; padding: 10px var(--gutter) 34px; scroll-snap-type: x proximity; }
 .sf-thumbs::-webkit-scrollbar { display: none; }
 .sf-thumbs__item {

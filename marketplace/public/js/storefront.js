@@ -406,30 +406,55 @@
 	function initProduct() {
 		const track = $("[data-gallery]");
 		const dotsBox = $("[data-dots]");
-		const imgs = track ? [...track.querySelectorAll("img")] : [];
+		// Slaydlar: rasm yoki video (Uzum'dagidek video birinchi); to'liq ekran faqat rasmlar uchun
+		const slides = track ? [...track.children].filter((el) => el.matches("img, video")) : [];
 		const thumbs = $$("[data-thumbs] button");
-		const shownImgs = () => imgs.filter((i) => !i.hidden);
+		const shownSlides = () => slides.filter((s) => !s.hidden);
+		const shownImgs = () => shownSlides().filter((s) => s.tagName === "IMG");
 		const currentIndex = () => (track ? Math.round(track.scrollLeft / (track.clientWidth || 1)) : 0);
 		const goTo = (i, smooth = true) => {
-			const n = shownImgs().length;
+			const n = shownSlides().length;
 			if (!n) return;
 			track.scrollTo({ left: ((i + n) % n) * track.clientWidth, behavior: smooth ? "smooth" : "auto" });
 		};
 		// Nuqtalar va chapdagi kichik rasmlar joriy rasmga ergashadi
 		const backdrop = $("[data-gallery-bg]");
 		const syncActive = () => {
-			const cur = shownImgs()[currentIndex()];
-			if (backdrop && cur) backdrop.style.backgroundImage = `url("${cur.getAttribute("src")}")`;
+			const cur = shownSlides()[currentIndex()];
+			const bgSrc = cur && (cur.tagName === "VIDEO" ? cur.getAttribute("poster") : cur.getAttribute("src"));
+			if (backdrop && bgSrc) backdrop.style.backgroundImage = `url("${bgSrc}")`;
+			// Faqat ko'rinib turgan video ijro etiladi (batareya, trafik)
+			slides.forEach((v) => {
+				if (v.tagName !== "VIDEO") return;
+				if (v === cur) v.play()?.catch?.(() => {});
+				else v.pause();
+			});
 			if (dotsBox) [...dotsBox.children].forEach((d, k) => d.classList.toggle("is-active", k === currentIndex()));
 			thumbs.forEach((t, k) => {
-				const on = imgs[k] === cur;
+				const on = slides[k] === cur;
 				t.classList.toggle("is-active", on);
 				if (on) t.scrollIntoView({ block: "nearest", inline: "nearest" });
 			});
 		};
 		if (track) track.addEventListener("scroll", syncActive, { passive: true });
+		// Muqovasiz video: birinchi kadr kichik rasm va orqa fon bo'ladi (sotuvchi alohida rasm yuklamasa ham)
+		slides.forEach((v, k) => {
+			if (v.tagName !== "VIDEO" || v.getAttribute("poster")) return;
+			const snap = () => {
+				try {
+					const c = document.createElement("canvas");
+					c.width = v.videoWidth; c.height = v.videoHeight;
+					c.getContext("2d").drawImage(v, 0, 0);
+					const url = c.toDataURL("image/jpeg", .7);
+					v.setAttribute("poster", url);
+					if (thumbs[k]) thumbs[k].style.backgroundImage = `url("${url}")`;
+					syncActive();
+				} catch { /* kadr hali tayyor emas */ }
+			};
+			v.readyState >= 2 ? snap() : v.addEventListener("loadeddata", snap, { once: true });
+		});
 		thumbs.forEach((t, k) => {
-			const pick = () => goTo(shownImgs().indexOf(imgs[k]));
+			const pick = () => goTo(shownSlides().indexOf(slides[k]));
 			t.addEventListener("click", pick);
 			t.addEventListener("mouseenter", pick);
 		});
@@ -438,13 +463,13 @@
 
 		// Rang tanlansa — faqat shu rangga bog'langan rasmlar; rang tanlanmagan bo'lsa — hammasi
 		const filterGallery = (color, fallback) => {
-			if (!imgs.length) return;
-			const own = color ? imgs.filter((i) => i.dataset.color === color) : [];
-			imgs.forEach((i, k) => {
+			if (!slides.length) return;
+			const own = color ? slides.filter((i) => i.dataset.color === color) : [];
+			slides.forEach((i, k) => {
 				i.hidden = own.length > 0 && i.dataset.color !== color;
 				if (thumbs[k]) thumbs[k].hidden = i.hidden;
 			});
-			const shown = shownImgs();
+			const shown = shownSlides();
 			// Rangga bog'langan rasm yo'q (eski tovarlar): rang rasmiga aylantiramiz
 			const idx = own.length ? 0 : Math.max(shown.findIndex((i) => fallback && i.getAttribute("src") === fallback), 0);
 			track.scrollTo({ left: idx * track.clientWidth, behavior: own.length ? "auto" : "smooth" });
@@ -456,7 +481,7 @@
 			syncActive();
 		};
 
-		initLightbox(shownImgs, () => currentIndex(), (i) => goTo(i, false));
+		initLightbox(shownImgs, () => currentIndex(), (i) => goTo(shownSlides().indexOf(shownImgs()[i]), false));
 
 		// Telefonda — tizimning o'z "Ulashish" oynasi; bo'lmasa (kompyuter) — Telegram / WhatsApp / nusxalash
 		$("[data-share]")?.addEventListener("click", async () => {

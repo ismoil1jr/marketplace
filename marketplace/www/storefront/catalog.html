@@ -13,3 +13,7 @@
 {% include "marketplace/templates/storefront/catalog_vitrina.html" %}
 {% endif %}
 {% endautoescape %}{% endblock %}
+
+{% block foot %}{% autoescape true %}
+<footer class="sf-foot">© {{ shop.shop_name }} · <a href="/s/{{ shop.name | urlencode }}/maxfiylik">Maxfiylik siyosati</a></footer>
+{% endautoescape %}{% endblock %}
