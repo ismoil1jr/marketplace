@@ -274,7 +274,8 @@
 
 		$$("button[data-group]").forEach((b) => b.addEventListener("click", () => setGroup(b.dataset.group)));
 		$$("[data-group-jump]").forEach((b) =>
-			b.addEventListener("click", () => {
+			b.addEventListener("click", (e) => {
+				e.preventDefault(); // karusel rasmi <a href="#"> — sahifa sakramasin
 				setGroup(b.dataset.groupJump);
 				grid.scrollIntoView({ behavior: "smooth", block: "start" });
 			})
@@ -1175,12 +1176,15 @@
 		const track = $("[data-carousel-track]");
 		if (!root || !track || track.children.length < 2) return;
 		const dots = $$("[data-carousel-dot]", root);
-		const count = track.children.length;
+		const slides = [...track.children];
+		const count = slides.length;
 		let current = 0;
 		let timer = null;
-		const go = (i) => track.scrollTo({ left: ((i + count) % count) * track.clientWidth });
+		// Slayd joyi offsetLeft'dan: banner rejimida telefonda slayd to'liq kenglikda emas (keyingisi chetdan ko'rinadi)
+		const go = (i) => track.scrollTo({ left: slides[(i + count) % count].offsetLeft });
 		track.addEventListener("scroll", () => {
-			current = Math.round(track.scrollLeft / track.clientWidth);
+			const x = track.scrollLeft;
+			current = slides.reduce((best, s, i) => (Math.abs(s.offsetLeft - x) < Math.abs(slides[best].offsetLeft - x) ? i : best), 0);
 			dots.forEach((d, i) => d.setAttribute("aria-selected", String(i === current)));
 		}, { passive: true });
 		dots.forEach((d) => d.addEventListener("click", () => { stop(); go(+d.dataset.carouselDot); }));

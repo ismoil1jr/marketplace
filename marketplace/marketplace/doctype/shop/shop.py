@@ -35,9 +35,14 @@ class Shop(Document):
 				frappe.throw(_("{0} allaqachon {1} do'koniga a'zo").format(m.user, other))
 
 	def validate_banner_items(self):
+		from marketplace.storefront import BANNER_URL_RE
+
 		for b in self.banners:
 			if b.item and frappe.db.get_value("Item", b.item, "shop") != self.name:
 				frappe.throw(_("Slayd {0}: «{1}» bu do'kon tovari emas").format(b.idx, b.item))
+			b.url = (b.url or "").strip() or None
+			if b.url and not BANNER_URL_RE.match(b.url):
+				frappe.throw(_("Slayd {0}: havola https:// yoki / bilan boshlanishi kerak (masalan, /s/{1}/p/tovar-kodi)").format(b.idx, self.name))
 
 	def clean_links(self):
 		# Xarita havolasi uzun bo'ladi (Google/Yandex 200–600 belgi), maydon cheklanmagan — faqat http(s) havola qabul qilinadi

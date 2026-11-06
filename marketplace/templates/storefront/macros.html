@@ -126,19 +126,25 @@
 {# Aksiya karuseli: Shop formasidagi slaydlar + "Karuselga qo'shish" belgilangan tovarlar (vitrina va katalog) #}
 {% macro carousel(shop) %}{% autoescape true %}
 {% if shop.banners %}
-<section class="sf-carousel" data-carousel aria-roledescription="carousel" aria-label="Aksiyalar">
+{# Uzum kabi banner rejimi (sf-carousel--banner): hech bir slaydda matn yo'q — rasm tayyor banner (3:1), rasmning o'zi bosiladi,
+   telefonda keyingi slayd chetdan ko'rinib turadi. Matnli slayd bo'lsa — eski ko'rinish (rasm ustida sarlavha va tugma) #}
+<section class="sf-carousel{{ ' sf-carousel--banner' if shop.banner_mode == 'plain' else '' }}" data-carousel aria-roledescription="carousel" aria-label="Aksiyalar">
 	<div class="sf-carousel__track" data-carousel-track>
 		{% for b in shop.banners %}
+		{% set button = b.button or b.button_label or 'Ko‘rish' %}
 		<article class="sf-slide{{ ' sf-slide--item' if b.is_item else '' }}" aria-roledescription="slide" aria-label="{{ loop.index }} / {{ shop.banners|length }}">
 			{# Rasm har qanday o'lchamda bo'lishi mumkin: o'zi butunligicha, orqasida — shu rasmning xira nusxasi #}
 			<img class="sf-slide__bg" src="{{ b.image }}" alt="" aria-hidden="true" {{ '' if loop.first else 'loading=lazy' }} decoding="async">
 			<img class="sf-slide__img" src="{{ b.image }}" alt="{{ b.title or '' }}" {{ 'fetchpriority=high' if loop.first else 'loading=lazy' }} decoding="async" data-slide-img>
-			{% if b.title or b.label or b.url or b.item_group %}
+			{# Rasmning o'zi bosiladi: tovar/havola → o'sha sahifa, kategoriya → katalog shu kategoriyaga o'tadi #}
+			{% if b.url %}<a class="sf-slide__link" href="{{ b.url }}" aria-label="{{ b.title or button }}"></a>
+			{% elif b.item_group %}<a class="sf-slide__link" href="#" data-group-jump="{{ b.item_group }}" aria-label="{{ b.title or b.item_group }}"></a>{% endif %}
+			{% if b.title or b.label %}
 			<div class="sf-slide__text">
 				{% if b.label %}<small>{{ b.label }}</small>{% endif %}
 				{% if b.title %}<h2>{{ b.title }}</h2>{% endif %}
-				{% if b.url %}<a class="sf-btn sf-btn--dark" href="{{ b.url }}">{{ b.button or 'Ko‘rish' }}</a>
-				{% elif b.item_group %}<button class="sf-btn sf-btn--dark" type="button" data-group-jump="{{ b.item_group }}">{{ b.button_label or 'Ko‘rish' }}</button>{% endif %}
+				{% if b.url %}<a class="sf-btn sf-btn--dark" href="{{ b.url }}">{{ button }}</a>
+				{% elif b.item_group %}<button class="sf-btn sf-btn--dark" type="button" data-group-jump="{{ b.item_group }}">{{ button }}</button>{% endif %}
 			</div>
 			{% endif %}
 		</article>

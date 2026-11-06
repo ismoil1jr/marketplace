@@ -218,7 +218,7 @@
    "fieldtype": "Table",
    "label": "Slaydlar",
    "options": "Shop Banner",
-   "description": "Har bir qator — bitta slayd. Tartibni sudrab o'zgartiring."
+   "description": "Har bir qator — bitta slayd. Uzum kabi: tayyor banner rasmi (1240×413) + tovar/kategoriya/havola — rasmning o'zi bosiladi, sarlavha shart emas. Tartibni sudrab o'zgartiring."
   },
   {
    "fieldname": "sb_contact",

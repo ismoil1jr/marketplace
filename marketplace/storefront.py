@@ -4,6 +4,8 @@ Mijozlar ko'p, sotuvchilar tovarni kam o'zgartiradi. Shuning uchun katalog
 Redis'da keshlanadi va tovar yoki narx o'zgarganda o'sha do'kon keshi tozalanadi.
 """
 
+import re
+
 import frappe
 from frappe import _
 from frappe.utils import cint, flt
@@ -12,6 +14,8 @@ from marketplace.marketplace.doctype.rang.rang import color_names, shop_hexes
 from marketplace.permissions import group_title
 
 CACHE_TTL = 300  # 5 daqiqa; tovar/narx o'zgarsa darhol tozalanadi
+# Karusel slaydi havolasi: faqat http(s) yoki saytning o'z yo'li (/s/...) — javascript: va shunga o'xshashlar o'tmaydi
+BANNER_URL_RE = re.compile(r"^(https?://\S+|/[^/\s]\S*|/)$")
 
 
 def get_shop(slug):
@@ -39,13 +43,19 @@ def get_shop(slug):
 	shop.banners = frappe.get_all(
 		"Shop Banner",
 		filters={"parent": shop.name, "parenttype": "Shop", "enabled": 1},
-		fields=["image", "label", "title", "item_group", "item", "button_label"],
+		fields=["image", "label", "title", "item_group", "item", "button_label", "url"],
 		order_by="idx",
 	)
-	_link_banner_items(shop.name, shop.banners)
+	for b in shop.banners:
+		# Sotuvchi yozgan havola — faqat http(s) yoki saytning o'z yo'li (Shop.validate ham tekshiradi)
+		if b.url and not BANNER_URL_RE.match(b.url):
+			b.url = None
+	_link_banner_items(shop.name, shop.banners)  # tovar tanlangan bo'lsa, havola — uning sahifasi
 	shop.banners += _carousel_items(shop.name)
 	for b in shop.banners:
 		b.item_group = group_title(b.get("item_group"))  # saytda kategoriya kaliti — nomi (_category_tree)
+	# Uzum kabi: hamma slayd matnsiz (tayyor banner rasmlari) — rasm 3:1, o'zi bosiladi; matnli slayd bo'lsa eski ko'rinish
+	shop.banner_mode = "plain" if shop.banners and not any(b.title or b.label for b in shop.banners) else "text"
 	shop.layout = resolve_layout(shop)
 	return shop
 
