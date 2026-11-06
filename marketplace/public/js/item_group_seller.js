@@ -78,8 +78,16 @@
 	}
 
 	frappe.ui.form.on("Item Group", {
+		// ID yashirin bo'lgani uchun brauzerning "majburiy maydon" tekshiruvi to'xtatmasin: nomni ID'ga ko'chiramiz,
+		// yakuniy (do'kon bilan ajratilgan) ID'ni server qo'yadi (permissions.item_group_before_insert)
+		validate(frm) {
+			if (is_seller() && frm.is_new() && frm.doc.mp_title) frm.doc.item_group_name = frm.doc.mp_title.trim();
+		},
 		async refresh(frm) {
 			if (!is_seller()) return;
+			if (frm.is_new()) {
+				frm.set_intro(__("Kategoriyani «Kategoriyalar» daraxtidagi «Bosh kategoriya qo‘shish» tugmasi bilan qo‘shish qulayroq — u MXIK va qadoq kodini ham so‘raydi."), "blue");
+			}
 			frm.toggle_display("is_group", false);
 			// ERPNext buxgalteriyasi uchun: kompaniya bo'yicha standart ombor/narx ro'yxati va soliq shabloni (Item Tax).
 			// Do'konda ombor o'zi qo'yiladi, soliq Payme/Click chekida MXIK bilan ketadi — sotuvchiga kerak emas
