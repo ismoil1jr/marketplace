@@ -28,6 +28,9 @@ body {
 	font: 15px/1.45 "Onest", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 	-webkit-font-smoothing: antialiased;
 	-webkit-tap-highlight-color: transparent;
+	/* Ilova kabi: uzoq bosganda matn tanlanib, telefonda «Перевести / Google» menyusi chiqmasin.
+	   Yozish maydonlari va tovar tavsifi (nusxalash uchun) bundan mustasno */
+	-webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
 }
 a { color: inherit; text-decoration: none; }
 button, input, select, textarea { font: inherit; color: inherit; }
@@ -339,19 +342,24 @@ svg { width: 20px; height: 20px; flex: none; }
 .sf-related { padding: 0 var(--gutter) 120px; }
 .sf-product:has(+ .sf-related) .sf-sheet { padding-bottom: 28px; }
 
+input, textarea, select, [contenteditable], .sf-desc { -webkit-user-select: text; user-select: text; }
+
 /* To'liq ekran */
 html.sf-noscroll, html.sf-noscroll body { overflow: hidden; }
 .sf-lightbox { position: fixed; inset: 0; z-index: 1000; background: #000; }
 .sf-lightbox[hidden] { display: none; }
+/* touch-action: pan-x — brauzerning o'z pinch-zoom'i o'chadi (u sahifani chetga surib qo'yardi); kattalashtirish JS'da (initLightbox) */
 .sf-lightbox__track {
-	display: flex; width: 100%; height: 100%; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none;
+	display: flex; width: 100%; height: 100%; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; touch-action: pan-x;
 }
 .sf-lightbox__track::-webkit-scrollbar { display: none; }
 .sf-lightbox__track figure {
-	flex: 0 0 100%; height: 100%; margin: 0; display: grid; place-items: center; scroll-snap-align: center;
+	flex: 0 0 100%; height: 100%; margin: 0; scroll-snap-align: center; overflow: hidden;
 	padding: calc(56px + env(safe-area-inset-top)) 0 calc(48px + env(safe-area-inset-bottom));
 }
-.sf-lightbox__track img { max-width: 100%; max-height: 100%; object-fit: contain; }
+/* Rasm o'z o'lchamida emas (2000px bo'lsa ham) — doim ekranga sig'adi; grid'dagi max-height: 100% ishlamasdi */
+.sf-lightbox__track img { display: block; width: 100%; height: 100%; object-fit: contain; transform-origin: center; cursor: zoom-in; }
+.sf-lightbox__track img.is-zoomed { cursor: grab; }
 .sf-lightbox__count {
 	position: absolute; left: 0; right: 0; bottom: calc(16px + env(safe-area-inset-bottom));
 	text-align: center; color: #fff; font-size: 14px; opacity: .8;

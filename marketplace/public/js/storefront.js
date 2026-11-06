@@ -369,10 +369,81 @@
 		const update = () => { count.textContent = `${index() + 1} / ${track.children.length}`; };
 		track.addEventListener("scroll", update, { passive: true });
 
+		// Kattalashtirish: ikki barmoq (pinch), ikki marta bosish, kattalashganda bir barmoq bilan surish.
+		// Brauzerning o'z zoom'i o'chirilgan (CSS touch-action: pan-x) — u sahifani chap burchakka surib qo'yardi.
+		const zoom = { img: null, s: 1, x: 0, y: 0 };
+		const pointers = new Map();
+		let pinch = null, pan = null, lastTap = 0;
+		const clampPos = () => {
+			const maxX = ((zoom.s - 1) * zoom.img.clientWidth) / 2, maxY = ((zoom.s - 1) * zoom.img.clientHeight) / 2;
+			zoom.x = Math.max(-maxX, Math.min(maxX, zoom.x));
+			zoom.y = Math.max(-maxY, Math.min(maxY, zoom.y));
+		};
+		const render = () => {
+			if (!zoom.img) return;
+			clampPos();
+			const on = zoom.s > 1.01;
+			zoom.img.style.transform = on ? `translate(${zoom.x}px, ${zoom.y}px) scale(${zoom.s})` : "";
+			zoom.img.classList.toggle("is-zoomed", on);
+			// Kattalashganda slaydlar surilmaydi — barmoq rasmni suradi
+			track.style.touchAction = on ? "none" : "";
+			track.style.overflow = on ? "hidden" : "";
+		};
+		const resetZoom = () => { if (zoom.img) { zoom.s = 1; zoom.x = zoom.y = 0; render(); } zoom.img = null; };
+		// Ekrandagi (cx, cy) nuqta rasmning qaysi nuqtasi — scale o'zgarganda o'sha nuqta joyida qolsin
+		const scaleAt = (s, cx, cy, from = zoom) => {
+			const r = zoom.img.getBoundingClientRect();
+			const mx = r.left + r.width / 2, my = r.top + r.height / 2;
+			const ux = (cx - mx - from.x) / from.s, uy = (cy - my - from.y) / from.s;
+			zoom.s = Math.max(1, Math.min(4, s));
+			zoom.x = cx - mx - zoom.s * ux;
+			zoom.y = cy - my - zoom.s * uy;
+			render();
+		};
+		const dist = () => { const [a, b] = [...pointers.values()]; return Math.hypot(a.x - b.x, a.y - b.y); };
+		const mid = () => { const [a, b] = [...pointers.values()]; return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; };
+		track.addEventListener("pointerdown", (e) => {
+			if (e.target.tagName !== "IMG") return;
+			if (zoom.img !== e.target) resetZoom(), (zoom.img = e.target);
+			pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, t: Date.now(), moved: false });
+			if (pointers.size === 2) pinch = { d: dist(), s: zoom.s, x: zoom.x, y: zoom.y, m: mid() };
+			else if (zoom.s > 1) pan = { x: zoom.x, y: zoom.y, px: e.clientX, py: e.clientY };
+		});
+		track.addEventListener("pointermove", (e) => {
+			const p = pointers.get(e.pointerId);
+			if (!p) return;
+			if (Math.abs(e.clientX - p.x) > 8 || Math.abs(e.clientY - p.y) > 8) p.moved = true;
+			p.x = e.clientX; p.y = e.clientY;
+			if (pinch && pointers.size === 2) {
+				const m = mid();
+				scaleAt((pinch.s * dist()) / pinch.d, m.x, m.y, pinch);
+				pinch.m = m;
+			} else if (pan && pointers.size === 1) {
+				zoom.x = pan.x + e.clientX - pan.px;
+				zoom.y = pan.y + e.clientY - pan.py;
+				render();
+			}
+		});
+		const lift = (e) => {
+			const p = pointers.get(e.pointerId);
+			pointers.delete(e.pointerId);
+			if (pointers.size < 2) pinch = null;
+			if (!pointers.size) pan = null;
+			if (!p || p.moved || e.type !== "pointerup") return;
+			// Ikki marta tez bosish: 2.5× yoki qaytarish
+			const now = Date.now();
+			if (now - lastTap < 320) scaleAt(zoom.s > 1 ? 1 : 2.5, e.clientX, e.clientY), (lastTap = 0);
+			else lastTap = now;
+		};
+		track.addEventListener("pointerup", lift);
+		track.addEventListener("pointercancel", lift);
+		track.addEventListener("scroll", () => { if (zoom.img && zoom.s > 1 && zoom.img !== track.children[index()]?.firstElementChild) resetZoom(); }, { passive: true });
+
 		function open(start) {
+			resetZoom();
 			const imgs = getImgs();
 			track.innerHTML = imgs
-				.map((i) => `<figure><img src="${i.dataset.full || i.getAttribute("src")}" alt="${i.alt.replace(/"/g, "&quot;")}" decoding="async"></figure>`)
+				.map((i) => `<figure><img src="${i.dataset.full || i.getAttribute("src")}" alt="${i.alt.replace(/"/g, "&quot;")}" decoding="async" draggable="false"></figure>`)
 				.join("");
 			box.hidden = false;
 			box.classList.toggle("is-single", imgs.length < 2);
@@ -385,6 +456,7 @@
 		function close() {
 			if (box.hidden) return;
 			const i = index();
+			resetZoom();
 			box.hidden = true;
 			document.documentElement.classList.remove("sf-noscroll");
 			onClose(i);
