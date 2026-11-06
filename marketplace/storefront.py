@@ -438,14 +438,17 @@ def variant_labels(codes):
 	"""{'kod': 'Oq · M'} — atributlar platforma tartibida (avval rang, keyin o'lcham)."""
 	from marketplace.setup import COLOR_ATTR, SIZE_ATTR
 
+	# Qiymati bo'sh qator — variantsiz tovardagi (yoki hali to'ldirilmagan) atribut, yorliqqa kirmaydi
 	rows = frappe.get_all(
-		"Item Variant Attribute", filters={"parent": ["in", codes or [""]], "parenttype": "Item"},
+		"Item Variant Attribute",
+		filters={"parent": ["in", codes or [""]], "parenttype": "Item", "attribute_value": ["is", "set"]},
 		fields=["parent", "attribute", "attribute_value"],
 	)
 	rank = {COLOR_ATTR: 0, SIZE_ATTR: 1}
 	parts = {}
 	for r in sorted(rows, key=lambda r: rank.get(r.attribute, 9)):
-		parts.setdefault(r.parent, []).append(r.attribute_value)
+		if r.attribute_value:
+			parts.setdefault(r.parent, []).append(r.attribute_value)
 	return {k: " · ".join(v) for k, v in parts.items()}
 
 
