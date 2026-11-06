@@ -239,6 +239,7 @@ doc_events = {
 	# Do'kon a'zosi User formasida o'z rolini yo'qotmasin va admin bo'lib qolmasin (shop.user_validate)
 	"User": {"validate": "marketplace.marketplace.doctype.shop.shop.user_validate"},
 	"Item": {
+		"onload": "marketplace.seller_desk.item_onload",
 		"before_insert": "marketplace.permissions.item_before_insert",
 		"before_validate": [
 			"marketplace.permissions.set_shop",

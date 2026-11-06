@@ -776,6 +776,18 @@ def item_on_update(doc, method=None):
 	_warn_unpriced(doc)
 
 
+def item_onload(doc, method=None):
+	"""Item onload: formada «Sotish narxi» 0 turib, narx ro'yxatida (Item Price) narx bo'lsa — ko'rsatamiz.
+	Sotuvchi hozirgi narxni ko'radi va o'zgartira oladi (saqlashda item_on_update ro'yxatga yozadi)."""
+	if doc.has_variants or doc.variant_of or flt(doc.standard_rate):
+		return
+	from marketplace.storefront import _get_prices
+
+	rate = _get_prices([doc.name]).get(doc.name)
+	if rate:
+		doc.standard_rate = rate
+
+
 def _warn_unpriced(doc):
 	"""Saytga chiqarilgan, lekin narxi yo'q tovar katalogda ko'rinmaydi — sotuvchiga aytamiz (saqlash to'xtamaydi)."""
 	if not (doc.is_published and doc.get("shop")) or doc.variant_of or doc.get("mp_tez_kunda"):

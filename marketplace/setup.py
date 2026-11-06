@@ -639,6 +639,10 @@ def after_migrate():
 	# Tovar qo'shishda kichik dialog emas, to'liq (soddalashtirilgan) forma ochilsin
 	if not frappe.db.exists("Property Setter", {"doc_type": "Item", "property": "quick_entry"}):
 		make_property_setter("Item", None, "quick_entry", "0", "Check", for_doctype=True, validate_fields_for_doctype=False)
+	# ERPNext «Sotish narxi»ni (standard_rate) faqat yangi tovarda ko'rsatadi (depends_on __islocal) — sotuvchi narxni
+	# keyin qo'ya/tushira olmas edi. Doim ko'rinsin; variantli tovarda narx variantlarda (variant_price, item_seller.js)
+	if not frappe.db.exists("Property Setter", {"doc_type": "Item", "field_name": "standard_rate", "property": "depends_on"}):
+		make_property_setter("Item", "standard_rate", "depends_on", "eval:!doc.has_variants && !doc.variant_of", "Code")
 
 
 def setup_admin_forms():
