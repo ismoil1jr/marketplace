@@ -202,10 +202,11 @@ def get_product(shop, code):
 
 	item = frappe.get_doc("Item", code)
 	price = _get_prices([code]).get(code)
-	if price is None and not item.get("mp_tez_kunda"):
-		raise frappe.DoesNotExistError(_("Mahsulot sotuvda emas"))
+	# Narxi yo'q tovar (sotuvchi hali qo'ymagan): katalogda chiqmaydi, lekin sahifasi ochiladi — "Narx qo'yilmagan",
+	# sotib bo'lmaydi. Avval 404 berardi, sotuvchi "Saytda ko'rish"da xato ko'rardi
+	no_price = price is None and not item.get("mp_tez_kunda")
 	# "Tez kunda": variantlari hali yo'q bo'lsa ham formadagi narx ko'rinadi (yoki narx hali qo'yilmagan — 0)
-	price = price or (_soon_price(item) if item.get("mp_tez_kunda") else 0)
+	price = price or (_soon_price(item) if item.get("mp_tez_kunda") or no_price else 0)
 
 	# Rasm rangga bog'langan bo'lsa (galereyadagi "Rang" ustuni), saytda o'sha rang tanlanganda faqat u chiqadi
 	# src — sahifadagi o'rta o'lcham, full — bosganda ochiladigan asl rasm, thumb — chapdagi kichik rasmcha.
@@ -243,7 +244,8 @@ def get_product(shop, code):
 		gallery=gallery,
 		thumb=_get_thumbnails([code]).get(code) or (images[0] if images else None),
 		coming_soon=cint(item.get("mp_tez_kunda")),
-		in_stock=False if item.get("mp_tez_kunda") else (qty > 0) if (item.is_stock_item or options) else True,
+		no_price=no_price,
+		in_stock=False if (item.get("mp_tez_kunda") or no_price) else (qty > 0) if (item.is_stock_item or options) else True,
 		max_qty=cint(qty) if item.is_stock_item else 99,
 	)
 

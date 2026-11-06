@@ -58,7 +58,7 @@
 		<div class="sf-sheet__price">
 			<strong data-price-now="{{ product.price }}">{% if product.price %}{{ fmt_sum(product.price) }}{% if product.price_from %}dan{% endif %}{% else %}Narxi tez kunda{% endif %}</strong>
 			{% if product.old_price %}<s data-price-old="{{ product.list_price }}">{{ fmt_sum(product.old_price) }}</s><span class="sf-badge sf-badge--inline" data-price-badge>−{{ product.discount }}%</span>{% endif %}
-			{% if product.coming_soon %}<span class="sf-stock sf-stock--soon">Tez kunda</span>{% elif product.in_stock %}<span class="sf-stock">Sotuvda bor</span>{% else %}<span class="sf-stock sf-stock--out">Tugagan</span>{% endif %}
+			{% if product.no_price %}<span class="sf-stock sf-stock--out">Narx qo‘yilmagan</span>{% elif product.coming_soon %}<span class="sf-stock sf-stock--soon">Tez kunda</span>{% elif product.in_stock %}<span class="sf-stock">Sotuvda bor</span>{% else %}<span class="sf-stock sf-stock--out">Tugagan</span>{% endif %}
 		</div>
 
 		{% if product.options %}
@@ -95,6 +95,11 @@
 				<button type="button" data-step="1" aria-label="Ko‘paytirish"><svg><use href="#i-plus"/></svg></button>
 			</div>
 			<button class="sf-btn sf-btn--brand sf-btn--grow" type="button" data-buy-add>Savatga qo‘shish</button>
+			{% elif product.no_price %}
+			<div class="sf-soon-note">
+				<button class="sf-btn sf-btn--grow" type="button" disabled>Narx hali qo‘yilmagan</button>
+				<p class="sf-muted">Do‘kon narxni kiritgach, tovar sotuvga chiqadi.</p>
+			</div>
 			{% elif product.coming_soon %}
 			<div class="sf-soon-note">
 				<button class="sf-btn sf-btn--grow" type="button" disabled>Tez kunda sotuvga chiqadi</button>

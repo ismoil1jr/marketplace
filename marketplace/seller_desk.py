@@ -764,6 +764,31 @@ def item_on_update(doc, method=None):
 	if doc.has_variants and doc.has_value_changed("variant_price") and flt(doc.variant_price):
 		for code in frappe.get_all("Item", filters={"variant_of": doc.name, "mp_own_price": 0}, pluck="name"):
 			_set_price(code, flt(doc.variant_price))
+	# Oddiy tovar: ERPNext narx ro'yxatiga (Item Price) narxni faqat yaratilganda yozadi; sotuvchi narxni keyin
+	# qo'ysa yoki o'zgartirsa, sayt eski/bo'sh narxni ko'rardi ("Mahsulot sotuvda emas"). Shu yerda sinxronlaymiz
+	if not doc.has_variants and not doc.variant_of and flt(doc.standard_rate):
+		from marketplace.storefront import _selling_price_list
+
+		if doc.has_value_changed("standard_rate") or not frappe.db.exists(
+			"Item Price", {"item_code": doc.name, "price_list": _selling_price_list(), "selling": 1}
+		):
+			_set_price(doc.name, flt(doc.standard_rate))
+	_warn_unpriced(doc)
+
+
+def _warn_unpriced(doc):
+	"""Saytga chiqarilgan, lekin narxi yo'q tovar katalogda ko'rinmaydi — sotuvchiga aytamiz (saqlash to'xtamaydi)."""
+	if not (doc.is_published and doc.get("shop")) or doc.variant_of or doc.get("mp_tez_kunda"):
+		return
+	from marketplace.storefront import _get_prices
+
+	if _get_prices([doc.name]).get(doc.name) is None:
+		frappe.msgprint(
+			_("Tovar saytda ko'rinmaydi: narxi yo'q. «Sotish narxi»ni yozing") + (
+				_(" (variantli tovarda — Ombor tabidan kirim qiling, variantlar narx bilan yaratiladi)") if doc.has_variants else ""
+			) + _(" yoki «Tez kunda» belgilang."),
+			indicator="orange", title=_("Narx qo'yilmagan"),
+		)
 
 
 def _set_price(item_code, price):

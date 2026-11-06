@@ -2,7 +2,6 @@
 # Patches added in this section will be executed before doctypes are migrated
 # Read docs to understand patches: https://frappeframework.com/docs/v14/user/en/database-migrations
 marketplace.patches.create_sales_role
-
 [post_model_sync]
 # Patches added in this section will be executed after doctypes are migrated
 marketplace.patches.rename_doimiy_mijoz_full_name
@@ -15,3 +14,4 @@ marketplace.patches.seed_standard_sizes
 marketplace.patches.per_shop_colors
 marketplace.patches.murojaat_keys
 marketplace.patches.aloqa_telefon
+marketplace.patches.fill_item_prices
