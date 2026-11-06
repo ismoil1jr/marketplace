@@ -429,8 +429,11 @@ def get_leads(view: str = "yangi", q: str | None = None):
 	by_status = dict(frappe.get_all("Murojaat", filters={"shop": shop}, fields=["holat", {"COUNT": "*", "as": "n"}],
 	                                group_by="holat", as_list=True))
 	counts.update({v: by_status.get(holat, 0) for v, holat in STATUS_VIEWS.items()})
+	# Rejim almashtirgichida "Buyurtmalar · N yangi" (murojaatlar rejimida ham ko'rinib tursin)
+	from marketplace.sotuv.api import _filters as _order_filters
+
 	return {"shop": shop, "shop_name": frappe.db.get_value("Shop", shop, "shop_name"), "rows": rows, "counts": counts,
-	        "must": _has_must(shop)}
+	        "order_new": frappe.db.count("Sales Order", _order_filters("yangi", shop)), "must": _has_must(shop)}
 
 
 def _sync_orders(shop):

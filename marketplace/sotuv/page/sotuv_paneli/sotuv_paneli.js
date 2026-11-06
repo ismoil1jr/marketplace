@@ -88,12 +88,14 @@ class SotuvPaneli {
 		const { rows, counts, shop_name } = this.data;
 		const leads = this.state.mode === "murojaat";
 		const views = leads ? MP_LEAD_VIEWS : MP_VIEWS;
-		// Rejim almashtirgichi: yangi murojaatlar soni buyurtmalar rejimida ham ko'rinib tursin
+		// Rejim almashtirgichi: ikkala tugmada ham yangi (hali ko'rilmagan) soni — qaysi rejimda bo'lsa ham ko'rinib tursin
 		const lead_new = leads ? counts.yangi : this.data.lead_new;
+		const order_new = leads ? this.data.order_new : counts.yangi;
+		const badge = (n) => (n ? ` <span>${n} ${__("yangi")}</span>` : "");
 		this.$body.html(`
 			<div class="mp-sp__modes">
-				<button class="${leads ? "" : "is-active"}" data-mode="buyurtma">🛒 ${__("Buyurtmalar")}</button>
-				<button class="${leads ? "is-active" : ""} ${lead_new ? "is-due" : ""}" data-mode="murojaat">📣 ${__("Murojaatlar")}${lead_new ? ` <span>${lead_new} ${__("yangi")}</span>` : ""}</button>
+				<button class="${leads ? "" : "is-active"} ${order_new ? "is-due" : ""}" data-mode="buyurtma">🛒 ${__("Buyurtmalar")}${badge(order_new)}</button>
+				<button class="${leads ? "is-active" : ""} ${lead_new ? "is-due" : ""}" data-mode="murojaat">📣 ${__("Murojaatlar")}${badge(lead_new)}</button>
 			</div>
 			<div class="mp-sp__top">
 				<div class="mp-sp__tabs">${views.map(([v, l, holat], i) => `${holat && !views[i - 1][2] ? `<span class="mp-sp__tabs-sep"></span>` : ""}
