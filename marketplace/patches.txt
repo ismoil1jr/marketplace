@@ -15,3 +15,4 @@ marketplace.patches.per_shop_colors
 marketplace.patches.murojaat_keys
 marketplace.patches.aloqa_telefon
 marketplace.patches.fill_item_prices
+marketplace.patches.sync_standard_rate

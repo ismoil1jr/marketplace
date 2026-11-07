@@ -55,7 +55,7 @@ const mp_lead_pill = (holat) => `<span class="indicator-pill ${MP_LEAD_CLS[holat
 class SotuvPaneli {
 	constructor(page) {
 		this.page = page;
-		this.state = { mode: "buyurtma", view: "yangi", q: "", open: null };
+		this.state = { mode: "buyurtma", view: "yangi", q: "", open: null, dan: "", gacha: "" };
 		this.page.set_secondary_action(__("Yangilash"), () => this.load(), "refresh");
 		this.$body = $(`<div class="mp-sp"></div>`).appendTo(page.main);
 		this.inject_style();
@@ -66,6 +66,8 @@ class SotuvPaneli {
 		const leads = this.state.mode === "murojaat";
 		this.data = await frappe.xcall(leads ? "marketplace.sotuv.murojaat.get_leads" : "marketplace.sotuv.api.get_orders", {
 			view: this.state.view, q: this.state.q || null,
+			// Murojaatlar: qaysi kundan qaysi kungacha kelganlari
+			...(leads ? { dan: this.state.dan || null, gacha: this.state.gacha || null } : {}),
 		});
 		if (this.data.need_shop) return this.render_need_shop();
 		// Mijoz qo'ng'iroq qildi, buyurtmasi ham, murojaati ham yo'q — call-center raqamni shu yerda tekshiradi
@@ -104,6 +106,11 @@ class SotuvPaneli {
 				</div>
 				<input class="form-control mp-sp__search" type="search" placeholder="${leads ? __("Ism, telefon, kitob, tovar ID yoki kampaniya…") : __("Ism, telefon yoki buyurtma raqami…")}" value="${esc(this.state.q)}">
 			</div>
+			${leads ? `<div class="mp-sp__dates small text-muted">📅 ${__("Kelgan sanasi")}:
+				<input class="form-control input-sm" type="date" data-dan value="${esc(this.state.dan)}" title="${__("qaysi kundan")}"> —
+				<input class="form-control input-sm" type="date" data-gacha value="${esc(this.state.gacha)}" title="${__("qaysi kungacha")}">
+				${this.state.dan || this.state.gacha ? `<button class="btn btn-xs btn-default" data-dates-clear>✕ ${__("tozalash")}</button>` : ""}
+			</div>` : ""}
 			<div class="mp-sp__shop text-muted small">
 				<b>${esc(shop_name || "")}</b>
 				${leads ? "" : `<span class="mp-sp__legend">${Object.keys(MP_STATE_CLS).map((s) => `<span title="${esc(MP_STATE_HINT[s])}">${mp_state_pill(s)}</span>`).join("")}</span>`}
@@ -159,7 +166,8 @@ class SotuvPaneli {
 		this.$body.find("[data-mode]").on("click", (e) => {
 			const mode = e.currentTarget.dataset.mode;
 			if (mode === this.state.mode) return;
-			Object.assign(this.state, { mode, view: mode === "murojaat" ? "yangi" : "tolanmagan", open: null, q: "" });
+			// Murojaatlarda avval hammasi ko'rinadi (yangi kelganlari tepada), buyurtmalarda — to'lanmaganlar
+			Object.assign(this.state, { mode, view: mode === "murojaat" ? "hammasi" : "tolanmagan", open: null, q: "", dan: "", gacha: "" });
 			this.load();
 		});
 		this.$body.find("[data-view]").on("click", (e) => {
@@ -167,6 +175,12 @@ class SotuvPaneli {
 			this.state.open = null;
 			this.load();
 		});
+		this.$body.find("[data-dan], [data-gacha]").on("change", (e) => {
+			this.state[e.currentTarget.hasAttribute("data-dan") ? "dan" : "gacha"] = e.currentTarget.value;
+			this.state.open = null;
+			this.load();
+		});
+		this.$body.find("[data-dates-clear]").on("click", () => { this.state.dan = this.state.gacha = ""; this.load(); });
 		const $s = this.$body.find(".mp-sp__search");
 		$s.on("input", frappe.utils.debounce(() => {
 			this.state.q = $s.val();
@@ -456,7 +470,8 @@ class SotuvPaneli {
 		});
 	}
 
-	// «Oladi»: menejer mijoz bilan kelishgan buyurtma — tovar (boshqasini ham tanlasa bo'ladi), rang/o'lcham, soni, manzil
+	// «Oladi»: menejer mijoz bilan kelishgan buyurtma — bir nechta tovar bo'lishi mumkin (mijozga taklif qilib
+	// qo'shilganlari ham), har birida rang/o'lcham va soni; yetkazish usuli, manzil
 	lead_order_html(d) {
 		const esc = frappe.utils.escape_html;
 		const f = d.order_form || {};
@@ -468,15 +483,12 @@ class SotuvPaneli {
 				<div class="mp-sp__order-item" data-order-item></div>
 				<div class="mp-sp__order-must" data-order-must></div>
 				<div class="mp-sp__picker">
-					<input class="form-control input-sm" data-item-q placeholder="${__("Boshqa tovar: nomi yoki kodi…")}" autocomplete="off">
+					<input class="form-control input-sm" data-item-q placeholder="${__("➕ Yana tovar qo‘shish: nomi yoki kodi…")}" autocomplete="off">
 					<div class="mp-sp__picker-list" data-item-list hidden></div>
 				</div>
-				<div class="mp-sp__order-row">
-					<label class="small text-muted">${__("Soni")}<input class="form-control input-sm" type="number" min="1" max="99" value="1" data-order-qty></label>
-					${f.pickup ? `<div class="mp-sp__seg" data-group="yetkazish">
-						<button data-val="Kuryer" class="is-active">🚚 ${__("Kuryer")}</button>
-						<button data-val="O'zim olaman">🏬 ${__("O‘zi olib ketadi")}</button></div>` : ""}
-				</div>
+				${f.pickup ? `<div class="mp-sp__order-row"><div class="mp-sp__seg" data-group="yetkazish">
+					<button data-val="Kuryer" class="is-active">🚚 ${__("Kuryer")}</button>
+					<button data-val="O'zim olaman">🏬 ${__("O‘zi olib ketadi")}</button></div></div>` : ""}
 				<label class="small text-muted" data-order-addr>${__("Yetkazish manzili: shahar, ko‘cha, uy, mo‘ljal")}
 					<textarea class="form-control" rows="2" data-order-manzil>${esc(f.address || "")}</textarea></label>
 				<div class="small mp-sp__order-sum" data-order-sum></div>
@@ -484,39 +496,48 @@ class SotuvPaneli {
 		</div>`;
 	}
 
-	must_for(d, item) {
-		return ((d.order_form || {}).must || []).filter((m) => !item || m.code !== item.code);
+	// Majburiy tovarlar — buyurtmadagi tovarlarning o'zi bo'lmasa
+	must_for(d, lines) {
+		const codes = new Set((lines || []).map((l) => l.item.code));
+		return ((d.order_form || {}).must || []).filter((m) => !codes.has(m.code));
 	}
 
 	bind_lead_order($card, d) {
 		const esc = frappe.utils.escape_html;
-		const state = { item: (d.order_form || {}).item, code: null };
+		const first = (d.order_form || {}).item;
+		// Har qator: tovar (andoza), tanlangan variant kodi, soni
+		const state = { lines: first ? [{ item: first, code: null, qty: 1 }] : [] };
 		const $item = $card.find("[data-order-item]");
-		const draw = () => {
-			const it = state.item;
-			if (!it) {
-				$item.html(`<div class="small text-muted">${__("Tovar tanlanmagan — pastdan qidiring")}</div>`);
-				return sum();
-			}
+		const line_html = (l, i) => {
+			const it = l.item;
 			const sellable = it.options.filter((o) => o.qty === null || o.qty > 0);
-			state.code = it.has_variants ? (sellable.length === 1 ? sellable[0].code : null) : it.code;
+			if (l.code === null) l.code = it.has_variants ? (sellable.length === 1 ? sellable[0].code : null) : it.code;
 			const warn = it.soon ? __("«Tez kunda» — hali sotuvda yo‘q") : !it.published ? __("Saytda yopiq — avval saytga chiqaring") : !sellable.length ? __("Omborda qolmagan") : "";
-			$item.html(`<div class="mp-sp__book-card">
+			return `<div class="mp-sp__book-card mp-sp__line" data-line="${i}">
 				${it.image ? `<img src="${esc(it.image)}" alt="">` : ""}
 				<div class="mp-sp__order-main"><b>${esc(it.name)}</b>
 					${warn ? `<div class="small text-danger">⚠️ ${warn}</div>` : ""}
-					${it.has_variants ? `<select class="form-control input-sm" data-order-variant>
+					${it.has_variants ? `<select class="form-control input-sm" data-line-variant>
 						<option value="">${__("Rang / o‘lcham tanlang")}</option>
-						${it.options.map((o) => `<option value="${esc(o.code)}" ${o.qty === 0 ? "disabled" : ""} ${o.code === state.code ? "selected" : ""}>
+						${it.options.map((o) => `<option value="${esc(o.code)}" ${o.qty === 0 ? "disabled" : ""} ${o.code === l.code ? "selected" : ""}>
 							${esc(o.label || o.code)} — ${o.qty === 0 ? __("tugagan") : `${o.qty} ${__("dona")}`}</option>`).join("")}
 					</select>` : `<div class="small text-muted">${it.options[0].qty === null ? "" : __("Omborda: {0} dona", [it.options[0].qty])}</div>`}
-				</div></div>`);
-			$item.find("[data-order-variant]").on("change", (e) => { state.code = e.currentTarget.value || null; sum(); });
+				</div>
+				<label class="mp-sp__line-qty small text-muted">${__("Soni")}<input class="form-control input-sm" type="number" min="1" max="99" value="${l.qty}" data-line-qty></label>
+				<button type="button" class="btn btn-xs btn-default mp-sp__line-del" data-line-del title="${__("Olib tashlash")}">✕</button>
+			</div>`;
+		};
+		const line_of = (e) => state.lines[+e.currentTarget.closest("[data-line]").dataset.line];
+		const draw = () => {
+			$item.html(state.lines.length ? state.lines.map(line_html).join("") : `<div class="small text-muted">${__("Tovar tanlanmagan — pastdan qidiring")}</div>`);
+			$item.find("[data-line-variant]").on("change", (e) => { line_of(e).code = e.currentTarget.value || null; sum(); });
+			$item.find("[data-line-qty]").on("input", (e) => { line_of(e).qty = Math.min(99, Math.max(1, parseInt(e.currentTarget.value, 10) || 1)); sum(); });
+			$item.find("[data-line-del]").on("click", (e) => { state.lines.splice(state.lines.indexOf(line_of(e)), 1); draw(); });
 			draw_must();
 		};
-		// Majburiy tovar: mijoz hali olmagan bo'lsa buyurtmaga 1 dona o'zi qo'shiladi (asosiy tovarning o'zi bo'lsa — yo'q)
+		// Majburiy tovar: mijoz hali olmagan bo'lsa buyurtmaga 1 dona o'zi qo'shiladi (buyurtmadagi tovarning o'zi bo'lsa — yo'q)
 		const draw_must = () => {
-			const list = this.must_for(d, state.item);
+			const list = this.must_for(d, state.lines);
 			$card.find("[data-order-must]").html(list.map((m) => `<div class="mp-sp__must small">
 				<b>➕ ${__("Majburiy tovar ham qo‘shiladi")}: ${esc(m.name)}</b>
 				${m.has_variants ? `<select class="form-control input-sm" data-must-variant="${esc(m.code)}">
@@ -527,20 +548,23 @@ class SotuvPaneli {
 			sum();
 		};
 		const sum = () => {
-			const it = state.item;
-			const opt = it && it.options.find((o) => o.code === state.code);
-			const qty = Math.max(1, parseInt($card.find("[data-order-qty]").val(), 10) || 1);
-			const extra = this.must_for(d, it).reduce((t, m) => {
+			let total = 0, known = state.lines.length > 0;
+			for (const l of state.lines) {
+				const opt = l.item.options.find((o) => o.code === l.code);
+				if (opt && opt.price) total += opt.price * l.qty;
+				else known = false;
+			}
+			total += this.must_for(d, state.lines).reduce((t, m) => {
 				const code = m.has_variants ? $card.find(`[data-must-variant="${m.code}"]`).val() : m.code;
 				const o = m.options.find((x) => x.code === code) || m.options[0];
 				return t + ((o && o.price) || 0);
 			}, 0);
-			$card.find("[data-order-sum]").html(opt && opt.price ? `${__("Taxminan")}: <b>${this.money(opt.price * qty + extra)}</b> <span class="text-muted">(${__("aniq narx — server hisoblaydi, ulgurji chegirma bilan")})</span>` : "");
+			$card.find("[data-order-sum]").html(known ? `${__("Taxminan")}: <b>${this.money(total)}</b> <span class="text-muted">(${__("aniq narx — server hisoblaydi, ulgurji chegirma bilan")})</span>` : "");
 		};
-		$card.find("[data-order-qty]").on("input", sum);
 		$card.find("[data-make-order]").on("change", (e) => $card.find("[data-order-fields]").prop("hidden", !e.currentTarget.checked));
 
-		// Boshqa tovar qidirish (sotuv menejerida Item ruxsati yo'q — o'z endpoint'i: faqat shu do'kon tovarlari)
+		// Tovar qidirish — mijozga taklif qilingan qo'shimcha tovarlar ham shu yerdan qo'shiladi
+		// (sotuv menejerida Item ruxsati yo'q — o'z endpoint'i: faqat shu do'kon tovarlari)
 		const $q = $card.find("[data-item-q]");
 		const $list = $card.find("[data-item-list]");
 		let timer;
@@ -556,9 +580,13 @@ class SotuvPaneli {
 			}, 250);
 		});
 		$list.on("click", "button[data-code]", async (e) => {
-			state.item = await frappe.xcall("marketplace.sotuv.murojaat.order_item", { item: e.currentTarget.dataset.code });
+			const it = await frappe.xcall("marketplace.sotuv.murojaat.order_item", { item: e.currentTarget.dataset.code });
 			$q.val("");
 			$list.prop("hidden", true);
+			if (!it) return;
+			const same = !it.has_variants && state.lines.find((l) => l.item.code === it.code);
+			if (same) same.qty = Math.min(99, same.qty + 1);
+			else state.lines.push({ item: it, code: null, qty: 1 });
 			draw();
 		});
 		draw();
@@ -566,10 +594,10 @@ class SotuvPaneli {
 		return {
 			value: (yetkazish) => {
 				if (!$card.find("[data-make-order]").is(":checked")) return null;
-				if (!state.item) return { error: __("Buyurtma uchun tovarni tanlang") };
-				if (!state.code) return { error: __("Rang / o‘lchamni tanlang") };
+				if (!state.lines.length) return { error: __("Buyurtma uchun tovarni tanlang") };
+				for (const l of state.lines) if (!l.code) return { error: __("«{0}»: rang / o‘lchamni tanlang", [l.item.name]) };
 				const qoshimcha = [];
-				for (const m of this.must_for(d, state.item)) {
+				for (const m of this.must_for(d, state.lines)) {
 					if (!m.has_variants) continue;
 					const code = $card.find(`[data-must-variant="${m.code}"]`).val();
 					if (!code) return { error: __("Majburiy tovar «{0}»: rang / o‘lchamni tanlang", [m.name]) };
@@ -577,7 +605,8 @@ class SotuvPaneli {
 				}
 				const manzil = ($card.find("[data-order-manzil]").val() || "").trim();
 				if (yetkazish === "Kuryer" && manzil.length < 5) return { error: __("Yetkazish manzilini to‘liq yozing") };
-				return { item: state.code, qty: parseInt($card.find("[data-order-qty]").val(), 10) || 1, yetkazish, manzil, qoshimcha };
+				const lines = state.lines.map((l) => ({ item: l.code, qty: l.qty }));
+				return { lines, item: lines[0].item, qty: lines[0].qty, yetkazish, manzil, qoshimcha };
 			},
 		};
 	}
@@ -657,6 +686,12 @@ class SotuvPaneli {
 			.mp-sp__modes { display: inline-flex; gap: 4px; padding: 3px; margin-bottom: 10px; border-radius: 10px; background: var(--subtle-fg); }
 			.mp-sp__modes button { border: 0; background: none; border-radius: 8px; padding: 6px 14px; font-weight: 600; color: var(--text-muted); }
 			.mp-sp__modes button.is-active { background: var(--card-bg); color: var(--heading-color); box-shadow: var(--shadow-sm); }
+			.mp-sp__dates { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: -4px 0 8px; }
+			.mp-sp__dates input { width: 150px; }
+			.mp-sp__line { align-items: center; gap: 10px; }
+			.mp-sp__line .mp-sp__order-main { flex: 1; min-width: 0; }
+			.mp-sp__line-qty { display: grid; gap: 2px; width: 70px; flex: none; }
+			.mp-sp__line-del { flex: none; }
 			.mp-sp__modes button span { margin-left: 4px; padding: 0 6px; border-radius: 8px; background: var(--orange-500, #f97316); color: #fff; font-size: 11px; }
 			.mp-sp__book { color: var(--heading-color); font-size: var(--text-sm); max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
 			.mp-sp__tid { font-family: var(--font-stack-monospace, monospace); font-size: 11px; color: var(--text-muted); max-width: 220px; overflow: hidden; text-overflow: ellipsis; user-select: all; }

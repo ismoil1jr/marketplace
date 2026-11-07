@@ -68,6 +68,30 @@
 		toast.t = setTimeout(() => el.classList.remove("is-on"), 1800);
 	}
 
+	// Tasdiq oynasi (telefonda pastdan chiqadi): «Yo'q» — qizil, «Ha» — oddiy. Promise<boolean>
+	function confirmSheet({ title, text = "", yes = "Ha", no = "Yo‘q" }) {
+		return new Promise((resolve) => {
+			const box = document.createElement("div");
+			box.className = "sf-share sf-confirm";
+			box.innerHTML = `<div class="sf-share__panel" role="alertdialog" aria-modal="true" aria-label="${title}">
+				<b>${title}</b>${text ? `<p class="sf-confirm__text">${text}</p>` : ""}
+				<div class="sf-confirm__btns">
+					<button type="button" class="sf-confirm__no" data-no>${no}</button>
+					<button type="button" class="sf-confirm__yes" data-yes>${yes}</button>
+				</div>
+			</div>`;
+			const done = (ok) => { box.remove(); document.removeEventListener("keydown", onKey); resolve(ok); };
+			const onKey = (e) => { if (e.key === "Escape") done(false); };
+			box.addEventListener("click", (e) => {
+				if (e.target === box || e.target.closest("[data-no]")) done(false);
+				else if (e.target.closest("[data-yes]")) done(true);
+			});
+			document.addEventListener("keydown", onKey);
+			document.body.append(box);
+			$("[data-no]", box).focus();
+		});
+	}
+
 	// ---------- Savat xulosasi: badge, pastki panel, noutbukdagi o'ng panel ----------
 	function renderCartSummary() {
 		const items = cart.all();
@@ -495,11 +519,8 @@
 			track.scrollTo({ left: ((i + n) % n) * track.clientWidth, behavior: smooth ? "smooth" : "auto" });
 		};
 		// Nuqtalar va chapdagi kichik rasmlar joriy rasmga ergashadi
-		const backdrop = $("[data-gallery-bg]");
 		const syncActive = () => {
 			const cur = shownSlides()[currentIndex()];
-			const bgSrc = cur && (cur.tagName === "VIDEO" ? cur.getAttribute("poster") : cur.getAttribute("src"));
-			if (backdrop && bgSrc) backdrop.style.backgroundImage = `url("${bgSrc}")`;
 			// Faqat ko'rinib turgan video ijro etiladi (batareya, trafik)
 			slides.forEach((v) => {
 				if (v.tagName !== "VIDEO") return;
@@ -1161,7 +1182,10 @@
 		const box = $("[data-auth-page]");
 		if (box) initAuth(box, (me) => me && setTimeout(() => location.reload(), 400))(null);
 		$("[data-orders-logout]")?.addEventListener("click", async (e) => {
-			e.currentTarget.disabled = true;
+			const btn = e.currentTarget;
+			// Tasodifan bosilsa chiqib ketmasin — avval so'raladi
+			if (!(await confirmSheet({ title: "Rostdan ham chiqasizmi?", text: "Buyurtmalaringizni ko‘rish uchun raqamingizni qayta tasdiqlashingiz kerak bo‘ladi." }))) return;
+			btn.disabled = true;
 			await api("logout", {}).catch(() => {});
 			location.reload();
 		});

@@ -59,8 +59,11 @@ class KuryerKassa {
 				<div class="mp-kk__list">${d.sent.map((o) => this.row(o, o.mp_cash_sent_at)).join("")}</div>
 				<div class="mp-kk__note text-muted small">${__("Do‘konchi «Qabul qildim» bosgach, bu pul do‘kon kassasiga o‘tadi va sizdan tushadi.")}</div>` : ""}
 
-			${d.handed.length ? `<div class="mp-kk__sec">✅ ${__("Oxirgi topshirilganlar")}</div>
-				<div class="mp-kk__list">${d.handed.map((o) => this.row(o, o.mp_cash_handed_at)).join("")}</div>` : ""}
+			${d.handovers.length ? `<div class="mp-kk__sec">🧾 ${__("Do‘kon kassasiga topshirganlarim")}</div>
+				<div class="mp-kk__list">${d.handovers.map((h) => `<div class="mp-kk__row">
+					<span><b>${this.money(h.total)}</b><small>${h.count} ${__("ta buyurtma")} · ${__("topshirildi")}: ${esc(frappe.datetime.str_to_user(h.sent_at))}</small></span>
+					<span class="mp-kk__st ${h.accepted ? "is-ok" : "is-wait"}">${h.accepted ? `✅ ${__("qabul qilindi")}<small>${esc(frappe.datetime.str_to_user(h.handed_at))}</small>` : `⏳ ${__("tasdiq kutilmoqda")}`}</span>
+				</div>`).join("")}</div>` : ""}
 		`);
 		this.$body.find("[data-handover]").on("click", () => this.handover());
 	}
@@ -99,6 +102,10 @@ class KuryerKassa {
 			.mp-kk__row small { color: var(--text-muted); }
 			.mp-kk__row > b { white-space: nowrap; }
 			.mp-kk__note { margin-top: 6px; }
+			.mp-kk__st { display: grid; justify-items: end; font-size: var(--text-sm); white-space: nowrap; }
+			.mp-kk__st small { color: var(--text-muted); }
+			.mp-kk__st.is-ok { color: var(--green-600, #16a34a); }
+			.mp-kk__st.is-wait { color: var(--orange-600, #ea580c); }
 		</style>`).appendTo(document.head);
 	}
 }

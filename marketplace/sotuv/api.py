@@ -186,7 +186,7 @@ def get_order(name: str):
 		"grand_total": flt(so.grand_total), "created": str(so.creation), "state": _state(so),
 		"payment_method": so.payment_method, "delivery_method": so.get("delivery_method"),
 		"delivery_address": so.get("delivery_address"), "items": items, "calls": calls, "logs": logs, "unlinked": unlinked,
-		"can_cancel": _can_cancel(so), "mandatory": mandatory_info(shop, so.customer_phone),
+		"can_cancel": _can_cancel(so), "mandatory": mandatory_info(shop, so.customer_phone, so),
 		# Kuryer buyurtmani faqat menejer "Oladi" deganidan keyin ko'radi (permissions.sales_order_query)
 		"courier_open": _courier_open(so), "confirmed": so.get("mp_aloqa_natija") == "Oladi",
 	}
@@ -197,14 +197,24 @@ def _courier_open(so):
 	return so.get("delivery_method") == "Kuryer" and so.docstatus == 1 and so.payment_status != CANCELLED and flt(so.per_delivered) < 100
 
 
-def mandatory_info(shop, phone):
-	"""Kartadagi "Majburiy tovar" bloki: har bir majburiy tovar alohida — shu raqam olganmi (asos bilan)."""
+def mandatory_info(shop, phone, so=None):
+	"""Kartadagi "Majburiy tovar" bloki: har bir majburiy tovar alohida — shu raqam olganmi (asos bilan).
+	so — ochilgan buyurtma: majburiy tovar shu buyurtmaning o'zida bo'lsa, «olinmagan» deyilmaydi (saytda hali
+	yakunlanmagan buyurtma mandatory_bought'ga kirmaydi — mp_placed=0)."""
 	from marketplace.orders import mandatory_bought, mandatory_items
 
 	items = mandatory_items(shop)
 	if not items:
 		return None
 	bought = mandatory_bought(shop, phone, items)
+	if so is not None:
+		codes = [i.item_code for i in so.items]
+		template_of = dict.fromkeys(codes, None)
+		template_of.update(dict(frappe.get_all("Item", filters={"name": ["in", codes or [""]]}, fields=["name", "variant_of"], as_list=True)))
+		for code in codes:
+			base = template_of.get(code) or code
+			if base in items and base not in bought:
+				bought[base] = _("{0} (shu buyurtmada)").format(so.name)
 	names = dict(frappe.get_all("Item", filters={"name": ["in", items]}, fields=["name", "item_name"], as_list=True))
 	return {
 		"phone": phone,

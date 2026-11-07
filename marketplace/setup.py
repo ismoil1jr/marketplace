@@ -643,6 +643,10 @@ def after_migrate():
 	# keyin qo'ya/tushira olmas edi. Doim ko'rinsin; variantli tovarda narx variantlarda (variant_price, item_seller.js)
 	if not frappe.db.exists("Property Setter", {"doc_type": "Item", "field_name": "standard_rate", "property": "depends_on"}):
 		make_property_setter("Item", "standard_rate", "depends_on", "eval:!doc.has_variants && !doc.variant_of", "Code")
+	# Tovarlar ro'yxatida sotish narxi ustuni (item_list_seller.js shu ustunni qoldiradi; Item Price bilan sinxron —
+	# seller_desk.item_price_on_update, patches.sync_standard_rate)
+	make_property_setter("Item", "standard_rate", "in_list_view", "1", "Check", validate_fields_for_doctype=False)
+	make_property_setter("Item", "standard_rate", "label", "Sotish narxi", "Data", validate_fields_for_doctype=False)
 
 
 def setup_admin_forms():

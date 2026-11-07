@@ -19,8 +19,7 @@
 		</div>
 		{% endif %}
 		<div class="sf-gallery__main">
-			{# Joriy rasmning xira nusxasi — rasm butunligicha ko'rinadi, bo'sh joy esa kulrang emas (storefront.js syncActive) #}
-			<div class="sf-gallery__backdrop" data-gallery-bg aria-hidden="true"></div>
+			{# Uzum'dagidek: rasm oq fonda butunligicha (kesilmaydi) #}
 			<div class="sf-gallery__track" data-gallery>
 				{% for m in product.gallery %}
 				{% if m.type == "video" %}
@@ -125,7 +124,7 @@
 <div class="sf-lightbox" data-lightbox hidden role="dialog" aria-modal="true" aria-label="{{ product.name }}">
 	<div class="sf-lightbox__track" data-lightbox-track></div>
 	<span class="sf-lightbox__count" data-lightbox-count></span>
-	<button type="button" class="sf-lightbox__close" data-lightbox-close aria-label="Yopish">&times;</button>
+	<button type="button" class="sf-lightbox__back" data-lightbox-close aria-label="Yopish"><svg><use href="#i-back"/></svg></button>
 	<button type="button" class="sf-lightbox__nav sf-lightbox__nav--prev" data-lightbox-step="-1" aria-label="Oldingi rasm"><svg><use href="#i-back"/></svg></button>
 	<button type="button" class="sf-lightbox__nav sf-lightbox__nav--next" data-lightbox-step="1" aria-label="Keyingi rasm"><svg><use href="#i-back"/></svg></button>
 </div>

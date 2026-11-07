@@ -803,6 +803,18 @@ def _warn_unpriced(doc):
 		)
 
 
+def item_price_on_update(doc, method=None):
+	"""Item Price saqlanganda tovarning standard_rate'i ham shu narx bo'ladi — Tovarlar ro'yxatida narx ko'rinadi
+	(ERPNext buni faqat yaratishda ko'chiradi). Item saqlanmaydi (db_set) — item_on_update bilan aylanma bo'lmaydi."""
+	from marketplace.storefront import _selling_price_list
+
+	if doc.price_list != _selling_price_list():
+		return
+	current = frappe.db.get_value("Item", doc.item_code, "standard_rate")
+	if current is not None and flt(current) != flt(doc.price_list_rate):
+		frappe.db.set_value("Item", doc.item_code, "standard_rate", flt(doc.price_list_rate), update_modified=False)
+
+
 def _set_price(item_code, price):
 	from marketplace.storefront import _selling_price_list
 

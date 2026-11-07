@@ -271,7 +271,11 @@ doc_events = {
 	"Marketplace Settings": {"on_update": "marketplace.telegram_bot.on_settings_update"},
 	"Item Price": {
 		"before_validate": "marketplace.permissions.set_shop",
-		"on_update": "marketplace.storefront.clear_catalog_cache",
+		"on_update": [
+			"marketplace.storefront.clear_catalog_cache",
+			# Ro'yxatdagi «Sotish narxi» (Item.standard_rate) Item Price bilan bir xil tursin
+			"marketplace.seller_desk.item_price_on_update",
+		],
 		"on_trash": "marketplace.storefront.clear_catalog_cache",
 	},
 	"Sales Order": {

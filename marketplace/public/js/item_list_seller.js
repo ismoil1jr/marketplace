@@ -6,7 +6,15 @@
 
 	const settings = (frappe.listview_settings["Item"] ||= {});
 	const prev_onload = settings.onload;
-	settings.add_fields = [...(settings.add_fields || []), "image", "has_variants", "variant_of", "mp_tez_kunda", "mp_majburiy"];
+	settings.add_fields = [...(settings.add_fields || []), "image", "has_variants", "variant_of", "mp_tez_kunda", "mp_majburiy", "standard_rate", "variant_price"];
+	// Rang/o'lchamli tovarda narx andozada emas, variantlarda (variant_price → set_variant_prices) — ro'yxatda o'sha ko'rinsin
+	settings.formatters = {
+		...(settings.formatters || {}),
+		standard_rate: (value, df, doc) => {
+			const price = doc.has_variants ? doc.variant_price : value;
+			return price ? `${format_number(price, null, 0)} so‘m` : `<span class="text-muted">${__("narx yo‘q")}</span>`;
+		},
+	};
 	settings.filters = [["variant_of", "is", "not set"]];
 	// ERPNext'ning "Template / Variant" o'rniga tushunarli holat
 	settings.get_indicator = (doc) => {
@@ -19,8 +27,8 @@
 	};
 	settings.onload = function (listview) {
 		prev_onload?.call(this, listview);
-		// Faqat kerakli ustunlar: nom (rasm bilan), holat, kategoriya
-		listview.columns = listview.columns.filter((c) => c.type !== "Field" || c.df?.fieldname === "item_group");
+		// Faqat kerakli ustunlar: nom (rasm bilan), holat, kategoriya, sotish narxi (setup.py: standard_rate in_list_view)
+		listview.columns = listview.columns.filter((c) => c.type !== "Field" || ["item_group", "standard_rate"].includes(c.df?.fieldname));
 		listview.render_header?.(true);
 		// Variantlar ro'yxatda chiqmaydi (oldingi saqlangan filtr bo'lsa ham)
 		if (!listview.filters.some((f) => f[1] === "variant_of")) {

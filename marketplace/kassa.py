@@ -65,15 +65,27 @@ def courier_cash():
 	base = {"shop": shop, "docstatus": 1, "payment_method": "Naqd", "mp_courier": user}
 	in_hand = frappe.get_all("Sales Order", filters={**base, "mp_cash_status": IN_HAND}, fields=FIELDS, order_by="mp_delivered_at asc")
 	sent = frappe.get_all("Sales Order", filters={**base, "mp_cash_status": SENT}, fields=FIELDS, order_by="mp_cash_sent_at desc")
-	handed = frappe.get_all(
-		"Sales Order", filters={**base, "mp_cash_status": HANDED}, fields=FIELDS + ["mp_cash_handed_at"],
-		order_by="mp_cash_handed_at desc", limit_page_length=10,
+	# Topshirish tarixi: bir vaqtda (bir daqiqada) topshirilgan buyurtmalar — bitta yozuv: qancha, qachon, qabul qilindimi
+	hist = frappe.get_all(
+		"Sales Order", filters={**base, "mp_cash_status": ["in", [SENT, HANDED]]},
+		fields=["name", "grand_total", "mp_cash_status", "mp_cash_sent_at", "mp_cash_handed_at"], limit_page_length=500,
 	)
+	groups = {}
+	for o in hist:
+		key = str(o.mp_cash_sent_at or o.mp_cash_handed_at or "")[:16]
+		g = groups.setdefault(key, {"sent_at": str(o.mp_cash_sent_at or o.mp_cash_handed_at or ""), "handed_at": "", "total": 0.0, "count": 0, "accepted": True})
+		g["total"] += flt(o.grand_total)
+		g["count"] += 1
+		if o.mp_cash_status == HANDED:
+			g["handed_at"] = max(g["handed_at"], str(o.mp_cash_handed_at or ""))
+		else:
+			g["accepted"] = False
+	handovers = sorted(groups.values(), key=lambda g: g["sent_at"], reverse=True)[:30]
 	return {
 		"courier": get_fullname(user), "shop_name": frappe.db.get_value("Shop", shop, "shop_name"),
 		"in_hand": in_hand, "in_hand_total": sum(flt(o.grand_total) for o in in_hand),
 		"sent": sent, "sent_total": sum(flt(o.grand_total) for o in sent),
-		"handed": handed,
+		"handovers": handovers,
 	}
 
 

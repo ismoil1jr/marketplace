@@ -389,13 +389,17 @@ def _filters(view, shop):
 
 
 @frappe.whitelist()
-def get_leads(view: str = "yangi", q: str | None = None):
+def get_leads(view: str = "yangi", q: str | None = None, dan: str | None = None, gacha: str | None = None):
+	"""Murojaatlar ro'yxati. dan / gacha — kelgan sanasi bo'yicha oraliq (ixtiyoriy, ikkalasi ham bo'lmasa — hammasi)."""
 	from marketplace.sotuv.api import _has_must, _shop
 
 	shop = _shop(admin_optional=True)
 	if not shop:
 		return {"need_shop": True}
 	_sync_orders(shop)
+	filters = _filters(view, shop)
+	if dan or gacha:
+		filters["creation"] = ["between", [f"{getdate(dan) if dan else '2000-01-01'} 00:00:00", f"{getdate(gacha) if gacha else today()} 23:59:59"]]
 	or_filters = None
 	if (q or "").strip():
 		like = f"%{q.strip()}%"
@@ -405,10 +409,10 @@ def get_leads(view: str = "yangi", q: str | None = None):
 		if len(digits) >= 4:
 			or_filters.append(["normal_telefon", "like", f"%{digits[-9:]}%"])
 	rows = frappe.get_all(
-		"Murojaat", filters=_filters(view, shop), or_filters=or_filters,
+		"Murojaat", filters=filters, or_filters=or_filters,
 		fields=["name", "mijoz_ismi", "telefon", "normal_telefon", "izoh", "shahar", "tovar", "tovar_nomi", "manba", "kampaniya", "holat",
 		        "keyingi_qongiroq", "aloqa_vaqt", "creation", "buyurtma"],
-		order_by="creation desc", limit_page_length=300,
+		order_by="creation desc", limit_page_length=500,
 	)
 	# Reklama uchun qisqa Tovar ID (SMM shu raqam bilan ishlaydi) — kartada kod o'rniga shu ko'rinadi
 	codes = list({r.tovar for r in rows if r.tovar})
@@ -614,19 +618,31 @@ def _make_order(lead, shop_name, data, kanal):
 	from marketplace.seller_desk import notify_couriers
 
 	data = frappe._dict(data or {})
-	code, qty = (data.item or "").strip(), cint(data.qty) or 1
 	method = data.yetkazish or "Kuryer"
-	info = _order_item(shop_name, code) if code else None
-	if not info:
+	# Bir nechta tovar: lines = [{"item", "qty"}, ...] (menejer mijozga taklif qilib qo'shganlari ham); eski shakl — item + qty
+	raw_lines = data.lines if isinstance(data.lines, list) and data.lines else ([{"item": data.item, "qty": data.qty}] if data.item else [])
+	lines = []
+	for raw in raw_lines:
+		raw = frappe._dict(raw or {})
+		code, qty = (raw.item or "").strip(), cint(raw.qty) or 1
+		info = _order_item(shop_name, code) if code else None
+		if not info:
+			frappe.throw(_("Buyurtma uchun tovarni tanlang"))
+		if info["soon"]:
+			frappe.throw(_("«{0}» — «Tez kunda»: hali sotuvda yo'q").format(info["name"]))
+		if not info["published"]:
+			frappe.throw(_("«{0}» saytda yopiq — avval tovarni saytga chiqaring").format(info["name"]))
+		if info["has_variants"] and code == info["code"]:
+			frappe.throw(_("«{0}»: rang / o'lchamni tanlang").format(info["name"]))
+		if not 1 <= qty <= 99:
+			frappe.throw(_("Soni 1 dan 99 gacha bo'lsin"))
+		same = next((ln for ln in lines if ln["code"] == code), None)
+		if same:
+			same["qty"] = min(99, same["qty"] + qty)
+		else:
+			lines.append({"code": code, "qty": qty})
+	if not lines:
 		frappe.throw(_("Buyurtma uchun tovarni tanlang"))
-	if info["soon"]:
-		frappe.throw(_("«{0}» — «Tez kunda»: hali sotuvda yo'q").format(info["name"]))
-	if not info["published"]:
-		frappe.throw(_("«{0}» saytda yopiq — avval tovarni saytga chiqaring").format(info["name"]))
-	if info["has_variants"] and code == info["code"]:
-		frappe.throw(_("«{0}»: rang / o'lchamni tanlang").format(info["name"]))
-	if not 1 <= qty <= 99:
-		frappe.throw(_("Soni 1 dan 99 gacha bo'lsin"))
 	if not lead.normal_telefon:
 		frappe.throw(_("Murojaatda telefon raqami yo'q"))
 
@@ -635,11 +651,10 @@ def _make_order(lead, shop_name, data, kanal):
 	# Bor mijozning ismi o'zgartirilmaydi (raqam oila a'zosiniki bo'lishi mumkin) — yangisi murojaatdagi ism bilan
 	customer = frappe._dict(phone=phone, customer=frappe.db.get_value("Customer", {"mp_phone": phone})
 	                        or customers.get_or_create_customer(phone, lead.ism or lead.mijoz_ismi, lead.familiya, shop=shop.name))
-	lines = [{"code": code, "qty": qty}]
 	# Majburiy tovar (masalan, o'qiydigan ruchka) — mijoz hali olmagan bo'lsa buyurtmaga 1 dona qo'shiladi
 	# (panelda ko'rinib turadi); variantlisining rang / o'lchamini menejer tanlaydi (qoshimcha)
 	chosen = set(data.qoshimcha or [])
-	for must in _must_items(shop_name, lead.normal_telefon, [code]):
+	for must in _must_items(shop_name, lead.normal_telefon, [ln["code"] for ln in lines]):
 		pick = next((o["code"] for o in must["options"] if o["code"] in chosen), None)
 		if not pick and must["has_variants"]:
 			frappe.throw(_("Majburiy tovar «{0}»: rang / o'lchamni tanlang").format(must["name"]))
