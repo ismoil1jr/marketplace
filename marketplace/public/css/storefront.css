@@ -549,6 +549,14 @@ html.sf-noscroll, html.sf-noscroll body { overflow: hidden; }
 	.sf-share__panel { border-radius: 22px; padding-bottom: 16px; }
 	.sf-gallery__nav, .sf-lightbox__nav { display: grid; }
 	.sf-gallery__nav[hidden] { display: none; }
+	/* Noutbukda Uzum kabi: sahifa xiralashadi, o'rtada oq tik karta (3:4) ichida rasm, o'ng tepada ×, yonlarda oq strelkalar */
+	.sf-lightbox { background: rgb(0 0 0 / .55); }
+	.sf-lightbox__track figure { display: flex; justify-content: center; padding: 36px 0; }
+	.sf-lightbox__track img { width: auto; max-width: 100%; aspect-ratio: 3 / 4; background: #fff; border-radius: 6px; }
+	.sf-lightbox__count { color: #fff; }
+	.sf-lightbox__back { top: 20px; left: auto; right: 20px; }
+	.sf-lightbox__back svg { display: none; }
+	.sf-lightbox__back::before { content: "×"; font-size: 30px; line-height: 1; }
 	.sf-related { max-width: 1180px; margin: 8px auto 0; padding: 0 var(--gutter) 48px; }
 	.sf-related .sf-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 	.sf-product:has(+ .sf-related) .sf-sheet { padding-bottom: 0; }

@@ -523,7 +523,11 @@ class SotuvPaneli {
 							${esc(o.label || o.code)} — ${o.qty === 0 ? __("tugagan") : `${o.qty} ${__("dona")}`}</option>`).join("")}
 					</select>` : `<div class="small text-muted">${it.options[0].qty === null ? "" : __("Omborda: {0} dona", [it.options[0].qty])}</div>`}
 				</div>
-				<label class="mp-sp__line-qty small text-muted">${__("Soni")}<input class="form-control input-sm" type="number" min="1" max="99" value="${l.qty}" data-line-qty></label>
+				<div class="mp-sp__stepper" title="${__("Soni")}">
+					<button type="button" data-line-minus aria-label="${__("Kamaytirish")}">−</button>
+					<input class="form-control input-sm" type="number" min="1" max="99" value="${l.qty}" data-line-qty>
+					<button type="button" data-line-plus aria-label="${__("Ko‘paytirish")}">+</button>
+				</div>
 				<button type="button" class="btn btn-xs btn-default mp-sp__line-del" data-line-del title="${__("Olib tashlash")}">✕</button>
 			</div>`;
 		};
@@ -532,6 +536,13 @@ class SotuvPaneli {
 			$item.html(state.lines.length ? state.lines.map(line_html).join("") : `<div class="small text-muted">${__("Tovar tanlanmagan — pastdan qidiring")}</div>`);
 			$item.find("[data-line-variant]").on("change", (e) => { line_of(e).code = e.currentTarget.value || null; sum(); });
 			$item.find("[data-line-qty]").on("input", (e) => { line_of(e).qty = Math.min(99, Math.max(1, parseInt(e.currentTarget.value, 10) || 1)); sum(); });
+			// [−] [+] — soni shu qatorning o'zida o'zgaradi
+			$item.find("[data-line-minus], [data-line-plus]").on("click", (e) => {
+				const l = line_of(e);
+				l.qty = Math.min(99, Math.max(1, l.qty + (e.currentTarget.hasAttribute("data-line-plus") ? 1 : -1)));
+				$(e.currentTarget).siblings("[data-line-qty]").val(l.qty);
+				sum();
+			});
 			$item.find("[data-line-del]").on("click", (e) => { state.lines.splice(state.lines.indexOf(line_of(e)), 1); draw(); });
 			draw_must();
 		};
@@ -690,7 +701,11 @@ class SotuvPaneli {
 			.mp-sp__dates input { width: 150px; }
 			.mp-sp__line { align-items: center; gap: 10px; }
 			.mp-sp__line .mp-sp__order-main { flex: 1; min-width: 0; }
-			.mp-sp__line-qty { display: grid; gap: 2px; width: 70px; flex: none; }
+			.mp-sp__stepper { display: inline-flex; align-items: center; flex: none; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; background: var(--card-bg); }
+			.mp-sp__stepper button { width: 30px; height: 30px; border: 0; background: var(--subtle-fg); color: var(--text-color); font-size: 17px; line-height: 1; cursor: pointer; }
+			.mp-sp__stepper button:hover { background: var(--border-color); }
+			.mp-sp__stepper input { width: 44px; height: 30px; padding: 0; border: 0; border-radius: 0; text-align: center; -moz-appearance: textfield; }
+			.mp-sp__stepper input::-webkit-outer-spin-button, .mp-sp__stepper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 			.mp-sp__line-del { flex: none; }
 			.mp-sp__modes button span { margin-left: 4px; padding: 0 6px; border-radius: 8px; background: var(--orange-500, #f97316); color: #fff; font-size: 11px; }
 			.mp-sp__book { color: var(--heading-color); font-size: var(--text-sm); max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
