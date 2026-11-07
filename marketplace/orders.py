@@ -369,6 +369,11 @@ def _notify(so):
 
 	notify_new_order(so)
 	enqueue_order_notification(so)
+	# O'zi olib ketadigan buyurtma menejer tasdig'isiz tayyorlanadi; kuryerniki — "Oladi"dan keyin (notify_couriers)
+	if so.get("delivery_method") != "Kuryer":
+		from marketplace.upakovka import notify_packers
+
+		notify_packers(so)
 
 
 def cancel_abandoned():

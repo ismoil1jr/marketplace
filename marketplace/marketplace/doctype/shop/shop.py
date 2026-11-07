@@ -111,7 +111,7 @@ class Shop(Document):
 		User Permission (Shop = shu do'kon) bo'lgan foydalanuvchi `shop` maydoni bor
 		har qanday DocType'da faqat shu do'kon yozuvlarini ko'radi.
 		"""
-		from marketplace.setup import COURIER_ROLE, SALES_ROLE, SELLER_ROLE
+		from marketplace.setup import COURIER_ROLE, PACKER_ROLE, SALES_ROLE, SELLER_ROLE
 
 		current = {m.user for m in self.members}
 		existing = set(
@@ -133,7 +133,7 @@ class Shop(Document):
 
 		# Kuryer — faqat yetkazish va mijozlar anketasi; Sotuv menejer — faqat Sotuv paneli;
 		# qolgan a'zolar — sotuvchi (do'kon paneli)
-		roles = (SELLER_ROLE, COURIER_ROLE, SALES_ROLE)
+		roles = (SELLER_ROLE, COURIER_ROLE, SALES_ROLE, PACKER_ROLE)
 		for m in self.members:
 			user = frappe.get_doc("User", m.user)
 			want = member_role(m.role)
@@ -148,7 +148,7 @@ class Shop(Document):
 		for user in existing - current:
 			for allow, value in (("Shop", self.name), ("Warehouse", self.warehouse)):
 				frappe.db.delete("User Permission", {"user": user, "allow": allow, "for_value": value})
-			frappe.get_doc("User", user).remove_roles(SELLER_ROLE, COURIER_ROLE, SALES_ROLE)
+			frappe.get_doc("User", user).remove_roles(SELLER_ROLE, COURIER_ROLE, SALES_ROLE, PACKER_ROLE)
 
 		frappe.clear_cache()
 
@@ -189,15 +189,15 @@ def block_erpnext_modules(user):
 
 def member_role(shop_role):
 	"""Do'kon a'zosi roli (Shop Member.role) -> tizim roli."""
-	from marketplace.setup import COURIER_ROLE, SALES_ROLE, SELLER_ROLE
+	from marketplace.setup import COURIER_ROLE, PACKER_ROLE, SALES_ROLE, SELLER_ROLE
 
-	return {"Kuryer": COURIER_ROLE, "Sotuv menejer": SALES_ROLE}.get(shop_role, SELLER_ROLE)
+	return {"Kuryer": COURIER_ROLE, "Sotuv menejer": SALES_ROLE, "Upakovkachi": PACKER_ROLE}.get(shop_role, SELLER_ROLE)
 
 
 def user_validate(doc, method=None):
 	"""User formasida rollar qo'lda o'zgartirilsa ham (Select All / Unselect All) do'kon a'zosi o'z rolida qoladi.
 	Do'kon a'zosiga admin roli berilmaydi: u bilan foydalanuvchi do'konsiz, admin bo'lib ko'radi."""
-	from marketplace.setup import COURIER_ROLE, SALES_ROLE, SELLER_ROLE
+	from marketplace.setup import COURIER_ROLE, PACKER_ROLE, SALES_ROLE, SELLER_ROLE
 
 	if doc.name in ("Administrator", "Guest"):
 		return
@@ -210,7 +210,7 @@ def user_validate(doc, method=None):
 	if not member:
 		# Do'kon rollari faqat do'kon a'zolari orqali: qo'lda berilsa foydalanuvchi do'konsiz qoladi va hech narsa
 		# ko'rmaydi (permissions.NOTHING) — shuning uchun darhol to'g'ri yo'lni aytamiz
-		shop_roles = sorted((roles - old) & {SELLER_ROLE, COURIER_ROLE, SALES_ROLE})
+		shop_roles = sorted((roles - old) & {SELLER_ROLE, COURIER_ROLE, SALES_ROLE, PACKER_ROLE})
 		if shop_roles and not frappe.is_setup_complete():
 			# Sozlash ustasi birinchi foydalanuvchiga barcha rollarni beradi — u platforma admini: do'kon rollari
 			# olib tashlanadi (ular bilan admin do'konsiz sotuvchi bo'lib, hech narsa ko'rmay qolardi)
@@ -220,7 +220,7 @@ def user_validate(doc, method=None):
 			frappe.throw(
 				_("{0} roli shu yerda belgilanmaydi — foydalanuvchini do'konga biriktiring: User formasidagi «Do'konga biriktirish» "
 				  "tugmasi yoki Do'kon formasi → A'zolar jadvali. Rolni o'sha yerda tanlaysiz: Ega / Menejer / Xodim — do'kon paneli, "
-				  "Kuryer — yetkazish, Sotuv menejer — sotuv paneli. Tizim roli, ruxsatlar va menyular o'zi qo'yiladi.").format(", ".join(shop_roles)),
+				  "Kuryer — yetkazish, Sotuv menejer — sotuv paneli, Upakovkachi — upakovka. Tizim roli, ruxsatlar va menyular o'zi qo'yiladi.").format(", ".join(shop_roles)),
 				title=_("Avval do'konga biriktiring"),
 			)
 		return

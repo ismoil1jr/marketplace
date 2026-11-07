@@ -47,16 +47,16 @@ COURIER_CARDS = [
 
 def _is_seller():
 	"""Do'kon egasi/xodimi yoki kuryer (platforma admini emas)."""
-	from marketplace.permissions import is_courier
+	from marketplace.permissions import is_courier, is_packer
 
 	if frappe.session.user in ("Administrator", "Guest"):
 		return False
 	roles = set(frappe.get_roles())
-	return (SELLER_ROLE in roles and not roles & {"System Manager", "Marketplace Manager"}) or is_courier()
+	return (SELLER_ROLE in roles and not roles & {"System Manager", "Marketplace Manager"}) or is_courier() or is_packer()
 
 
 def _shop_boot(shop, admin_view=False):
-	from marketplace.permissions import is_courier
+	from marketplace.permissions import is_courier, is_packer
 
 	shop = frappe.get_cached_doc("Shop", shop)
 	return {
@@ -67,6 +67,7 @@ def _shop_boot(shop, admin_view=False):
 		"layout": shop.layout_style or "vitrina",
 		"admin_view": int(admin_view),
 		"courier": int(not admin_view and is_courier() and frappe.session.user != "Administrator"),
+		"packer": int(not admin_view and is_packer() and frappe.session.user != "Administrator"),
 	}
 
 
@@ -96,6 +97,8 @@ def boot_session(bootinfo):
 
 	if sales:
 		route = "/desk/sotuv-paneli"
+	elif bootinfo.marketplace_shop["packer"]:
+		route = "/desk/upakovka"
 	else:
 		# Workspace hali yaratilmagan bo'lsa (migrate qilinmagan), ikonkani o'zgartirmaymiz
 		workspace = COURIER_WORKSPACE if bootinfo.marketplace_shop["courier"] else WORKSPACE
@@ -164,8 +167,12 @@ def notify_shop(doc, subject):
 
 def notify_couriers(doc):
 	"""Menejer mijoz bilan gaplashib "Oladi" deb tasdiqlagan yetkazish — do'kon kuryerlariga (sotuv/api.save_result)."""
+	from marketplace.upakovka import notify_packers
+
 	subject = _("Yetkazish {0}: {1} — {2}").format(doc.name, doc.customer_name, doc.get("delivery_address") or _("manzil yo'q"))
 	_notify_users(doc, subject, {"role": "Kuryer"})
+	# Upakovkachi ham shu paytdan boshlab buyurtmani yig'ib qo'yadi (kuryer kelguncha tayyor bo'lsin)
+	notify_packers(doc)
 
 
 def _notify_users(doc, subject, member_filters):

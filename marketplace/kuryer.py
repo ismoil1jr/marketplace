@@ -15,6 +15,7 @@ from marketplace.marketplace.doctype.rang.rang import color_names
 FIELDS = [
 	"name", "customer_name", "customer_phone", "shop", "payment_status", "payment_method", "grand_total",
 	"delivery_address", "transaction_date", "per_delivered", "mp_cash_status", "mp_delivered_at", "docstatus",
+	"mp_packed", "mp_packed_at",
 ]
 
 
@@ -66,6 +67,9 @@ def _row(so, shop_name, loyal):
 		"delivered_at": str(so.mp_delivered_at or ""),
 		"cash_in_hand": so.mp_cash_status == "Kuryerda",
 		"loyal": loyal.get(so.customer_phone),
+		# Upakovkachi yig'ib qadoqlab qo'ydimi (upakovka.py) — kuryer kelishidan oldin tayyor bo'lishi kerak
+		"packed": int(bool(so.get("mp_packed"))),
+		"packed_at": str(so.get("mp_packed_at") or ""),
 	}
 
 

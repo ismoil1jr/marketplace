@@ -176,6 +176,14 @@ def is_courier(user=None):
 	return COURIER_ROLE in roles and not roles & {SELLER_ROLE, "System Manager", "Marketplace Manager"}
 
 
+def is_packer(user=None):
+	"""Faqat upakovkachi (do'kon egasi/xodimi yoki admin emas) — Desk'da Upakovka sahifasi."""
+	from marketplace.setup import PACKER_ROLE, SELLER_ROLE
+
+	roles = set(frappe.get_roles(user or frappe.session.user))
+	return PACKER_ROLE in roles and not roles & {SELLER_ROLE, "System Manager", "Marketplace Manager"}
+
+
 def sales_order_query(user=None):
 	"""Saytdagi buyurtma mijoz naqdni tanlamaguncha yoki to'lamaguncha do'konga ko'rinmaydi (orders.confirm_order).
 	Kuryer — faqat kuryer bilan yetkaziladiganlar: hali hech kim olmagan yoki o'zi yetkazganlari."""

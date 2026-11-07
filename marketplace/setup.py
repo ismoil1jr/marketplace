@@ -16,6 +16,8 @@ from marketplace.seller_desk import setup_seller_workspace
 SELLER_ROLE = "Shop Seller"
 # Do'kon kuryeri: yetkaziladigan buyurtmalar, naqd pulni olish va doimiy mijozlar anketasi
 COURIER_ROLE = "Shop Courier"
+# Upakovkachi: tasdiqlangan buyurtmalarni kuryer kelguncha yig'ib qadoqlaydi (upakovka.py, dokon/page/upakovka)
+PACKER_ROLE = "Shop Packer"
 # Platforma xodimi: barcha do'konlarni boshqaradi, lekin tizim sozlamalariga (System Manager) kirmaydi
 MANAGER_ROLE = "Marketplace Manager"
 # Do'konning sotuv menejeri: Sotuv paneli (to'lanmagan buyurtmalar, qo'ng'iroqlar, natija). Faqat o'z do'koni
@@ -537,6 +539,36 @@ CUSTOM_FIELDS["Sales Order"] += [
 		"allow_on_submit": 1,
 		"no_copy": 1,
 	},
+	# Upakovka: upakovkachi buyurtmani yig'ib qadoqladi (upakovka.mark_packed) — kuryer ro'yxatida "📦 Tayyor"
+	{
+		"fieldname": "mp_packed",
+		"label": "Upakovka qilindi",
+		"fieldtype": "Check",
+		"insert_after": "mp_cash_handed_at",
+		"read_only": 1,
+		"allow_on_submit": 1,
+		"no_copy": 1,
+		"in_standard_filter": 1,
+	},
+	{
+		"fieldname": "mp_packed_at",
+		"label": "Upakovka vaqti",
+		"fieldtype": "Datetime",
+		"insert_after": "mp_packed",
+		"read_only": 1,
+		"allow_on_submit": 1,
+		"no_copy": 1,
+	},
+	{
+		"fieldname": "mp_packer",
+		"label": "Upakovkachi",
+		"fieldtype": "Link",
+		"options": "User",
+		"insert_after": "mp_packed_at",
+		"read_only": 1,
+		"allow_on_submit": 1,
+		"no_copy": 1,
+	},
 ]
 
 # Sotuvchi nima qila oladi. Qaysi do'kon ekanini User Permission cheklaydi.
@@ -574,6 +606,12 @@ COURIER_PERMISSIONS = {
 	"Sales Order": ["read", "write"],
 	"Customer": ["read"],
 	"Contact": ["read"],
+}
+
+# Upakovkachi: faqat o'z do'koni buyurtmalarini ko'radi (permissions.sales_order_query), belgini upakovka.py yozadi
+PACKER_PERMISSIONS = {
+	"Sales Order": ["read"],
+	"Customer": ["read"],
 }
 
 # Oldin berilgan, endi olib qo'yilgan huquqlar (migrate'da o'chiriladi)
@@ -615,6 +653,7 @@ def after_migrate():
 	setup_seller_role()
 	setup_courier_role()
 	setup_sales_role()
+	setup_packer_role()
 	setup_manager_role()
 	# Strict: shop maydoni bo'sh yozuvlar ham sotuvchiga ko'rinmaydi
 	frappe.db.set_single_value("System Settings", "apply_strict_user_permissions", 1)
@@ -756,6 +795,15 @@ def setup_courier_role():
 		add_permission(doctype, COURIER_ROLE, 0)
 		for right in rights:
 			update_permission_property(doctype, COURIER_ROLE, 0, right, 1, validate=False)
+
+
+def setup_packer_role():
+	if not frappe.db.exists("Role", PACKER_ROLE):
+		frappe.get_doc({"doctype": "Role", "role_name": PACKER_ROLE, "desk_access": 1}).insert(ignore_permissions=True)
+	for doctype, rights in PACKER_PERMISSIONS.items():
+		add_permission(doctype, PACKER_ROLE, 0)
+		for right in rights:
+			update_permission_property(doctype, PACKER_ROLE, 0, right, 1, validate=False)
 
 
 def set_level_permissions(role, levels):

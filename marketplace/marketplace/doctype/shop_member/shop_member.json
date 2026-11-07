@@ -25,15 +25,15 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Role",
-   "options": "Ega\nMenejer\nXodim\nKuryer\nSotuv menejer",
-   "description": "Kuryer faqat yetkaziladigan buyurtmalarni va doimiy mijozlar ro'yxatini ko'radi. Sotuv menejer — faqat Sotuv paneli (to'lanmagan buyurtmalar, qo'ng'iroqlar)"
+   "options": "Ega\nMenejer\nXodim\nKuryer\nSotuv menejer\nUpakovkachi",
+   "description": "Ega / Menejer / Xodim — do'kon paneli; Kuryer — yetkazish; Sotuv menejer — sotuv paneli; Upakovkachi — buyurtmalarni kuryer uchun yig'ib qadoqlash"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-10-26 17:00:00.000000",
+ "modified": "2026-11-07 16:00:00.000000",
  "modified_by": "Administrator",
  "module": "Marketplace",
  "name": "Shop Member",

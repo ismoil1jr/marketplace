@@ -53,6 +53,12 @@ class KuryerBuyurtmalar {
 		return `<span class="indicator-pill ${color} mp-kb__pill">${frappe.utils.escape_html(text)}</span>`;
 	}
 
+	// Upakovkachi tayyorlab qo'ydimi (upakovka.py): topshirilganda ko'rsatilmaydi
+	packed(o) {
+		if (o.state === "Topshirilgan" || o.state === "Bekor qilingan") return "";
+		return o.packed ? this.pill(`📦 ${__("Tayyor")}`, "green") : this.pill(`⏳ ${__("Upakovka")}`, "orange");
+	}
+
 	pay(o) {
 		const esc = frappe.utils.escape_html;
 		const cash_todo = o.payment_method === "Naqd" && o.payment_status === "Kutilmoqda";
@@ -66,7 +72,7 @@ class KuryerBuyurtmalar {
 			<div class="mp-kb__row" data-order="${esc(o.name)}" role="button" tabindex="0">
 				<div class="mp-kb__c mp-kb__cust"><b>${esc(o.customer_name || "—")}</b><small>${esc(o.name)}${o.loyal ? ` · ${__("doimiy mijoz")}` : ""}</small></div>
 				<div class="mp-kb__c mp-kb__phone">${o.phone ? `<a href="tel:${esc(o.phone)}" data-tel>${mp_kb_icon("phone")}${esc(this.phone(o.phone))}</a>` : "—"}</div>
-				<div class="mp-kb__c" data-label="${__("Holat")}">${this.pill(o.state, o.state_color)}</div>
+				<div class="mp-kb__c" data-label="${__("Holat")}">${this.pill(o.state, o.state_color)} ${this.packed(o)}</div>
 				<div class="mp-kb__c mp-kb__shop" data-label="${__("Do‘kon")}">${esc(o.shop_name || "")}</div>
 				<div class="mp-kb__c mp-kb__pay" data-label="${__("To‘lov")}">${this.pay(o)}</div>
 				<div class="mp-kb__c mp-kb__sum">${this.money(o.amount)}</div>
@@ -111,7 +117,10 @@ class KuryerBuyurtmalar {
 				<div class="mp-kb-d__top">
 					<div>
 						<div class="mp-kb-d__meta">${esc(o.name)} · ${esc(o.shop_name || "")}</div>
-						<div class="mp-kb-d__pills">${this.pill(o.state, o.state_color)} ${this.pay(o)}</div>
+						<div class="mp-kb-d__pills">${this.pill(o.state, o.state_color)} ${this.packed(o)} ${this.pay(o)}</div>
+						${o.state !== "Topshirilgan" && o.state !== "Bekor qilingan" ? `<div class="mp-kb-d__packed ${o.packed ? "is-ok" : ""}">${o.packed
+							? `📦 ${__("Upakovka qilingan")}: ${esc(frappe.datetime.str_to_user(o.packed_at))}`
+							: `⏳ ${__("Hali upakovka qilinmagan — do‘kondan olishdan oldin tayyorligini so‘rang")}`}</div>` : ""}
 					</div>
 					<div class="mp-kb-d__acts">
 						${o.phone ? `<a class="btn btn-default mp-kb-d__call" href="tel:${esc(o.phone)}">${mp_kb_icon("phone")}${esc(this.phone(o.phone))}</a>` : ""}
@@ -314,6 +323,8 @@ class KuryerBuyurtmalar {
 
 			.mp-kb-d__top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
 			.mp-kb-d__meta { color: var(--text-muted); font-size: var(--text-sm); }
+			.mp-kb-d__packed { margin-top: 8px; padding: 6px 10px; border-radius: var(--border-radius-lg); background: var(--bg-orange, #fff7ed); color: var(--orange-700, #c2410c); font-size: var(--text-sm); font-weight: 600; }
+			.mp-kb-d__packed.is-ok { background: var(--bg-green, #f0fdf4); color: var(--green-700, #15803d); }
 			.mp-kb-d__pills { display: flex; align-items: center; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
 			.mp-kb-d__pills small { color: var(--text-muted); }
 			.mp-kb-d__acts { display: flex; gap: 8px; flex-wrap: wrap; }
