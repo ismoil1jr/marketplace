@@ -97,13 +97,15 @@ def order(name: str):
 	titles = dict(frappe.get_all("Item", filters={"name": ["in", [v for v in names.values() if v] or [""]]}, fields=["name", "item_name"], as_list=True))
 	labels = variant_labels(codes)
 	images = _line_images(codes)
+	# Upakovkachiga har tovarning bitta — asosiy (galereyada birinchi qo'yilgan, rangli variantda o'sha rangdagi
+	# birinchi) rasmi yetarli; barcha rasmlar kartani cho'zib yuborar edi
 	items = [
 		{
 			"code": i.item_code,
 			"name": titles.get(names.get(i.item_code)) or i.item_name,
 			"variant": labels.get(i.item_code) or "",
 			"qty": flt(i.qty),
-			"images": images.get(i.item_code) or [],
+			"images": (images.get(i.item_code) or [])[:1],
 		}
 		for i in so.items
 	]
