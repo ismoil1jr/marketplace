@@ -67,6 +67,53 @@ def place_order(shop, lines, delivery_method, address, customer):
 		return _create_sales_order(shop, cart, delivery_method, address, customer)
 
 
+def add_lines(so, lines, who=None):
+	"""Sotuv menejeri mijoz bilan gaplashib buyurtmaga tovar qo'shdi (sotuv paneli: Buyurtmalar va Murojaatlar).
+	Alohida buyurtma emas — shu buyurtmaning o'ziga qator qo'shiladi (upakovkachi va kuryer bitta buyurtma ko'radi).
+	Narx va qoldiq — serverdan (get_cart_lines); bir xil tovar bo'lsa, mavjud qator soni oshadi.
+	ERPNext update_child_qty_rate — tasdiqlangan buyurtmada summalar va zaxira qayta hisoblanadi."""
+	import json
+
+	from erpnext.controllers.accounts_controller import update_child_qty_rate
+
+	if so.docstatus != 1 or so.payment_status == "Bekor":
+		frappe.throw(_("Bekor qilingan buyurtmaga tovar qo'shib bo'lmaydi"))
+	if flt(so.per_delivered) >= 100:
+		frappe.throw(_("Buyurtma allaqachon topshirilgan"))
+	if so.payment_status == "To'langan" and so.payment_method != "Naqd":
+		frappe.throw(_("Onlayn to'langan buyurtmaga tovar qo'shib bo'lmaydi — mijoz yangi buyurtma bersin"))
+	shop = storefront.get_shop(so.shop)
+	cart = storefront.get_cart_lines(shop, lines)
+	if not cart:
+		frappe.throw(_("Tanlangan tovar sotuvda yo'q yoki tugagan"))
+	requested = {line.get("code"): int(line.get("qty") or 0) for line in lines}
+	short = [c["name"] for c in cart if c["qty"] < requested.get(c["code"], 0)]
+	if short:
+		frappe.throw(_("Yetarli qolmagan: {0}").format(", ".join(short)))
+
+	data = [
+		{
+			"docname": row.name, "item_code": row.item_code, "qty": flt(row.qty), "rate": flt(row.rate), "uom": row.uom,
+			"conversion_factor": flt(row.conversion_factor) or 1, "delivery_date": str(row.delivery_date or so.delivery_date or ""),
+			"description": row.description,
+		}
+		for row in so.items
+	]
+	by_code = {d["item_code"]: d for d in data}
+	for c in cart:
+		if c["code"] in by_code:
+			by_code[c["code"]]["qty"] = min(99, by_code[c["code"]]["qty"] + c["qty"])
+		else:
+			data.append({"item_code": c["code"], "qty": c["qty"], "rate": c["price"], "warehouse": so.set_warehouse or shop.warehouse,
+			             "delivery_date": str(so.delivery_date or add_days(today(), 2))})
+	with as_system():
+		update_child_qty_rate("Sales Order", json.dumps(data), so.name)
+	so.reload()
+	added = ", ".join(f"{c['name']}{' (' + c['variant'] + ')' if c.get('variant') else ''} × {c['qty']}" for c in cart)
+	so.add_comment("Info", _("{0}: buyurtmaga qo'shildi — {1}").format(who or frappe.utils.get_fullname(), added))
+	return cart
+
+
 def _release_pending(shop_name, customer):
 	"""Mijoz to'lov sahifasidan qaytib, savatni qayta rasmiylashtiryapti: oldingi yakunlanmagan buyurtmasi bekor
 	qilinadi — zaxira bo'shaydi (aks holda oxirgi dona "yetarli qolmagan" bo'lib qoladi), do'konda ikkita

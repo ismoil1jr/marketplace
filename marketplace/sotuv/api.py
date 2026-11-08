@@ -129,7 +129,10 @@ def _state(so):
 @frappe.whitelist()
 def get_order(name: str):
 	"""Buyurtma kartasi: xarid qilingan tovarlar, qo'ng'iroqlar (audio) va natijalar tarixi."""
-	shop = _shop()
+	# Admin boshqa tabda do'kon panelidan chiqqan (yoki qayta kirgan) bo'lsa — xato emas, "do'konni tanlang" (JS)
+	shop = _shop(admin_optional=True)
+	if not shop:
+		return {"need_shop": True}
 	so = _order(name, shop)
 	from marketplace.storefront import variant_labels
 
@@ -187,6 +190,9 @@ def get_order(name: str):
 		"payment_method": so.payment_method, "delivery_method": so.get("delivery_method"),
 		"delivery_address": so.get("delivery_address"), "items": items, "calls": calls, "logs": logs, "unlinked": unlinked,
 		"can_cancel": _can_cancel(so), "mandatory": mandatory_info(shop, so.customer_phone, so),
+		# Menejer mijoz bilan gaplashib yana tovar qo'shishi mumkin (orders.add_lines) — onlayn to'langanida yo'q
+		"can_add": so.docstatus == 1 and so.payment_status != CANCELLED and flt(so.per_delivered) < 100
+		           and not (so.payment_status == "To'langan" and so.payment_method != "Naqd"),
 		# Kuryer buyurtmani faqat menejer "Oladi" deganidan keyin ko'radi (permissions.sales_order_query)
 		"courier_open": _courier_open(so), "confirmed": so.get("mp_aloqa_natija") == "Oladi",
 	}
@@ -296,15 +302,21 @@ def attach_call(call: str, order: str):
 
 @frappe.whitelist(methods=["POST"])
 def save_result(order: str, kanal: str, natija: str, izoh: str | None = None, keyingi_qongiroq: str | None = None,
-                bekor: int = 0, manzil: str | None = None):
+                bekor: int = 0, manzil: str | None = None, qoshimcha: str | list | None = None):
 	"""Menejer natijasi. Oladi — saytda yakunlanmagan buyurtma tasdiqlanadi (naqd) va do'konga tushadi, kuryer
 	yetkazishni shundan keyingina ko'radi (xabar ham oladi); Olmaydi + bekor — buyurtma bekor qilinadi
-	(zaxira bo'shaydi, tovar sotuvga qaytadi). manzil — menejer mijoz bilan aniqlashtirgan yetkazish manzili."""
+	(zaxira bo'shaydi, tovar sotuvga qaytadi). manzil — menejer mijoz bilan aniqlashtirgan yetkazish manzili.
+	qoshimcha — [{"item", "qty"}]: mijoz rozi bo'lgan qo'shimcha tovarlar, shu buyurtmaning o'ziga qo'shiladi (Oladi'da)."""
+	from marketplace.orders import add_lines
+
 	shop = _shop()
 	so = _order(order, shop)
 	if kanal not in CHANNELS or natija not in RESULTS:
 		frappe.throw(_("Kanal va natijani tanlang"))
 	was_confirmed = so.get("mp_aloqa_natija") == "Oladi"
+	extra = [{"code": (l.get("item") or "").strip(), "qty": cint(l.get("qty")) or 1} for l in (frappe.parse_json(qoshimcha) or []) if l.get("item")]
+	if extra and natija == "Oladi":
+		add_lines(so, extra)
 	manzil = (manzil or "").strip()[:500]
 	if manzil and _courier_open(so) and manzil != (so.get("delivery_address") or "").strip():
 		so.db_set("delivery_address", manzil, update_modified=False)

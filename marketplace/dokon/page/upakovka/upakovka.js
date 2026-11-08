@@ -82,7 +82,12 @@ class Upakovka {
 		const dialog = new frappe.ui.Dialog({ title: `${esc(o.customer_name || o.name)} · ${format_number(o.qty, null, 0)} ${__("dona")}`, size: "large" });
 		dialog.$body.html(`
 			<div class="mp-up-d">
-				<div class="mp-up-d__meta">${esc(o.name)} · ${this.method(o)}${o.address ? ` · 📍 ${esc(o.address)}` : ""}</div>
+				<div class="mp-up-d__who">
+					<div><b>${esc(o.customer_name || "—")}</b>${o.phone ? ` · <a href="tel:${esc(o.phone)}">${esc(o.phone)}</a>` : ""}</div>
+					<div class="mp-up-d__meta">${esc(o.name)} · ${this.method(o)}</div>
+					${o.address ? `<div class="mp-up-d__addr">📍 ${esc(o.address)}</div>` : ""}
+					<button type="button" class="btn btn-default btn-xs mp-up-d__print" data-print>🖨 ${__("Yorliq chop etish (5×3 sm)")}</button>
+				</div>
 				${o.packed ? `<div class="mp-up-d__done">📦 ${__("Upakovka qilingan")}: ${esc(this.when(o.packed_at))}${o.packer ? ` · ${esc(o.packer)}` : ""}</div>` : ""}
 				<div class="mp-up-d__items">${o.items.map((i, n) => `
 					<div class="mp-up-d__item">
@@ -97,6 +102,7 @@ class Upakovka {
 					</div>`).join("")}</div>
 			</div>`);
 		this.bind_images(dialog, o);
+		dialog.$body.find("[data-print]").on("click", () => this.print_label(o));
 		if (!o.packed && !o.delivered) {
 			if (!o.confirmed) {
 				dialog.$body.append(`<div class="mp-up-d__wait">${__("Menejer hali mijoz bilan gaplashib tasdiqlamagan")}</div>`);
@@ -119,6 +125,37 @@ class Upakovka {
 			});
 		}
 		dialog.show();
+	}
+
+	// Ixtiyoriy: 50×30 mm yorliq (Uzum'dagidek) — buyurtma ID, mijoz, telefon, manzil, tovarlar × soni.
+	// Upakovkachi uni qutiga yopishtiradi, kuryer buyurtmani tez topadi. Yorliq printeri bo'lmasa, oddiy A4 ga ham chiqadi.
+	print_label(o) {
+		const esc = frappe.utils.escape_html;
+		const items = o.items.map((i) => `${esc(i.name)}${i.variant ? ` (${esc(i.variant)})` : ""} × ${format_number(i.qty, null, 0)}`).join(", ");
+		const html = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(o.name)}</title>
+			<style>
+				@page { size: 50mm 30mm; margin: 2mm; }
+				html, body { margin: 0; padding: 0; }
+				body { width: 46mm; font: 7pt/1.25 Arial, Helvetica, sans-serif; color: #000; }
+				.id { font-size: 10pt; font-weight: 700; letter-spacing: .02em; margin-bottom: 1mm; }
+				.who { font-weight: 700; }
+				.addr, .items { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; }
+				.addr { -webkit-line-clamp: 2; }
+				.items { -webkit-line-clamp: 2; margin-top: 1mm; font-size: 6.5pt; }
+				.shop { margin-top: 1mm; font-size: 6pt; color: #333; }
+			</style></head><body>
+			<div class="id">${esc(o.name)}</div>
+			<div class="who">${esc(o.customer_name || "")}${o.phone ? ` · ${esc(o.phone)}` : ""}</div>
+			<div class="addr">${esc(o.delivery_method === "Kuryer" ? (o.address || "") : __("Mijoz o‘zi olib ketadi"))}</div>
+			<div class="items">${items}</div>
+			<div class="shop">${esc(this.data.shop_name || "")} · ${format_number(o.qty, null, 0)} ${__("dona")}</div>
+			<script>window.onload = () => { window.print(); setTimeout(() => window.close(), 500); };</script>
+			</body></html>`;
+		const w = window.open("", "_blank", "width=420,height=320");
+		if (!w) return frappe.show_alert({ message: __("Brauzer yangi oynani bloklagan — ruxsat bering"), indicator: "orange" });
+		w.document.open();
+		w.document.write(html);
+		w.document.close();
 	}
 
 	// Rasm bosilganda — katta ko'rinish (kuryer sahifasidagi bilan bir xil)
@@ -169,7 +206,11 @@ class Upakovka {
 			.mp-up__side small { color: var(--text-muted); }
 			@media (max-width: 560px) { .mp-up__row { grid-template-columns: 1fr; } .mp-up__side { justify-items: start; text-align: left; } }
 
-			.mp-up-d__meta { color: var(--text-muted); font-size: var(--text-sm); margin-bottom: 10px; }
+			.mp-up-d__who { display: grid; gap: 3px; margin-bottom: 12px; padding: 10px 12px; border-radius: var(--border-radius-lg); background: var(--subtle-fg); }
+			.mp-up-d__who > div:first-child { font-size: var(--text-lg); }
+			.mp-up-d__meta { color: var(--text-muted); font-size: var(--text-sm); }
+			.mp-up-d__addr { font-weight: 600; }
+			.mp-up-d__print { justify-self: start; margin-top: 4px; }
 			.mp-up-d__done { margin-bottom: 10px; padding: 8px 12px; border-radius: var(--border-radius-lg); background: var(--bg-green, #f0fdf4); color: var(--green-700, #15803d); font-weight: 600; }
 			.mp-up-d__items { display: grid; gap: 10px; }
 			.mp-up-d__item { display: grid; grid-template-columns: auto 1fr; gap: 16px; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--border-radius-lg); background: var(--card-bg); }

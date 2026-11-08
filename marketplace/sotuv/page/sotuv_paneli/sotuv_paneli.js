@@ -200,6 +200,7 @@ class SotuvPaneli {
 		const leads = this.state.mode === "murojaat";
 		const d = await frappe.xcall(leads ? "marketplace.sotuv.murojaat.get_lead" : "marketplace.sotuv.api.get_order", { name });
 		if (this.state.open !== name) return;
+		if (d.need_shop) return this.render_need_shop();
 		this.order = d;
 		$card.html(leads ? this.lead_card(d) : this.card(d));
 		leads ? this.bind_lead_card($card, d) : this.bind_card($card, d);
@@ -265,6 +266,8 @@ class SotuvPaneli {
 			${this.must_html(d.mandatory)}
 			<div class="mp-sp__sec">${__("Xarid qilingan tovarlar")}</div>
 			<table class="mp-sp__items"><thead><tr><th>${__("Tovar")}</th><th class="num">${__("Soni")}</th><th class="num">${__("Narxi")}</th><th class="num">${__("Summa")}</th></tr></thead><tbody>${items}</tbody></table>
+			${d.can_add ? `<div class="mp-sp__sec">${__("Mijoz yana tovar olmoqchi bo‘lsa")}</div>
+				${this.add_lines_html(__("Qo‘shilgan tovar shu buyurtmaning o‘ziga yoziladi (alohida buyurtma emas) — «Oladi» bilan saqlanganda"))}` : ""}
 
 			<div class="mp-sp__sec">${__("Natija yozish")}</div>
 			<div class="mp-sp__form">
@@ -307,6 +310,8 @@ class SotuvPaneli {
 			this.bind_card($card, fresh);
 		});
 		const pick = { kanal: "Qo‘ng‘iroq", natija: null };
+		const $add = $card.find("[data-add-box]");
+		const extra = $add.length ? this.bind_lines($add, [], (ls) => this.lines_sum($add, ls)) : null;
 		$card.find(".mp-sp__seg button").on("click", (e) => {
 			const $b = $(e.currentTarget);
 			const group = $b.closest(".mp-sp__seg").data("group");
@@ -320,11 +325,19 @@ class SotuvPaneli {
 		$card.find("[data-save]").on("click", async (e) => {
 			if (!pick.natija) return frappe.show_alert({ message: __("Natijani tanlang: Oladi, Olmaydi, Javob bermadi yoki Keyinroq"), indicator: "orange" });
 			const bekor = pick.natija === "Olmaydi" && $card.find("[data-cancel]").is(":checked") ? 1 : 0;
+			// Qo'shimcha tovarlar faqat «Oladi» bilan buyurtmaga yoziladi
+			let qoshimcha = null;
+			if (extra && extra.lines().length) {
+				if (pick.natija !== "Oladi") return frappe.show_alert({ message: __("Qo‘shilgan tovarlar faqat «Oladi» natijasi bilan buyurtmaga yoziladi"), indicator: "orange" });
+				const v = extra.value();
+				if (v.error) return frappe.show_alert({ message: v.error, indicator: "orange" });
+				qoshimcha = JSON.stringify(v.lines);
+			}
 			const go = async () => {
 				e.currentTarget.disabled = true;
 				try {
 					const r = await frappe.xcall("marketplace.sotuv.api.save_result", {
-						order: d.name, kanal: pick.kanal, natija: pick.natija, bekor,
+						order: d.name, kanal: pick.kanal, natija: pick.natija, bekor, qoshimcha,
 						izoh: $card.find("[data-izoh]").val() || null,
 						manzil: $card.find("[data-manzil]").val() || null,
 						keyingi_qongiroq: $card.find("[data-next]").val() || null,
@@ -460,7 +473,7 @@ class SotuvPaneli {
 					buyurtma: buyurtma ? JSON.stringify(buyurtma) : null,
 				});
 				frappe.show_alert({
-					message: r.order ? __("Buyurtma {0} yaratildi ({1}) — kuryerga o‘tdi", [r.order, this.money(r.total)]) : __("Saqlandi"),
+					message: r.order ? (buyurtma && buyurtma.add_to ? __("{0} buyurtmasiga qo‘shildi ({1})", [r.order, this.money(r.total)]) : __("Buyurtma {0} yaratildi ({1}) — kuryerga o‘tdi", [r.order, this.money(r.total)])) : __("Saqlandi"),
 					indicator: "green",
 				}, r.order ? 8 : 4);
 				await this.load();
@@ -470,11 +483,134 @@ class SotuvPaneli {
 		});
 	}
 
-	// «Oladi»: menejer mijoz bilan kelishgan buyurtma — bir nechta tovar bo'lishi mumkin (mijozga taklif qilib
-	// qo'shilganlari ham), har birida rang/o'lcham va soni; yetkazish usuli, manzil
+	// Tovar qatorlari (umumiy): murojaatdan buyurtma va mavjud buyurtmaga qo'shish. Har qatorda rang/o'lcham,
+	// [−] soni [+], ✕; pastdagi qidiruvdan yana tovar qo'shiladi. $box ichida: [data-order-item], [data-item-q], [data-item-list]
+	bind_lines($box, initial, onchange) {
+		const esc = frappe.utils.escape_html;
+		const state = { lines: initial || [] };
+		const $item = $box.find("[data-order-item]");
+		const line_html = (l, i) => {
+			const it = l.item;
+			const sellable = it.options.filter((o) => o.qty === null || o.qty > 0);
+			if (l.code === null) l.code = it.has_variants ? (sellable.length === 1 ? sellable[0].code : null) : it.code;
+			const warn = it.soon ? __("«Tez kunda» — hali sotuvda yo‘q") : !it.published ? __("Saytda yopiq — avval saytga chiqaring") : !sellable.length ? __("Omborda qolmagan") : "";
+			return `<div class="mp-sp__book-card mp-sp__line" data-line="${i}">
+				${it.image ? `<img src="${esc(it.image)}" alt="">` : ""}
+				<div class="mp-sp__order-main"><b>${esc(it.name)}</b>
+					${warn ? `<div class="small text-danger">⚠️ ${warn}</div>` : ""}
+					${it.has_variants ? `<select class="form-control input-sm" data-line-variant>
+						<option value="">${__("Rang / o‘lcham tanlang")}</option>
+						${it.options.map((o) => `<option value="${esc(o.code)}" ${o.qty === 0 ? "disabled" : ""} ${o.code === l.code ? "selected" : ""}>
+							${esc(o.label || o.code)} — ${o.qty === 0 ? __("tugagan") : `${o.qty} ${__("dona")}`}</option>`).join("")}
+					</select>` : `<div class="small text-muted">${it.options[0].qty === null ? "" : __("Omborda: {0} dona", [it.options[0].qty])}</div>`}
+				</div>
+				<div class="mp-sp__stepper" title="${__("Soni")}">
+					<button type="button" data-line-minus aria-label="${__("Kamaytirish")}">−</button>
+					<input class="form-control input-sm" type="number" min="1" max="99" value="${l.qty}" data-line-qty>
+					<button type="button" data-line-plus aria-label="${__("Ko‘paytirish")}">+</button>
+				</div>
+				<button type="button" class="btn btn-xs btn-default mp-sp__line-del" data-line-del title="${__("Olib tashlash")}">✕</button>
+			</div>`;
+		};
+		const line_of = (e) => state.lines[+e.currentTarget.closest("[data-line]").dataset.line];
+		const changed = () => onchange && onchange(state.lines);
+		const draw = () => {
+			$item.html(state.lines.length ? state.lines.map(line_html).join("") : `<div class="small text-muted">${__("Tovar tanlanmagan — pastdan qidiring")}</div>`);
+			$item.find("[data-line-variant]").on("change", (e) => { line_of(e).code = e.currentTarget.value || null; changed(); });
+			$item.find("[data-line-qty]").on("input", (e) => { line_of(e).qty = Math.min(99, Math.max(1, parseInt(e.currentTarget.value, 10) || 1)); changed(); });
+			// [−] [+] — soni shu qatorning o'zida o'zgaradi
+			$item.find("[data-line-minus], [data-line-plus]").on("click", (e) => {
+				const l = line_of(e);
+				// Omborda nechta bo'lsa — shundan oshmaydi (server baribir tekshiradi)
+				const opt = l.item.options.find((o) => o.code === l.code);
+				const max = opt && opt.qty !== null && opt.qty !== undefined ? Math.min(99, opt.qty) : 99;
+				const next = l.qty + (e.currentTarget.hasAttribute("data-line-plus") ? 1 : -1);
+				if (next > max) return frappe.show_alert({ message: __("Omborda faqat {0} dona bor", [max]), indicator: "orange" });
+				l.qty = Math.max(1, next);
+				$(e.currentTarget).siblings("[data-line-qty]").val(l.qty);
+				changed();
+			});
+			$item.find("[data-line-del]").on("click", (e) => { state.lines.splice(state.lines.indexOf(line_of(e)), 1); draw(); });
+			changed();
+		};
+		// Tovar qidirish (sotuv menejerida Item ruxsati yo'q — o'z endpoint'i: faqat shu do'kon tovarlari)
+		const $q = $box.find("[data-item-q]");
+		const $list = $box.find("[data-item-list]");
+		let timer;
+		$q.on("input", () => {
+			clearTimeout(timer);
+			timer = setTimeout(async () => {
+				const q = $q.val().trim();
+				if (q.length < 2) return $list.prop("hidden", true);
+				const rows = await frappe.xcall("marketplace.sotuv.murojaat.item_search", { q });
+				$list.html(rows.length ? rows.map((r) => `<button type="button" data-code="${esc(r.name)}">
+					${r.image ? `<img src="${esc(r.image)}" alt="">` : ""}<span>${esc(r.item_name)}</span><span class="text-muted small">${esc(r.name)}</span></button>`).join("")
+					: `<div class="small text-muted">${__("Topilmadi")}</div>`).prop("hidden", false);
+			}, 250);
+		});
+		$list.on("click", "button[data-code]", async (e) => {
+			const it = await frappe.xcall("marketplace.sotuv.murojaat.order_item", { item: e.currentTarget.dataset.code });
+			$q.val("");
+			$list.prop("hidden", true);
+			if (!it) return;
+			const same = !it.has_variants && state.lines.find((l) => l.item.code === it.code);
+			if (same) same.qty = Math.min(99, same.qty + 1);
+			else state.lines.push({ item: it, code: null, qty: 1 });
+			draw();
+		});
+		draw();
+		return {
+			lines: () => state.lines,
+			// Serverga: [{item: variant/tovar kodi, qty}]; rang/o'lcham tanlanmagan bo'lsa — xato matni
+			value: () => {
+				for (const l of state.lines) if (!l.code) return { error: __("«{0}»: rang / o‘lchamni tanlang", [l.item.name]) };
+				return { lines: state.lines.map((l) => ({ item: l.code, qty: l.qty })) };
+			},
+		};
+	}
+
+	// Mavjud buyurtmaga qo'shish bloki (Buyurtmalar kartasi)
+	add_lines_html(label) {
+		return `<div class="mp-sp__order" data-add-box>
+			<div class="small text-muted">${label}</div>
+			<div class="mp-sp__order-item" data-order-item></div>
+			<div class="mp-sp__picker">
+				<input class="form-control input-sm" data-item-q placeholder="${__("➕ Tovar qo‘shish: nomi yoki kodi…")}" autocomplete="off">
+				<div class="mp-sp__picker-list" data-item-list hidden></div>
+			</div>
+			<div class="small mp-sp__order-sum" data-order-sum></div>
+		</div>`;
+	}
+
+	lines_sum($box, lines, extra = 0) {
+		let total = extra, known = lines.length > 0;
+		for (const l of lines) {
+			const opt = l.item.options.find((o) => o.code === l.code);
+			if (opt && opt.price) total += opt.price * l.qty;
+			else known = false;
+		}
+		$box.find("[data-order-sum]").html(known ? `${__("Taxminan")}: <b>${this.money(total)}</b> <span class="text-muted">(${__("aniq narx — server hisoblaydi, ulgurji chegirma bilan")})</span>` : "");
+	}
+
+	// «Oladi»: menejer mijoz bilan kelishgan buyurtma — bir nechta tovar (mijozga taklif qilib qo'shilganlari ham),
+	// har birida rang/o'lcham va soni; yetkazish usuli, manzil. Murojaatdan ochiq buyurtma bo'lsa — yangi tovar
+	// o'sha buyurtmaning o'ziga qo'shiladi (alohida buyurtma emas: upakovkachi va kuryer bittani ko'radi)
 	lead_order_html(d) {
 		const esc = frappe.utils.escape_html;
 		const f = d.order_form || {};
+		if (f.existing_open) {
+			return `<div class="mp-sp__order" data-order-box hidden>
+				<div class="small mp-sp__conf">ℹ️ ${__("Bu murojaatdan buyurtma bor: {0}. Mijoz yana tovar olsa — shu buyurtmaning o‘ziga qo‘shiladi", [esc(f.existing)])}</div>
+				<div data-order-fields>
+					<div class="mp-sp__order-item" data-order-item></div>
+					<div class="mp-sp__picker">
+						<input class="form-control input-sm" data-item-q placeholder="${__("➕ Tovar qo‘shish: nomi yoki kodi…")}" autocomplete="off">
+						<div class="mp-sp__picker-list" data-item-list hidden></div>
+					</div>
+					<div class="small mp-sp__order-sum" data-order-sum></div>
+				</div>
+			</div>`;
+		}
 		return `<div class="mp-sp__order" data-order-box hidden>
 			${f.existing ? `<div class="small mp-sp__conf">ℹ️ ${__("Bu murojaatdan buyurtma bor: {0}", [esc(f.existing)])}</div>` : ""}
 			<label class="mp-sp__chk"><input type="checkbox" data-make-order ${f.existing ? "" : "checked"}> <b>${__("Buyurtma yaratilsin")}</b>
@@ -504,51 +640,30 @@ class SotuvPaneli {
 
 	bind_lead_order($card, d) {
 		const esc = frappe.utils.escape_html;
-		const first = (d.order_form || {}).item;
-		// Har qator: tovar (andoza), tanlangan variant kodi, soni
-		const state = { lines: first ? [{ item: first, code: null, qty: 1 }] : [] };
-		const $item = $card.find("[data-order-item]");
-		const line_html = (l, i) => {
-			const it = l.item;
-			const sellable = it.options.filter((o) => o.qty === null || o.qty > 0);
-			if (l.code === null) l.code = it.has_variants ? (sellable.length === 1 ? sellable[0].code : null) : it.code;
-			const warn = it.soon ? __("«Tez kunda» — hali sotuvda yo‘q") : !it.published ? __("Saytda yopiq — avval saytga chiqaring") : !sellable.length ? __("Omborda qolmagan") : "";
-			return `<div class="mp-sp__book-card mp-sp__line" data-line="${i}">
-				${it.image ? `<img src="${esc(it.image)}" alt="">` : ""}
-				<div class="mp-sp__order-main"><b>${esc(it.name)}</b>
-					${warn ? `<div class="small text-danger">⚠️ ${warn}</div>` : ""}
-					${it.has_variants ? `<select class="form-control input-sm" data-line-variant>
-						<option value="">${__("Rang / o‘lcham tanlang")}</option>
-						${it.options.map((o) => `<option value="${esc(o.code)}" ${o.qty === 0 ? "disabled" : ""} ${o.code === l.code ? "selected" : ""}>
-							${esc(o.label || o.code)} — ${o.qty === 0 ? __("tugagan") : `${o.qty} ${__("dona")}`}</option>`).join("")}
-					</select>` : `<div class="small text-muted">${it.options[0].qty === null ? "" : __("Omborda: {0} dona", [it.options[0].qty])}</div>`}
-				</div>
-				<div class="mp-sp__stepper" title="${__("Soni")}">
-					<button type="button" data-line-minus aria-label="${__("Kamaytirish")}">−</button>
-					<input class="form-control input-sm" type="number" min="1" max="99" value="${l.qty}" data-line-qty>
-					<button type="button" data-line-plus aria-label="${__("Ko‘paytirish")}">+</button>
-				</div>
-				<button type="button" class="btn btn-xs btn-default mp-sp__line-del" data-line-del title="${__("Olib tashlash")}">✕</button>
-			</div>`;
-		};
-		const line_of = (e) => state.lines[+e.currentTarget.closest("[data-line]").dataset.line];
-		const draw = () => {
-			$item.html(state.lines.length ? state.lines.map(line_html).join("") : `<div class="small text-muted">${__("Tovar tanlanmagan — pastdan qidiring")}</div>`);
-			$item.find("[data-line-variant]").on("change", (e) => { line_of(e).code = e.currentTarget.value || null; sum(); });
-			$item.find("[data-line-qty]").on("input", (e) => { line_of(e).qty = Math.min(99, Math.max(1, parseInt(e.currentTarget.value, 10) || 1)); sum(); });
-			// [−] [+] — soni shu qatorning o'zida o'zgaradi
-			$item.find("[data-line-minus], [data-line-plus]").on("click", (e) => {
-				const l = line_of(e);
-				l.qty = Math.min(99, Math.max(1, l.qty + (e.currentTarget.hasAttribute("data-line-plus") ? 1 : -1)));
-				$(e.currentTarget).siblings("[data-line-qty]").val(l.qty);
-				sum();
-			});
-			$item.find("[data-line-del]").on("click", (e) => { state.lines.splice(state.lines.indexOf(line_of(e)), 1); draw(); });
-			draw_must();
-		};
+		const f = d.order_form || {};
+		const $box = $card.find("[data-order-box]");
+		// Ochiq buyurtma bor: faqat qo'shimcha tovarlar, o'sha buyurtmaga
+		if (f.existing_open) {
+			const lines = this.bind_lines($box, [], (ls) => this.lines_sum($box, ls));
+			return {
+				value: () => {
+					if (!lines.lines().length) return null;
+					const v = lines.value();
+					return v.error ? v : { add_to: f.existing, lines: v.lines };
+				},
+			};
+		}
+		const first = f.item;
+		let lines;
+		const must_extra = () => this.must_for(d, lines.lines()).reduce((t, m) => {
+			const code = m.has_variants ? $card.find(`[data-must-variant="${m.code}"]`).val() : m.code;
+			const o = m.options.find((x) => x.code === code) || m.options[0];
+			return t + ((o && o.price) || 0);
+		}, 0);
+		const sum = () => this.lines_sum($box, lines.lines(), must_extra());
 		// Majburiy tovar: mijoz hali olmagan bo'lsa buyurtmaga 1 dona o'zi qo'shiladi (buyurtmadagi tovarning o'zi bo'lsa — yo'q)
 		const draw_must = () => {
-			const list = this.must_for(d, state.lines);
+			const list = this.must_for(d, lines.lines());
 			$card.find("[data-order-must]").html(list.map((m) => `<div class="mp-sp__must small">
 				<b>➕ ${__("Majburiy tovar ham qo‘shiladi")}: ${esc(m.name)}</b>
 				${m.has_variants ? `<select class="form-control input-sm" data-must-variant="${esc(m.code)}">
@@ -558,57 +673,17 @@ class SotuvPaneli {
 			$card.find("[data-must-variant]").on("change", sum);
 			sum();
 		};
-		const sum = () => {
-			let total = 0, known = state.lines.length > 0;
-			for (const l of state.lines) {
-				const opt = l.item.options.find((o) => o.code === l.code);
-				if (opt && opt.price) total += opt.price * l.qty;
-				else known = false;
-			}
-			total += this.must_for(d, state.lines).reduce((t, m) => {
-				const code = m.has_variants ? $card.find(`[data-must-variant="${m.code}"]`).val() : m.code;
-				const o = m.options.find((x) => x.code === code) || m.options[0];
-				return t + ((o && o.price) || 0);
-			}, 0);
-			$card.find("[data-order-sum]").html(known ? `${__("Taxminan")}: <b>${this.money(total)}</b> <span class="text-muted">(${__("aniq narx — server hisoblaydi, ulgurji chegirma bilan")})</span>` : "");
-		};
+		lines = this.bind_lines($box, first ? [{ item: first, code: null, qty: 1 }] : [], () => draw_must());
 		$card.find("[data-make-order]").on("change", (e) => $card.find("[data-order-fields]").prop("hidden", !e.currentTarget.checked));
-
-		// Tovar qidirish — mijozga taklif qilingan qo'shimcha tovarlar ham shu yerdan qo'shiladi
-		// (sotuv menejerida Item ruxsati yo'q — o'z endpoint'i: faqat shu do'kon tovarlari)
-		const $q = $card.find("[data-item-q]");
-		const $list = $card.find("[data-item-list]");
-		let timer;
-		$q.on("input", () => {
-			clearTimeout(timer);
-			timer = setTimeout(async () => {
-				const q = $q.val().trim();
-				if (q.length < 2) return $list.prop("hidden", true);
-				const rows = await frappe.xcall("marketplace.sotuv.murojaat.item_search", { q });
-				$list.html(rows.length ? rows.map((r) => `<button type="button" data-code="${esc(r.name)}">
-					${r.image ? `<img src="${esc(r.image)}" alt="">` : ""}<span>${esc(r.item_name)}</span><span class="text-muted small">${esc(r.name)}</span></button>`).join("")
-					: `<div class="small text-muted">${__("Topilmadi")}</div>`).prop("hidden", false);
-			}, 250);
-		});
-		$list.on("click", "button[data-code]", async (e) => {
-			const it = await frappe.xcall("marketplace.sotuv.murojaat.order_item", { item: e.currentTarget.dataset.code });
-			$q.val("");
-			$list.prop("hidden", true);
-			if (!it) return;
-			const same = !it.has_variants && state.lines.find((l) => l.item.code === it.code);
-			if (same) same.qty = Math.min(99, same.qty + 1);
-			else state.lines.push({ item: it, code: null, qty: 1 });
-			draw();
-		});
-		draw();
 
 		return {
 			value: (yetkazish) => {
 				if (!$card.find("[data-make-order]").is(":checked")) return null;
-				if (!state.lines.length) return { error: __("Buyurtma uchun tovarni tanlang") };
-				for (const l of state.lines) if (!l.code) return { error: __("«{0}»: rang / o‘lchamni tanlang", [l.item.name]) };
+				if (!lines.lines().length) return { error: __("Buyurtma uchun tovarni tanlang") };
+				const v = lines.value();
+				if (v.error) return v;
 				const qoshimcha = [];
-				for (const m of this.must_for(d, state.lines)) {
+				for (const m of this.must_for(d, lines.lines())) {
 					if (!m.has_variants) continue;
 					const code = $card.find(`[data-must-variant="${m.code}"]`).val();
 					if (!code) return { error: __("Majburiy tovar «{0}»: rang / o‘lchamni tanlang", [m.name]) };
@@ -616,8 +691,7 @@ class SotuvPaneli {
 				}
 				const manzil = ($card.find("[data-order-manzil]").val() || "").trim();
 				if (yetkazish === "Kuryer" && manzil.length < 5) return { error: __("Yetkazish manzilini to‘liq yozing") };
-				const lines = state.lines.map((l) => ({ item: l.code, qty: l.qty }));
-				return { lines, item: lines[0].item, qty: lines[0].qty, yetkazish, manzil, qoshimcha };
+				return { lines: v.lines, item: v.lines[0].item, qty: v.lines[0].qty, yetkazish, manzil, qoshimcha };
 			},
 		};
 	}

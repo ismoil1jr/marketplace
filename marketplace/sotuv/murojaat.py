@@ -26,7 +26,7 @@ from urllib.parse import quote
 import frappe
 from frappe import _
 from frappe.rate_limiter import rate_limit
-from frappe.utils import add_to_date, cint, get_url, getdate, now_datetime, today
+from frappe.utils import add_to_date, cint, flt, get_url, getdate, now_datetime, today
 
 from marketplace.sotuv.telefoniya import normalize_phone, pretty_phone
 
@@ -473,7 +473,9 @@ def get_lead(name: str):
 	from marketplace.sotuv.api import _shop, mandatory_info
 	from marketplace.storefront import _get_prices
 
-	shop = _shop()
+	shop = _shop(admin_optional=True)
+	if not shop:
+		return {"need_shop": True}
 	doc = _lead(name, shop)
 	item = None
 	if doc.tovar:
@@ -507,11 +509,21 @@ def get_lead(name: str):
 		"keyingi_qongiroq": str(doc.keyingi_qongiroq or ""), "tovar_nomi": doc.tovar_nomi, "item": item,
 		"calls": calls, "logs": logs, "orders": orders,
 		"mandatory": mandatory_info(shop, "+" + doc.normal_telefon if doc.normal_telefon else None),
-		# «Oladi» bosilsa — shu yerdan buyurtma (tovar, variant, soni, manzil): save_lead_result(buyurtma=...)
+		# «Oladi» bosilsa — shu yerdan buyurtma (tovar, variant, soni, manzil): save_lead_result(buyurtma=...).
+		# Murojaatdan buyurtma allaqachon bo'lsa va u hali topshirilmagan bo'lsa — yangi tovar o'sha buyurtmaga qo'shiladi
 		"order_form": {"item": _order_item(shop, doc.tovar) if doc.tovar else None, "address": doc.shahar or "",
 		               "pickup": cint(frappe.db.get_value("Shop", shop, "enable_pickup")), "existing": doc.buyurtma,
-		               "must": _must_items(shop, doc.normal_telefon)},
+		               "existing_open": _open_order(doc.buyurtma), "must": _must_items(shop, doc.normal_telefon)},
 	}
+
+
+def _open_order(name):
+	"""Buyurtma hali ochiqmi (tasdiqlangan, bekor emas, topshirilmagan, onlayn to'lanmagan) — tovar qo'shsa bo'ladi."""
+	if not name:
+		return False
+	so = frappe.db.get_value("Sales Order", name, ["docstatus", "payment_status", "payment_method", "per_delivered"], as_dict=True)
+	return bool(so and so.docstatus == 1 and so.payment_status != "Bekor" and flt(so.per_delivered) < 100
+	            and not (so.payment_status == "To'langan" and so.payment_method != "Naqd"))
 
 
 @frappe.whitelist(methods=["POST"])
@@ -529,7 +541,24 @@ def save_lead_result(name: str, kanal: str, natija: str, izoh: str | None = None
 	date = getdate(keyingi_qongiroq) if keyingi_qongiroq else None
 	if date and date < getdate(today()):
 		frappe.throw(_("Qayta qo'ng'iroq sanasi o'tib ketgan kun bo'lmasin"))
-	order = _make_order(doc, shop, frappe.parse_json(buyurtma), kanal) if natija == "Oladi" and buyurtma else None
+	data = frappe.parse_json(buyurtma) if buyurtma else None
+	order = None
+	if natija == "Oladi" and data:
+		if data.get("add_to"):
+			# Murojaatdan buyurtma bor — mijoz rozi bo'lgan tovarlar o'sha buyurtmaning o'ziga qo'shiladi (alohida emas)
+			from marketplace.orders import add_lines
+
+			if data["add_to"] != doc.buyurtma or not _open_order(doc.buyurtma):
+				frappe.throw(_("Bu murojaatning ochiq buyurtmasi yo'q — yangi buyurtma yarating"))
+			order = frappe.get_doc("Sales Order", doc.buyurtma)
+			if order.shop != shop:
+				frappe.throw(_("Bu buyurtma sizning do'koningizniki emas"), frappe.PermissionError)
+			lines = [{"code": (l.get("item") or "").strip(), "qty": cint(l.get("qty")) or 1} for l in (data.get("lines") or []) if l.get("item")]
+			if lines:
+				add_lines(order, lines)
+				order.reload()
+		else:
+			order = _make_order(doc, shop, data, kanal)
 	log = frappe.get_doc(
 		{
 			"doctype": "Aloqa Yozuvi", "murojaat": doc.name, "mijoz_ismi": doc.mijoz_ismi, "telefon": doc.telefon,
