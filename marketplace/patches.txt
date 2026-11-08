@@ -17,3 +17,4 @@ marketplace.patches.aloqa_telefon
 marketplace.patches.fill_item_prices
 marketplace.patches.sync_standard_rate
 marketplace.patches.murojaat_normal_telefon
+marketplace.patches.aloqa_telefon_call_center
