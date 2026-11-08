@@ -13,7 +13,8 @@ import frappe
 from frappe import _
 from frappe.utils import flt, fmt_money, get_fullname, now_datetime
 
-from marketplace.permissions import get_user_shop, is_admin, member_shop
+from marketplace.setup import COURIER_ROLE, SELLER_ROLE
+from marketplace.permissions import get_user_shop, is_admin, member_shop, require_roles
 
 IN_HAND, SENT, HANDED = "Kuryerda", "Topshirilmoqda", "Do'konga topshirildi"
 FIELDS = ["name", "customer_name", "customer_phone", "grand_total", "currency", "mp_courier", "mp_delivered_at", "mp_cash_sent_at"]
@@ -60,6 +61,7 @@ def _shop_owners(shop):
 @frappe.whitelist()
 def courier_cash():
 	"""Kuryer kassasi: qo'lidagi naqd (buyurtmalar bilan) va do'konchi tasdiqlashini kutayotganlari."""
+	require_roles(COURIER_ROLE, SELLER_ROLE)
 	shop = _shop()
 	user = frappe.session.user
 	base = {"shop": shop, "docstatus": 1, "payment_method": "Naqd", "mp_courier": user}
@@ -93,6 +95,7 @@ def courier_cash():
 def courier_handover(orders=None):
 	"""Kuryer: "Do'kon kassiriga topshirish". orders bo'lmasa — qo'lidagi hammasi. Pul "Topshirilmoqda" bo'ladi,
 	do'konchi "Qabul qildim" bosgandagina kassaga o'tadi."""
+	require_roles(COURIER_ROLE, SELLER_ROLE)
 	shop = _shop()
 	user = frappe.session.user
 	names = frappe.parse_json(orders) if orders else None
@@ -127,6 +130,7 @@ def courier_handover(orders=None):
 @frappe.whitelist()
 def get_couriers():
 	"""Do'konchi "Pulni kim oldi?" oynasi uchun."""
+	require_roles(SELLER_ROLE)
 	return shop_couriers(_shop())
 
 
@@ -134,6 +138,7 @@ def get_couriers():
 def deliver_cash(order: str, by: str):
 	"""Do'konchi kuryer bilan yetkaziladigan naqd buyurtmani topshirdi: by — kuryer (pul o'sha kuryerda turadi)
 	yoki "shop" (pulni do'konning o'zi oldi — darrov kassada)."""
+	require_roles(SELLER_ROLE)
 	from marketplace.seller_desk import _not_courier, _seller_order, mark_cash_received, mark_delivered
 
 	_not_courier()
@@ -157,6 +162,7 @@ def deliver_cash(order: str, by: str):
 @frappe.whitelist()
 def cash_summary():
 	"""Do'konim "Naqd pul" bloki: kassada, kuryerlarda (har biri bo'yicha), tasdiq kutayotganlar va onlayn to'lovlar."""
+	require_roles(SELLER_ROLE)
 	shop = _shop()
 	paid = {"shop": shop, "docstatus": 1, "payment_status": "To'langan"}
 	rows = frappe.get_all("Sales Order", filters={**paid, "payment_method": "Naqd"}, fields=FIELDS + ["mp_cash_status"])
@@ -186,6 +192,7 @@ def cash_summary():
 @frappe.whitelist(methods=["POST"])
 def accept_cash(orders):
 	"""Do'konchi: "Qabul qildim" — kuryer topshirgan (yoki qo'lidagi) pul do'kon kassasiga o'tadi."""
+	require_roles(SELLER_ROLE)
 	from marketplace.seller_desk import cash_handed_over
 
 	names = frappe.parse_json(orders) if isinstance(orders, str) else orders
@@ -264,6 +271,7 @@ def transactions(from_date: str | None = None, to_date: str | None = None, provi
                  status: str | None = None, q: str | None = None):
 	"""Do'konning to'lovlari: Payme/Click urinishlari va naqd to'lovlar — To'lov ID, vaqt, provayder, holat,
 	mijoz, telefon, tovar ID'lari, summa. Kartalar — davrdagi to'langanlar provayder bo'yicha."""
+	require_roles(SELLER_ROLE)
 	from frappe.utils import get_datetime, getdate
 
 	shop = _shop(admin_optional=True)
@@ -329,6 +337,7 @@ def transactions(from_date: str | None = None, to_date: str | None = None, provi
 @frappe.whitelist()
 def transaction_items(order: str):
 	"""Tovar ID bosilganda: shu to'lovdagi mijoz nima xarid qilgani — rasm, nomi, rang/o'lcham, soni, narxi."""
+	require_roles(SELLER_ROLE)
 	from marketplace.storefront import variant_labels
 
 	shop = _shop()

@@ -9,7 +9,15 @@ import frappe
 from frappe import _
 from frappe.utils import flt
 
-from marketplace.kassa import _shop
+from marketplace import kassa
+from marketplace.permissions import require_roles
+from marketplace.setup import COURIER_ROLE, SELLER_ROLE
+
+
+def _shop(**kw):
+	"""Kuryer sahifalari rollari (kuryer_buyurtmalar.json bilan bir xil): kuryer, do'kon egasi/xodimi, admin."""
+	require_roles(COURIER_ROLE, SELLER_ROLE)
+	return kassa._shop(**kw)
 from marketplace.marketplace.doctype.rang.rang import color_names
 
 FIELDS = [

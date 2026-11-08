@@ -21,7 +21,7 @@ def get_context(context):
 	# Bekor qilingan buyurtma ham ko'rinadi (faqat o'qish uchun, to'lov tugmasisiz)
 	order = orders.get_order_for_customer(frappe.form_dict.order, customer, include_cancelled=True) if customer else None
 	if order and order.shop != shop.name:
-		raise frappe.DoesNotExistError
+		raise frappe.PageDoesNotExistError
 	context.order = order
 	if not order:
 		return

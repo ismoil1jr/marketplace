@@ -38,10 +38,25 @@
 			</svg>
 		</div>
 		<p class="code">404</p>
+		{%- if frappe.form_dict.mp_404 == "closed" %}
+		<h1>Do‘kon vaqtincha yopiq</h1>
+		<p>Bu do‘kon hozircha ishlamayapti. Bosh sahifada boshqa do‘konlar bor.</p>
+		{%- elif frappe.form_dict.mp_404 == "product" %}
+		<h1>Tovar topilmadi</h1>
+		<p>Bu tovar sotuvdan chiqarilgan yoki manzil noto‘g‘ri. Do‘kon katalogida boshqa tovarlarni ko‘ring.</p>
+		{%- elif frappe.form_dict.shop %}
+		<h1>Do‘kon topilmadi</h1>
+		<p>Bunday do‘kon yo‘q yoki manzil noto‘g‘ri yozilgan. Bosh sahifada barcha do‘konlar ro‘yxati bor.</p>
+		{%- else %}
 		<h1>Sahifa topilmadi</h1>
 		<p>Bu manzil noto‘g‘ri yoki sahifa olib tashlangan. Tovar sotuvdan chiqarilgan bo‘lishi ham mumkin.</p>
+		{%- endif %}
 		<div class="btns">
+			{%- if frappe.form_dict.mp_404 == "product" and frappe.form_dict.shop %}
+			<a class="btn btn--brand" href="/s/{{ frappe.form_dict.shop | urlencode }}">Do‘kon katalogi</a>
+			{%- else %}
 			<a class="btn btn--brand" href="/">Bosh sahifaga qaytish</a>
+			{%- endif %}
 			<button type="button" class="btn btn--plain" onclick="history.length > 1 ? history.back() : (location.href = '/')">Orqaga</button>
 		</div>
 	</main>

@@ -91,6 +91,10 @@ class Shop(Document):
 
 	def on_update(self):
 		self.sync_member_permissions()
+		# Frappe 404 bo'lgan manzillarni eslab qoladi (website_404): to'xtatilgan do'kon qayta yoqilsa /s/<do'kon>
+		# darhol ochilsin
+		if self.has_value_changed("status"):
+			frappe.cache.delete_value("website_404")
 
 	def on_trash(self):
 		if self.warehouse and frappe.db.exists("Stock Ledger Entry", {"warehouse": self.warehouse}):

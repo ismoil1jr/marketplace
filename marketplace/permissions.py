@@ -546,3 +546,13 @@ def contact_has_permission(doc, ptype=None, user=None):
 	return bool(customers) and bool(
 		frappe.db.exists("Sales Order", {"shop": shop, "customer": ["in", customers]})
 	)
+
+
+def require_roles(*roles):
+	"""Whitelisted funksiya boshida: foydalanuvchida shu rollardan biri bo'lsin (admin har doim o'tadi).
+	Sahifa rollari (Page.roles) bilan bir xil bo'lsin — aks holda menyuda ko'rinmagan sahifa API orqali ochiq qoladi
+	(masalan, kuryer upakovka belgisini qo'ya olar edi)."""
+	if is_admin():
+		return
+	if not set(roles) & set(frappe.get_roles()):
+		frappe.throw(_("Bu bo'lim sizning rolingiz uchun emas"), frappe.PermissionError)

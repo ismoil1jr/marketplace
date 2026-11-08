@@ -32,7 +32,11 @@ def get_shop(slug):
 		as_dict=True,
 	)
 	if not shop:
-		raise frappe.DoesNotExistError(_("Do'kon topilmadi"))
+		# PageDoesNotExistError — Frappe bizning www/404.html ni chizadi (DoesNotExistError bo'lsa "Server Error" +
+		# traceback chiqar edi). Do'kon bor-u, to'xtatilgan bo'lsa — 404 sahifada "vaqtincha yopiq" deyiladi
+		if frappe.db.exists("Shop", slug):
+			frappe.form_dict.mp_404 = "closed"
+		raise frappe.PageDoesNotExistError(_("Do'kon topilmadi"))
 
 	shop.initials = "".join(w[0] for w in shop.shop_name.split()[:2]).upper()
 	shop.payment_label = " · ".join(
@@ -208,7 +212,8 @@ def get_highlights(catalog):
 
 def get_product(shop, code):
 	if not frappe.db.exists("Item", {"name": code, "shop": shop.name, "is_published": 1, "disabled": 0}):
-		raise frappe.DoesNotExistError(_("Mahsulot topilmadi"))
+		frappe.form_dict.mp_404 = "product"
+		raise frappe.PageDoesNotExistError(_("Mahsulot topilmadi"))
 
 	item = frappe.get_doc("Item", code)
 	price = _get_prices([code]).get(code)

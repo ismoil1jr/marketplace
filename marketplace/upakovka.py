@@ -10,7 +10,15 @@ import frappe
 from frappe import _
 from frappe.utils import flt, get_fullname, now_datetime
 
-from marketplace.kassa import _shop
+from marketplace import kassa
+from marketplace.permissions import require_roles
+from marketplace.setup import PACKER_ROLE, SELLER_ROLE
+
+
+def _shop():
+	"""Upakovka sahifasi rollari (upakovka.json bilan bir xil): upakovkachi, do'kon egasi/xodimi, admin."""
+	require_roles(PACKER_ROLE, SELLER_ROLE)
+	return kassa._shop()
 
 FIELDS = [
 	"name", "customer_name", "customer_phone", "delivery_method", "delivery_address", "grand_total", "total_qty",
