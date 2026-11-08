@@ -166,8 +166,8 @@ class SotuvPaneli {
 		this.$body.find("[data-mode]").on("click", (e) => {
 			const mode = e.currentTarget.dataset.mode;
 			if (mode === this.state.mode) return;
-			// Murojaatlarda avval hammasi ko'rinadi (yangi kelganlari tepada), buyurtmalarda — to'lanmaganlar
-			Object.assign(this.state, { mode, view: mode === "murojaat" ? "hammasi" : "tolanmagan", open: null, q: "", dan: "", gacha: "" });
+			// Murojaatlarda avval faqat yangi kelganlari (buyurtma berganlari — «Buyurtma berdi»da), buyurtmalarda — to'lanmaganlar
+			Object.assign(this.state, { mode, view: mode === "murojaat" ? "yangi" : "tolanmagan", open: null, q: "", dan: "", gacha: "" });
 			this.load();
 		});
 		this.$body.find("[data-view]").on("click", (e) => {
@@ -423,7 +423,7 @@ class SotuvPaneli {
 				</div>`
 				: `<div class="small">${esc(d.tovar_nomi || __("Reklamada tovar ko‘rsatilmagan"))}</div>`}
 			${d.izoh ? `<div class="mp-sp__pin"><div class="mp-sp__pin-head"><b>💬 ${__("Mijoz izohi")}</b></div><div class="mp-sp__pin-text">${esc(d.izoh)}</div></div>` : ""}
-			${this.must_html(d.mandatory)}
+			<div data-must-block>${this.must_html(d.mandatory)}</div>
 
 			<div class="mp-sp__sec">${__("Natija yozish")}</div>
 			<div class="mp-sp__form">
@@ -456,7 +456,10 @@ class SotuvPaneli {
 			const group = $b.closest(".mp-sp__seg").data("group");
 			pick[group] = $b.data("val");
 			$b.addClass("is-active").siblings().removeClass("is-active");
-			if (group === "natija") $card.find("[data-order-box]").prop("hidden", pick.natija !== "Oladi");
+			if (group === "natija") {
+				$card.find("[data-order-box]").prop("hidden", pick.natija !== "Oladi");
+				order.redraw_must();
+			}
 			if (group === "yetkazish") $card.find("[data-order-addr]").prop("hidden", pick.yetkazish !== "Kuryer");
 		});
 		const order = this.bind_lead_order($card, d);
@@ -643,9 +646,17 @@ class SotuvPaneli {
 		const f = d.order_form || {};
 		const $box = $card.find("[data-order-box]");
 		// Ochiq buyurtma bor: faqat qo'shimcha tovarlar, o'sha buyurtmaga
+		// Tepadagi "Majburiy tovar" bloki: menejer shu buyurtmaga qo'shayotgan (yoki o'zi qo'shiladigan) majburiy tovar
+		// «olinmagan» emas — «shu buyurtmaga qo'shiladi» deb ko'rinadi
+		const redraw_must = (adding) => $card.find("[data-must-block]").html(this.must_html(d.mandatory, $box.is(":hidden") ? new Set() : adding()));
+		// bind_lines boshlang'ich chizishdayoq onchange'ni chaqiradi — qatorlar shu callback'dan olinadi (current),
+		// qaytgan vidjet (lines) o'sha paytda hali o'rnatilmagan bo'ladi
+		let current = [];
 		if (f.existing_open) {
-			const lines = this.bind_lines($box, [], (ls) => this.lines_sum($box, ls));
+			const redraw = () => redraw_must(() => new Set(current.map((l) => l.item.code)));
+			const lines = this.bind_lines($box, [], (ls) => { current = ls; this.lines_sum($box, ls); redraw(); });
 			return {
+				redraw_must: redraw,
 				value: () => {
 					if (!lines.lines().length) return null;
 					const v = lines.value();
@@ -654,16 +665,22 @@ class SotuvPaneli {
 			};
 		}
 		const first = f.item;
-		let lines;
-		const must_extra = () => this.must_for(d, lines.lines()).reduce((t, m) => {
+		const must_extra = () => this.must_for(d, current).reduce((t, m) => {
 			const code = m.has_variants ? $card.find(`[data-must-variant="${m.code}"]`).val() : m.code;
 			const o = m.options.find((x) => x.code === code) || m.options[0];
 			return t + ((o && o.price) || 0);
 		}, 0);
-		const sum = () => this.lines_sum($box, lines.lines(), must_extra());
+		const sum = () => this.lines_sum($box, current, must_extra());
+		const redraw = () => redraw_must(() => {
+			if (!$card.find("[data-make-order]").is(":checked")) return new Set();
+			const codes = new Set(current.map((l) => l.item.code));
+			this.must_for(d, current).forEach((m) => codes.add(m.code));
+			return codes;
+		});
 		// Majburiy tovar: mijoz hali olmagan bo'lsa buyurtmaga 1 dona o'zi qo'shiladi (buyurtmadagi tovarning o'zi bo'lsa — yo'q)
-		const draw_must = () => {
-			const list = this.must_for(d, lines.lines());
+		const draw_must = (ls) => {
+			current = ls;
+			const list = this.must_for(d, ls);
 			$card.find("[data-order-must]").html(list.map((m) => `<div class="mp-sp__must small">
 				<b>➕ ${__("Majburiy tovar ham qo‘shiladi")}: ${esc(m.name)}</b>
 				${m.has_variants ? `<select class="form-control input-sm" data-must-variant="${esc(m.code)}">
@@ -672,18 +689,23 @@ class SotuvPaneli {
 				</select>` : ""}</div>`).join(""));
 			$card.find("[data-must-variant]").on("change", sum);
 			sum();
+			redraw();
 		};
-		lines = this.bind_lines($box, first ? [{ item: first, code: null, qty: 1 }] : [], () => draw_must());
-		$card.find("[data-make-order]").on("change", (e) => $card.find("[data-order-fields]").prop("hidden", !e.currentTarget.checked));
+		const lines = this.bind_lines($box, first ? [{ item: first, code: null, qty: 1 }] : [], draw_must);
+		$card.find("[data-make-order]").on("change", (e) => {
+			$card.find("[data-order-fields]").prop("hidden", !e.currentTarget.checked);
+			redraw();
+		});
 
 		return {
+			redraw_must: redraw,
 			value: (yetkazish) => {
 				if (!$card.find("[data-make-order]").is(":checked")) return null;
-				if (!lines.lines().length) return { error: __("Buyurtma uchun tovarni tanlang") };
+				if (!current.length) return { error: __("Buyurtma uchun tovarni tanlang") };
 				const v = lines.value();
 				if (v.error) return v;
 				const qoshimcha = [];
-				for (const m of this.must_for(d, lines.lines())) {
+				for (const m of this.must_for(d, current)) {
 					if (!m.has_variants) continue;
 					const code = $card.find(`[data-must-variant="${m.code}"]`).val();
 					if (!code) return { error: __("Majburiy tovar «{0}»: rang / o‘lchamni tanlang", [m.name]) };
@@ -697,26 +719,31 @@ class SotuvPaneli {
 	}
 
 	// Majburiy tovar (masalan, o'qiydigan ruchka): mijoz olganmi. Olmagan bo'lsa — call-center eski raqamni tekshiradi
-	must_html(m) {
+	// adding — menejer hozir tuzayotgan buyurtmaga kirayotgan majburiy tovarlar (andoza kodlari): ular «olinmagan» emas
+	must_html(m, adding = new Set()) {
 		if (!m) return "";
-		const left = m.missing;
+		const left = m.items.filter((i) => !i.basis && !adding.has(i.code)).length;
+		const add = m.items.filter((i) => !i.basis && adding.has(i.code)).length;
 		return `<div class="mp-sp__must ${left ? "" : "is-ok"}">
-			<b>${left ? `⚠️ ${__("Majburiy tovar: {0} tasi olinmagan", [left])}` : `✅ ${__("Majburiy tovarlar olingan")}`}</b>
-			${this.must_list(m)}
+			<b>${left ? `⚠️ ${__("Majburiy tovar: {0} tasi olinmagan", [left])}` : add ? `✅ ${__("Majburiy tovar shu buyurtmaga qo‘shiladi")}` : `✅ ${__("Majburiy tovarlar olingan")}`}</b>
+			${this.must_list(m, adding)}
 			${left ? `<div class="small text-muted">${__("Mijoz boshqa raqamdan olgan bo‘lsa — eski raqamini so‘rang. Faqat eski raqamdan olingan tovar tasdiqlanadi.")}</div>
 				<button class="btn btn-xs btn-default" data-must-check>🔎 ${__("Eski raqam bo‘yicha tekshirish")}</button>` : ""}
 		</div>`;
 	}
 
-	must_list(m) {
+	must_list(m, adding = new Set()) {
 		const esc = frappe.utils.escape_html;
 		return `<ul class="mp-sp__must-list">${m.items.map((i) => i.basis
 			? `<li>✅ ${esc(i.name)} <span class="text-muted small">(${esc(i.basis)})</span></li>`
-			: `<li>❌ <b>${esc(i.name)}</b> <span class="text-muted small">— ${__("olinmagan")}</span></li>`).join("")}</ul>`;
+			: adding.has(i.code)
+				? `<li>➕ <b>${esc(i.name)}</b> <span class="text-muted small">— ${__("shu buyurtmaga qo‘shiladi")}</span></li>`
+				: `<li>❌ <b>${esc(i.name)}</b> <span class="text-muted small">— ${__("olinmagan")}</span></li>`).join("")}</ul>`;
 	}
 
 	bind_must($card, phone, reopen) {
-		$card.find("[data-must-check]").on("click", () => this.must_dialog(phone, reopen));
+		// Blok qayta chizilishi mumkin (buyurtma qatorlari o'zgarganda) — tugma delegatsiya bilan
+		$card.on("click", "[data-must-check]", () => this.must_dialog(phone, reopen));
 	}
 
 	// Call-center: raqam bo'yicha holat; raqamini almashtirgan bo'lsa — eski raqamdan olingan tovarlar yangi raqamga

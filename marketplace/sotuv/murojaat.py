@@ -463,6 +463,14 @@ def _lead(name, shop):
 	doc = frappe.get_doc("Murojaat", name)
 	if doc.shop != shop:
 		frappe.throw(_("Bu murojaat sizning do'koningizniki emas"), frappe.PermissionError)
+	# Patchgacha qo'lda yaratilgan murojaatda normal_telefon bo'sh bo'lishi mumkin — ochilganda to'ldiriladi
+	# (majburiy tovar tarixi, buyurtma yaratish va saytdagi buyurtmani ulash shu raqam bo'yicha)
+	if not doc.normal_telefon and doc.telefon:
+		from marketplace.sotuv.doctype.murojaat.murojaat import lead_phone
+
+		normal = lead_phone(doc.telefon)
+		if normal:
+			doc.db_set("normal_telefon", normal, update_modified=False)
 	return doc
 
 
@@ -673,7 +681,7 @@ def _make_order(lead, shop_name, data, kanal):
 	if not lines:
 		frappe.throw(_("Buyurtma uchun tovarni tanlang"))
 	if not lead.normal_telefon:
-		frappe.throw(_("Murojaatda telefon raqami yo'q"))
+		frappe.throw(_("Murojaatdagi telefon raqami noto'g'ri ({0}) — murojaatni ochib raqamni to'g'rilang").format(lead.telefon or "—"))
 
 	shop = storefront.get_shop(shop_name)
 	phone = "+" + lead.normal_telefon

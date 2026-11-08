@@ -16,3 +16,4 @@ marketplace.patches.murojaat_keys
 marketplace.patches.aloqa_telefon
 marketplace.patches.fill_item_prices
 marketplace.patches.sync_standard_rate
+marketplace.patches.murojaat_normal_telefon
