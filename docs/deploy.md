@@ -282,7 +282,7 @@ nginx -t && systemctl reload nginx
 
 `nginx -t` xato bersa — hech narsa o'zgarmaydi, eski konfiguratsiya ishlayveradi. Fayl `http {}` darajasida yozilgan, shuning uchun `bench setup nginx` uni o'chirmaydi.
 
-Raqamlar (fayl ichida izohlangan): sahifalar — bitta IP'dan 20 so'rov/s, portlash 60; API — 10/s, portlash 40; bir vaqtda 50 ta ulanish; butun sayt bo'yicha (hamma IP birga) dinamik so'rovlar jami 100/s, portlash 200 — tarqoq hujumda backend cho'kmasligi uchun. `/assets/` va `/files/` sanalmaydi. Oshgan so'rov **429** oladi (sayt JS'i buni "Juda ko'p urinish" deb ko'rsatadi). Mobil operatorlar yuzlab abonentni bitta IP ostiga chiqaradi (CGNAT) — shuning uchun raqamlar "bitta odam" hisobida emas.
+Raqamlar (fayl ichida izohlangan): HAR BIR IP alohida hisoblanadi — sahifalar 20 so'rov/s (portlash 60), API 10/s (portlash 40), bir vaqtda 50 ta ulanish. Bitta IP limitdan oshsa faqat o'sha IP 429 oladi, boshqalar bemalol ishlaydi. Butun sayt bo'yicha umumiy limit yo'q (u bo'lsa bitta hujumchi hammani 429 ga tiqib qo'yardi). Ofis va server IP'lari `geo $mp_ishonchli` ro'yxatida — ularga limit umuman qo'yilmaydi, shuning uchun ofisdan `ab` testi qilsangiz ham o'zingizni bloklamaysiz. Ofis IP'si o'zgarsa fayldagi ro'yxatni yangilang. `/assets/` va `/files/` sanalmaydi. Oshgan so'rov **429** oladi (sayt JS'i buni "Juda ko'p urinish" deb ko'rsatadi). Mobil operatorlar yuzlab abonentni bitta IP ostiga chiqaradi (CGNAT) — shuning uchun raqamlar "bitta odam" hisobida emas.
 
 Tekshirish — limit ishlayaptimi:
 
