@@ -26,6 +26,7 @@ import time
 import frappe
 import requests
 from frappe import _
+from frappe.rate_limiter import rate_limit
 from frappe.utils import cint, get_url
 from requests.adapters import HTTPAdapter
 from urllib3.connection import HTTPSConnection
@@ -124,7 +125,9 @@ def bot_link(start=None):
 # ---------- Kirish nuqtalari: webhook va polling ----------
 
 
+# Limit: Telegram update'larni bir nechta IP'dan ketma-ket yuboradi; 600/daqiqa yetarli, 429 olsa keyinroq qaytaradi.
 @frappe.whitelist(allow_guest=True, methods=["POST"])
+@rate_limit(limit=600, seconds=60)
 def webhook():
 	secret = settings().telegram_webhook_secret
 	header = frappe.get_request_header("X-Telegram-Bot-Api-Secret-Token") or ""

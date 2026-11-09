@@ -1,0 +1,35 @@
+# /etc/fail2ban/jail.d/nginx.local — nginx limitiga qayta-qayta urilgan IP'ni bloklaydi.
+# Filter nginx bilan birga keladi: /etc/fail2ban/filter.d/nginx-limit-req.conf
+# ("limiting requests ... by zone ..., client: <IP>" yozuvi). Zona nomi muhim emas — hammasi tutiladi.
+#
+# maxretry/findtime: 1 daqiqada 30 marta 429 olgan IP (ya'ni limitdan doimiy oshayotgan) 1 soatga yopiladi.
+# Oddiy foydalanuvchi, hatto ofisdagi 10 kishi ham, bunga yetmaydi; flood/skaner 1-2 soniyada yetadi.
+# bantime.increment — qayta kelgan hujumchi har safar 2 baravar uzoqroq yopiladi (maksimum 1 kun).
+
+[nginx-limit-req]
+enabled  = true
+backend  = auto
+logpath  = /var/log/nginx/error.log
+maxretry = 30
+findtime = 60
+bantime  = 1h
+bantime.increment = true
+bantime.maxtime   = 24h
+
+# Buzilgan/zararli so'rovlar (nginx 400) — skanerlar va bot'lar
+[nginx-bad-request]
+enabled  = true
+backend  = auto
+logpath  = /var/log/nginx/access.log
+maxretry = 20
+findtime = 60
+bantime  = 1h
+
+# Mavjud bo'lmagan admin yo'llarini qidirayotgan bot'lar (/wp-login.php, /.env, /phpmyadmin ...)
+[nginx-botsearch]
+enabled  = true
+backend  = auto
+logpath  = /var/log/nginx/access.log
+maxretry = 10
+findtime = 600
+bantime  = 6h

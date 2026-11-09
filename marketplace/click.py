@@ -13,6 +13,7 @@ import hmac
 import json
 
 import frappe
+from frappe.rate_limiter import rate_limit
 from frappe.utils import cint, flt
 from werkzeug.wrappers import Response
 
@@ -39,12 +40,15 @@ class ClickError(Exception):
 		self.code = code
 
 
+# Limit: Click bir to'lov uchun 2 ta so'rov yuboradi; 120/daqiqa bitta IP'dan — faqat flood'ga qarshi.
 @frappe.whitelist(allow_guest=True, methods=["POST"])
+@rate_limit(limit=120, seconds=60)
 def prepare(**kwargs):
 	return _handle(ACTION_PREPARE)
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
+@rate_limit(limit=120, seconds=60)
 def complete(**kwargs):
 	return _handle(ACTION_COMPLETE)
 

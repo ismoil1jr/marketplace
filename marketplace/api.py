@@ -40,9 +40,13 @@ def get_cart(shop, lines, pending=None):
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
-@rate_limit(limit=20, seconds=600)
+@rate_limit(limit=3, seconds=3600)
 def telegram_login(shop, path=""):
-	"""Telegram orqali kirish: bot havolasi (t.me/<bot>?start=l<id>) va faqat shu brauzerdagi secret (tg_login.py)."""
+	"""Telegram orqali kirish: bot havolasi (t.me/<bot>?start=l<id>) va faqat shu brauzerdagi secret (tg_login.py).
+
+	Limit: bitta IP'dan soatiga 3 ta yangi kirish so'rovi. Boshlangan kirish brauzerda saqlanadi (storefront.js),
+	shuning uchun tugmani qayta bosish yangi so'rov hisoblanmaydi — limit faqat yangi urinishlarga tegadi.
+	"""
 	return tg_login.start(storefront.get_shop(shop).name, path)
 
 
@@ -54,6 +58,7 @@ def telegram_login_status(login, secret):
 
 
 @frappe.whitelist(allow_guest=True, methods=["GET"])
+@rate_limit(limit=120, seconds=60)
 def me():
 	c = customers.current_customer()
 	if not c:
@@ -62,6 +67,7 @@ def me():
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
+@rate_limit(limit=30, seconds=60)
 def logout():
 	customers.end_session()
 

@@ -21,6 +21,7 @@ import time
 import frappe
 import requests
 from frappe import _
+from frappe.rate_limiter import rate_limit
 from frappe.utils import add_days, format_datetime, get_url, now_datetime
 from frappe.utils.password import get_decrypted_password, remove_encrypted_password, set_encrypted_password
 from werkzeug.wrappers import Response
@@ -106,6 +107,7 @@ def callback_url():
 
 
 @frappe.whitelist(allow_guest=True, methods=["GET", "POST"])
+@rate_limit(limit=120, seconds=60)
 def webhook(**kwargs):
 	"""GET — Meta obunani tasdiqlaydi (hub.challenge qaytariladi), POST — yangi lid(lar) haqida xabar."""
 	req = frappe.request

@@ -259,6 +259,64 @@ bench restart
 2. root ostida certbot o'rnating va sertifikat oling. Keyin sayt konfiguratsiyasiga sertifikat yo'lini yozib, `bench setup nginx` qiling.
 3. `host_name` qiymatini `https://magazinlar.uz` ga o'zgartiring, keyin Payme, Click, SMM havolalari va Telegram webhook'ni yangilang.
 
+## 11. Himoya: so'rov limitlari va DDoS (root)
+
+Himoya uch qavat. Har biri alohida ishlaydi, lekin birgalikda kuchli:
+
+| Qavat | Nimaga qarshi | Qayerda |
+|---|---|---|
+| nginx `limit_req` / `limit_conn` | Bitta IP'dan sekundiga yuzlab so'rov (HTTP flood), slowloris | `scripts/server/nginx-himoya.conf` → `/etc/nginx/conf.d/10-himoya.conf` |
+| fail2ban | Limitga qayta-qayta urilgan IP'ni 1 soatdan 1 kungacha butunlay yopadi; `/wp-login.php`, `/.env` qidirgan bot'lar | `scripts/server/fail2ban-nginx.local` → `/etc/fail2ban/jail.d/nginx.local` |
+| Kod (`@rate_limit`) | Ochiq API'larni suiiste'mol qilish: Telegram kirish soatiga 3 marta (bitta IP), buyurtma 20/10 daqiqa, chek 30/10 daqiqa, Payme/Click/Meta/Telegram webhook 120-600/daqiqa | `marketplace/api.py`, `click.py`, `payme.py`, `telegram_bot.py`, `sotuv/meta.py` |
+
+**Nima qila olmaydi.** Serverning tarmoq kanalini to'ldiradigan hajmli DDoS (gigabitlab UDP/SYN oqimi) bitta VPS'da to'xtatilmaydi — paketlar serverga yetib kelguncha kanal band bo'ladi. Bunga qarshi yagona ishonchli yo'l — saytni **Cloudflare** orqasiga qo'yish (pastda).
+
+### 11.1 nginx limitlari
+
+Kodni serverga olganingizdan keyin (9-qadam), root ostida:
+
+```bash
+cp /home/frappe/frappe-bench/apps/marketplace/scripts/server/nginx-himoya.conf /etc/nginx/conf.d/10-himoya.conf
+nginx -t && systemctl reload nginx
+```
+
+`nginx -t` xato bersa — hech narsa o'zgarmaydi, eski konfiguratsiya ishlayveradi. Fayl `http {}` darajasida yozilgan, shuning uchun `bench setup nginx` uni o'chirmaydi.
+
+Raqamlar (fayl ichida izohlangan): sahifalar — bitta IP'dan 20 so'rov/s, portlash 60; API — 10/s, portlash 40; bir vaqtda 50 ta ulanish. `/assets/` va `/files/` sanalmaydi. Oshgan so'rov **429** oladi (sayt JS'i buni "Juda ko'p urinish" deb ko'rsatadi). Mobil operatorlar yuzlab abonentni bitta IP ostiga chiqaradi (CGNAT) — shuning uchun raqamlar "bitta odam" hisobida emas.
+
+Tekshirish — limit ishlayaptimi:
+
+```bash
+# 100 ta tez so'rov: oxirgilari 429 bo'lishi kerak
+for i in $(seq 100); do curl -s -o /dev/null -w "%{http_code}\n" https://magazinlar.uz/api/method/ping; done | sort | uniq -c
+tail -3 /var/log/nginx/error.log          # "limiting requests, excess ... by zone "mp_api"" yozuvi
+```
+
+### 11.2 fail2ban
+
+```bash
+cp /home/frappe/frappe-bench/apps/marketplace/scripts/server/fail2ban-nginx.local /etc/fail2ban/jail.d/nginx.local
+fail2ban-client -t && systemctl restart fail2ban
+fail2ban-client status                      # Jail list: nginx-bad-request, nginx-botsearch, nginx-limit-req, sshd
+fail2ban-client status nginx-limit-req      # bloklangan IP'lar
+```
+
+Yuqoridagi `curl` sinovini serverning o'zidan emas, boshqa joydan qilsangiz, o'sha IP 1 soatga yopiladi. Ochish: `fail2ban-client set nginx-limit-req unbanip <IP>`.
+
+### 11.3 Cloudflare (tavsiya, DNS'ni ko'chirish)
+
+Hozir DNS Eskiz'da, sayt IP'si ochiq. Cloudflare'ning bepul rejasi:
+
+- hajmli DDoS'ni o'z tarmog'ida yutadi (server kanaliga yetmaydi);
+- server IP'sini yashiradi (hujumchi to'g'ridan-to'g'ri IP'ga ura olmaydi);
+- bot'larni JS-tekshiruv bilan filtrlaydi, statik fayllarni keshlaydi.
+
+Qadamlar: cloudflare.com'da akkaunt → "Add a site" → `magazinlar.uz` → Free → Cloudflare ko'rsatgan 2 ta NS'ni Eskiz'dagi domen sozlamasiga yozish (A-yozuvlar Cloudflare'ga ko'chadi, "Proxied" — to'q sariq bulut yoqiq) → SSL/TLS rejimi **Full (strict)** (serverda certbot sertifikati bor). O'tish 1-24 soat, sayt to'xtamaydi. Keyin `ufw`da 80/443 ni faqat Cloudflare IP'lariga ochib qo'yish mumkin (`https://www.cloudflare.com/ips-v4`), shunda IP'ni bilgan hujumchi ham serverga yeta olmaydi.
+
+Cloudflare orqasida nginx `$remote_addr` Cloudflare IP'si bo'lib qoladi — limitlar noto'g'ri ishlamasligi uchun `10-himoya.conf` ga `real_ip_header CF-Connecting-IP;` va Cloudflare IP ro'yxati uchun `set_real_ip_from` qatorlarini qo'shish kerak (Cloudflare'ga o'tganda qilinadi).
+
+**Frappe'ning o'z `rate_limit` sozlamasini yoqmang** (`site_config.json` → `rate_limit`): u IP bo'yicha emas, butun sayt bo'yicha umumiy hisoblaydi — hujumchi limitni to'ldirsa, hamma mijozlar 429 oladi.
+
 ## Duch kelgan xatolar
 
 | Belgi | Sababi | Yechim |

@@ -15,6 +15,7 @@ import json
 import time
 
 import frappe
+from frappe.rate_limiter import rate_limit
 from frappe.utils import cint, flt
 from werkzeug.wrappers import Response
 
@@ -44,7 +45,9 @@ class PaymeError(Exception):
 		self.code, self.data = code, data
 
 
+# Limit: Payme bir to'lovda 3-4 ta so'rov yuboradi; 120/daqiqa bitta IP'dan — faqat flood'ga qarshi.
 @frappe.whitelist(allow_guest=True, methods=["POST"])
+@rate_limit(limit=120, seconds=60)
 def callback(**kwargs):
 	try:
 		body = json.loads(frappe.request.get_data(as_text=True) or "{}")
