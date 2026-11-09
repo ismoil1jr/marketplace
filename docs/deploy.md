@@ -313,7 +313,25 @@ Hozir DNS Eskiz'da, sayt IP'si ochiq. Cloudflare'ning bepul rejasi:
 
 Qadamlar: cloudflare.com'da akkaunt → "Add a site" → `magazinlar.uz` → Free → Cloudflare ko'rsatgan 2 ta NS'ni Eskiz'dagi domen sozlamasiga yozish (A-yozuvlar Cloudflare'ga ko'chadi, "Proxied" — to'q sariq bulut yoqiq) → SSL/TLS rejimi **Full (strict)** (serverda certbot sertifikati bor). O'tish 1-24 soat, sayt to'xtamaydi. Keyin `ufw`da 80/443 ni faqat Cloudflare IP'lariga ochib qo'yish mumkin (`https://www.cloudflare.com/ips-v4`), shunda IP'ni bilgan hujumchi ham serverga yeta olmaydi.
 
-Cloudflare orqasida nginx `$remote_addr` Cloudflare IP'si bo'lib qoladi — limitlar noto'g'ri ishlamasligi uchun `10-himoya.conf` ga `real_ip_header CF-Connecting-IP;` va Cloudflare IP ro'yxati uchun `set_real_ip_from` qatorlarini qo'shish kerak (Cloudflare'ga o'tganda qilinadi).
+**Haqiqiy mijoz IP'si.** Cloudflare orqasida nginx uchun hamma so'rov Cloudflare IP'sidan keladi — limitlar, fail2ban va Frappe'dagi `request_ip` noto'g'ri bo'lib qoladi. Buning uchun `scripts/server/nginx-cloudflare-realip.conf` bor: faqat Cloudflare manzillaridan kelgan ulanishlarda `CF-Connecting-IP` sarlavhasiga ishonadi, boshqa IP shu sarlavhani yuborsa e'tiborga olinmaydi. Cloudflare'ga **o'tishdan oldin** ham qo'yish mumkin — o'tilmaguncha hech narsani o'zgartirmaydi:
+
+```bash
+cp /home/frappe/frappe-bench/apps/marketplace/scripts/server/nginx-cloudflare-realip.conf /etc/nginx/conf.d/05-cloudflare-realip.conf
+nginx -t && systemctl reload nginx
+```
+
+Cloudflare IP ro'yxati o'zgarsa (kamdan-kam), faylni qayta yasash: `sh /home/frappe/frappe-bench/apps/marketplace/scripts/server/cloudflare-ips.sh > /etc/nginx/conf.d/05-cloudflare-realip.conf && nginx -t && systemctl reload nginx`.
+
+Tekshirish (Cloudflare yoqilgandan keyin): `tail -1 /var/log/nginx/access.log` — birinchi ustun Cloudflare emas, mijoz IP'si bo'lishi kerak.
+
+**Serverni faqat Cloudflare'ga ochish** (Cloudflare ishlay boshlagach, root):
+
+```bash
+for ip in $(curl -fsS https://www.cloudflare.com/ips-v4) $(curl -fsS https://www.cloudflare.com/ips-v6); do ufw allow from $ip to any port 80,443 proto tcp; done
+ufw delete allow 80/tcp && ufw delete allow 443/tcp
+```
+
+Shundan keyin IP'ni bilgan hujumchi ham serverga to'g'ridan-to'g'ri yeta olmaydi. Diqqat: Cloudflare'ni o'chirsangiz, 80/443 ni qaytadan `ufw allow` qilish kerak, aks holda sayt ochilmaydi.
 
 **Frappe'ning o'z `rate_limit` sozlamasini yoqmang** (`site_config.json` → `rate_limit`): u IP bo'yicha emas, butun sayt bo'yicha umumiy hisoblaydi — hujumchi limitni to'ldirsa, hamma mijozlar 429 oladi.
 
