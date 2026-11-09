@@ -282,7 +282,7 @@ nginx -t && systemctl reload nginx
 
 `nginx -t` xato bersa — hech narsa o'zgarmaydi, eski konfiguratsiya ishlayveradi. Fayl `http {}` darajasida yozilgan, shuning uchun `bench setup nginx` uni o'chirmaydi.
 
-Raqamlar (fayl ichida izohlangan): sahifalar — bitta IP'dan 20 so'rov/s, portlash 60; API — 10/s, portlash 40; bir vaqtda 50 ta ulanish. `/assets/` va `/files/` sanalmaydi. Oshgan so'rov **429** oladi (sayt JS'i buni "Juda ko'p urinish" deb ko'rsatadi). Mobil operatorlar yuzlab abonentni bitta IP ostiga chiqaradi (CGNAT) — shuning uchun raqamlar "bitta odam" hisobida emas.
+Raqamlar (fayl ichida izohlangan): sahifalar — bitta IP'dan 20 so'rov/s, portlash 60; API — 10/s, portlash 40; bir vaqtda 50 ta ulanish; butun sayt bo'yicha (hamma IP birga) dinamik so'rovlar jami 100/s, portlash 200 — tarqoq hujumda backend cho'kmasligi uchun. `/assets/` va `/files/` sanalmaydi. Oshgan so'rov **429** oladi (sayt JS'i buni "Juda ko'p urinish" deb ko'rsatadi). Mobil operatorlar yuzlab abonentni bitta IP ostiga chiqaradi (CGNAT) — shuning uchun raqamlar "bitta odam" hisobida emas.
 
 Tekshirish — limit ishlayaptimi:
 
