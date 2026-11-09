@@ -303,6 +303,16 @@ fail2ban-client status nginx-limit-req      # bloklangan IP'lar
 
 Yuqoridagi `curl` sinovini serverning o'zidan emas, boshqa joydan qilsangiz, o'sha IP 1 soatga yopiladi. Ochish: `fail2ban-client set nginx-limit-req unbanip <IP>`.
 
+**Istisnolar (majburiy).** Serverning o'z IP'si va ofis IP'si hech qachon yopilmasligi kerak. Server o'z IP'sini yopsa, o'ziga `https://magazinlar.uz` orqali qiladigan so'rovlar ham to'xtaydi (masalan, PDF chekdagi rasm va CSS shu yo'l bilan yuklanadi). 2026-11-09 da serverda `ab` ishlatilganda aynan shu bo'ldi.
+
+```bash
+printf '[DEFAULT]\nignoreip = 127.0.0.1/8 ::1 161.97.176.253 <OFIS_IP>\n' > /etc/fail2ban/jail.d/00-ignoreip.local
+fail2ban-client -t && systemctl restart fail2ban
+fail2ban-client get nginx-limit-req ignoreip
+```
+
+Yuklama testini (`ab`) serverning o'zidan qilmang: `ab` sayt bilan bir protsessorni band qiladi va natija noto'g'ri chiqadi. Ofis kompyuteridan qiling.
+
 ### 11.3 Cloudflare (tavsiya, DNS'ni ko'chirish)
 
 Hozir DNS Eskiz'da, sayt IP'si ochiq. Cloudflare'ning bepul rejasi:
