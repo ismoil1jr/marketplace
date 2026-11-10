@@ -2,7 +2,7 @@
 
 * Ro'yxat: mijoz, telefon, summa; to'lanmagan / bugun qayta qo'ng'iroq / bekor / hammasi.
 * Buyurtma: nima xarid qilingan, shu mijoz bilan qo'ng'iroqlar (audio) va oldingi natijalar.
-* Natija (Aloqa Yozuvi): kanal (qo'ng'iroq / SMS), Oladi / Olmaydi / Javob bermadi / Keyinroq, qayta qo'ng'iroq sanasi.
+* Natija (Menejer Xulosasi): kanal (qo'ng'iroq / SMS), Oladi / Olmaydi / Javob bermadi / Keyinroq, qayta qo'ng'iroq sanasi.
   Oladi — saytda yakunlanmagan buyurtma tasdiqlanadi (naqd) va do'konga tushadi; Olmaydi — bekor (tovar sotuvga qaytadi).
 * Qayta qo'ng'iroq sanasi kelganda menejerga eslatma (remind_callbacks, har soat).
 
@@ -91,7 +91,7 @@ def get_orders(view: str = "tolanmagan", q: str | None = None):
 	tels = list({r.customer_phone for r in rows if r.customer_phone})
 	if tels:
 		for n in frappe.get_all(
-			"Aloqa Yozuvi", filters={"shop": shop, "telefon": ["in", tels], "izoh": ["is", "set"]},
+			"Menejer Xulosasi", filters={"shop": shop, "telefon": ["in", tels], "izoh": ["is", "set"]},
 			fields=["telefon", "izoh", "creation"], order_by="creation desc",
 		):
 			notes.setdefault(n.telefon, n)
@@ -167,7 +167,7 @@ def get_order(name: str):
 	# Izohlar va natijalar — shu mijozning barcha buyurtmalari bo'yicha (raqam bilan): boshqa kuni ochilsa ham turadi
 	log_filters = [["buyurtma", "=", so.name]] + ([["telefon", "=", so.customer_phone]] if so.customer_phone else [])
 	logs = frappe.get_all(
-		"Aloqa Yozuvi", filters={"shop": shop}, or_filters=log_filters,
+		"Menejer Xulosasi", filters={"shop": shop}, or_filters=log_filters,
 		fields=["name", "creation", "buyurtma", "kanal", "natija", "izoh", "keyingi_qongiroq", "menejer", "bekor_qilindi"],
 		order_by="creation desc", limit_page_length=100,
 	)
@@ -330,7 +330,7 @@ def save_result(order: str, kanal: str, natija: str, izoh: str | None = None, ke
 
 	log = frappe.get_doc(
 		{
-			"doctype": "Aloqa Yozuvi", "buyurtma": so.name, "mijoz_ismi": so.customer_name, "telefon": so.customer_phone,
+			"doctype": "Menejer Xulosasi", "buyurtma": so.name, "mijoz_ismi": so.customer_name, "telefon": so.customer_phone,
 			"shop": shop, "kanal": kanal, "natija": natija, "izoh": (izoh or "").strip() or None,
 			"keyingi_qongiroq": date, "menejer": frappe.session.user, "bekor_qilindi": int(bool(cancel)),
 		}
@@ -366,7 +366,7 @@ def save_result(order: str, kanal: str, natija: str, izoh: str | None = None, ke
 def remind_callbacks():
 	"""Har soat: qayta qo'ng'iroq sanasi kelgan buyurtmalar — menejerga Desk'da eslatma (bir marta)."""
 	for row in frappe.get_all(
-		"Aloqa Yozuvi",
+		"Menejer Xulosasi",
 		filters={"keyingi_qongiroq": ["between", ["2000-01-01", today()]], "eslatildi": 0},
 		fields=["name", "buyurtma", "murojaat", "mijoz_ismi", "telefon", "menejer", "shop", "keyingi_qongiroq"],
 	):
@@ -384,5 +384,5 @@ def remind_callbacks():
 					 "document_name": docname, "subject": subject}
 				).insert(ignore_permissions=True)
 				frappe.publish_realtime("marketplace_new_order", {"name": docname, "subject": subject}, user=user, after_commit=True)
-		frappe.db.set_value("Aloqa Yozuvi", row.name, "eslatildi", 1, update_modified=False)
+		frappe.db.set_value("Menejer Xulosasi", row.name, "eslatildi", 1, update_modified=False)
 	frappe.db.commit()

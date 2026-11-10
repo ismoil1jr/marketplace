@@ -343,7 +343,7 @@ CUSTOM_FIELDS = {
 			"no_copy": 1,
 			"insert_after": "order_source",
 		},
-		# Sotuv menejerining oxirgi natijasi (sotuv/api.save_result — Aloqa Yozuvi'dan), panel ro'yxati uchun
+		# Sotuv menejerining oxirgi natijasi (sotuv/api.save_result — Menejer Xulosasi'dan), panel ro'yxati uchun
 		{
 			"fieldname": "mp_aloqa_natija",
 			"label": "Menejer natijasi",
@@ -773,7 +773,7 @@ def setup_seller_role():
 # Sotuv menejeri: panel API'lari (sotuv/api.py) o'zi tekshiradi va do'kon bo'yicha cheklaydi; bu — ro'yxatlar uchun
 SALES_PERMISSIONS = {
 	"Telefon Qongiroq": ["read"],
-	"Aloqa Yozuvi": ["read"],
+	"Menejer Xulosasi": ["read"],
 	# Instagram murojaatlari (sotuv/murojaat.py) — menejer holat va qayta qo'ng'iroq sanasini yozadi
 	"Murojaat": ["read", "write"],
 }

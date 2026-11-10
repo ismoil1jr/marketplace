@@ -139,8 +139,8 @@ def telefon_qongiroq_query(user=None):
 	return shop_query(user, "Telefon Qongiroq")
 
 
-def aloqa_yozuvi_query(user=None):
-	return shop_query(user, "Aloqa Yozuvi")
+def menejer_xulosasi_query(user=None):
+	return shop_query(user, "Menejer Xulosasi")
 
 
 def murojaat_query(user=None):

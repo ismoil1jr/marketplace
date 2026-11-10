@@ -5,7 +5,7 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "module": "Sotuv",
- "name": "Aloqa Yozuvi",
+ "name": "Menejer Xulosasi",
  "owner": "Administrator",
  "modified_by": "Administrator",
  "modified": "2026-10-31 10:00:00.000000",
@@ -163,5 +163,6 @@
   "sb_izoh",
   "izoh",
   "bekor_qilindi"
- ]
+ ],
+ "description": "Sotuv menejerining mijoz bilan gaplashgandan keyingi xulosasi: natija (Oladi/Olmaydi/Keyinroq/Javob bermadi), qayta qo'ng'iroq sanasi, izoh. Audio yozuvlar — Telefon Qongiroq."
 }

@@ -496,7 +496,7 @@ def get_lead(name: str):
 		order_by="boshlandi desc", limit_page_length=50,
 	)
 	logs = frappe.get_all(
-		"Aloqa Yozuvi", filters={"shop": shop},
+		"Menejer Xulosasi", filters={"shop": shop},
 		or_filters=[["murojaat", "=", doc.name]] + ([["telefon", "=", doc.telefon]] if doc.telefon else []),
 		fields=["name", "creation", "buyurtma", "murojaat", "kanal", "natija", "izoh", "keyingi_qongiroq", "menejer"],
 		order_by="creation desc", limit_page_length=100,
@@ -537,7 +537,7 @@ def _open_order(name):
 @frappe.whitelist(methods=["POST"])
 def save_lead_result(name: str, kanal: str, natija: str, izoh: str | None = None, keyingi_qongiroq: str | None = None,
                      buyurtma: str | dict | None = None):
-	"""Menejer natijasi murojaat bo'yicha: Aloqa Yozuvi + murojaat holati va qayta qo'ng'iroq sanasi.
+	"""Menejer natijasi murojaat bo'yicha: Menejer Xulosasi + murojaat holati va qayta qo'ng'iroq sanasi.
 	«Oladi» + buyurtma ({"item", "qty", "yetkazish", "manzil"}) — menejer mijoz bilan kelishgan buyurtma darhol
 	yaratiladi: naqd (yetkazganda), tasdiqlangan — kuryer ko'radi; murojaat «Buyurtma berdi»."""
 	from marketplace.sotuv.api import _shop
@@ -569,7 +569,7 @@ def save_lead_result(name: str, kanal: str, natija: str, izoh: str | None = None
 			order = _make_order(doc, shop, data, kanal)
 	log = frappe.get_doc(
 		{
-			"doctype": "Aloqa Yozuvi", "murojaat": doc.name, "mijoz_ismi": doc.mijoz_ismi, "telefon": doc.telefon,
+			"doctype": "Menejer Xulosasi", "murojaat": doc.name, "mijoz_ismi": doc.mijoz_ismi, "telefon": doc.telefon,
 			"shop": shop, "kanal": kanal, "natija": natija, "izoh": (izoh or "").strip() or None,
 			"keyingi_qongiroq": date, "menejer": frappe.session.user, "buyurtma": order and order.name,
 		}
