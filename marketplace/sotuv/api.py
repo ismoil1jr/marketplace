@@ -314,7 +314,9 @@ def save_result(order: str, kanal: str, natija: str, izoh: str | None = None, ke
 	if kanal not in CHANNELS or natija not in RESULTS:
 		frappe.throw(_("Kanal va natijani tanlang"))
 	was_confirmed = so.get("mp_aloqa_natija") == "Oladi"
-	extra = [{"code": (l.get("item") or "").strip(), "qty": cint(l.get("qty")) or 1} for l in (frappe.parse_json(qoshimcha) or []) if l.get("item")]
+	# qoshimcha bo'sh kelishi mumkin: null, "" yoki "null" (qo'shimcha tovar tanlanmagan) — JSON o'qish faqat matn bo'lsa
+	rows = frappe.parse_json(qoshimcha) if isinstance(qoshimcha, str) and qoshimcha.strip() else qoshimcha
+	extra = [{"code": (l.get("item") or "").strip(), "qty": cint(l.get("qty")) or 1} for l in (rows or []) if isinstance(l, dict) and l.get("item")]
 	if extra and natija == "Oladi":
 		add_lines(so, extra)
 	manzil = (manzil or "").strip()[:500]
