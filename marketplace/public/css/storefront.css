@@ -343,7 +343,7 @@ svg { width: 20px; height: 20px; flex: none; }
 .sf-gallery__nav--next svg, .sf-lightbox__nav--next svg { transform: rotate(180deg); }
 
 /* O'xshash mahsulotlar */
-.sf-related { padding: 0 var(--gutter) 120px; }
+.sf-related { padding: 0 var(--gutter) calc(var(--buy-h, 150px) + 24px); }
 .sf-product:has(+ .sf-related) .sf-sheet { padding-bottom: 28px; }
 
 input, textarea, select, [contenteditable], .sf-desc { -webkit-user-select: text; user-select: text; }
@@ -384,7 +384,7 @@ html.sf-noscroll, html.sf-noscroll body { overflow: hidden; }
 .sf-lightbox.is-single .sf-lightbox__nav, .sf-lightbox.is-single .sf-lightbox__count { display: none !important; }
 
 .sf-sheet {
-	position: relative; margin-top: -24px; padding: 24px var(--gutter) 120px;
+	position: relative; margin-top: -24px; padding: 24px var(--gutter) calc(var(--buy-h, 150px) + 24px);
 	background: var(--bg); border-radius: 24px 24px 0 0;
 }
 .sf-sheet h1 { margin: 0 0 6px; font-size: 24px; line-height: 1.2; letter-spacing: -.02em; }

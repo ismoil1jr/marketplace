@@ -627,6 +627,11 @@
 
 		const buy = $("[data-buy]");
 		if (!buy) return;
+		// Telefonda panel ekran pastiga yopishgan: sahifa ostidagi bo'shliq uning haqiqiy balandligiga teng bo'lsin,
+		// aks holda oxirgi qatorlar (yetkazish, tavsif oxiri) panel ostida qoladi. Izohli "Tez kunda" paneli balandroq.
+		const fitBuy = () => document.documentElement.style.setProperty("--buy-h", `${buy.offsetHeight}px`);
+		fitBuy();
+		if ("ResizeObserver" in window) new ResizeObserver(fitBuy).observe(buy);
 		const out = $("[data-qty]", buy);
 		const addBtn = $("[data-buy-add]", buy);
 		let max = +buy.dataset.max || 99;
