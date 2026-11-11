@@ -313,6 +313,49 @@ fail2ban-client get nginx-limit-req ignoreip
 
 Yuklama testini (`ab`) serverning o'zidan qilmang: `ab` sayt bilan bir protsessorni band qiladi va natija noto'g'ri chiqadi. Ofis kompyuteridan qiling.
 
+### 11.2b Zararli botlar va SSH (2026-11-11)
+
+**AWS atamalari bu serverda nimaga to'g'ri keladi** (server — bitta Contabo VPS, AWS emas):
+
+| AWS | Bu serverda | Holat |
+|---|---|---|
+| Security Group: faqat 80/443 | `ufw`: kiruvchi hammasi yopiq, ochiq faqat 22 (SSH), 80, 443 | bor |
+| Baza va Redis VPC ichida | MariaDB (3306) va Redis (11000, 13000) faqat `127.0.0.1` da tinglaydi — tashqaridan umuman ko'rinmaydi, VPC'dan ham qattiqroq | bor |
+| SSL avto-yangilanish (ACM) | `certbot.timer` kuniga 2 marta tekshiradi, yangilangach `systemctl reload nginx` (renew_hook) | bor |
+| Elastic IP | Contabo VPS IP'si (161.97.176.253) doimiy, qayta yuklashda o'zgarmaydi | bor |
+| WAF | fail2ban `mp-yomon-bot` (pastda) + Cloudflare (11.3) | qo'shiladi |
+| Rate limit per IP | nginx `limit_req` har IP alohida + fail2ban `nginx-limit-req` (11.1, 11.2) | bor |
+
+SSH (22) ochiq qoladi: uni yopsak serverni boshqarib bo'lmaydi. O'rniga faqat kalit bilan kirish (pastda).
+
+**Zararli botlar** — `.php`, `wp-admin`, `.env`, `.git`, `phpmyadmin` kabi bizda yo'q yo'llarni qidirganlar va
+sqlmap, nikto, nuclei, zgrab, masscan kabi vositalar. 10 daqiqada 3 marta — 1 kunga bloklanadi:
+
+```bash
+cp /home/frappe/frappe-bench/apps/marketplace/scripts/server/fail2ban-mp-yomon-bot.conf /etc/fail2ban/filter.d/mp-yomon-bot.conf
+cp /home/frappe/frappe-bench/apps/marketplace/scripts/server/fail2ban-nginx.local /etc/fail2ban/jail.d/nginx.local
+fail2ban-regex /var/log/nginx/access.log /etc/fail2ban/filter.d/mp-yomon-bot.conf | grep "^Lines"   # nechta qator ushlanadi
+fail2ban-client -t && systemctl restart fail2ban
+sleep 3 && fail2ban-client status mp-yomon-bot
+```
+
+curl, python-requests, Go-http-client, okhttp ataylab bloklanmaydi: Click, Payme, Telegram, Meta va Google Apps Script
+shunday kutubxonalar bilan so'rov yuborishi mumkin.
+
+**SSH faqat kalit bilan.** 2026-11 logida root'ga parol bilan ham kirilgan (bir nechta IP'dan) — avval o'sha
+kompyuterlarga kalit qo'yiladi. Joriy sessiyani yopmasdan, yangi oynada:
+
+```bash
+ssh -o PasswordAuthentication=no root@161.97.176.253 'echo kalit ishlaydi'   # har bir kompyuterdan
+cp /home/frappe/frappe-bench/apps/marketplace/scripts/server/sshd-himoya.conf /etc/ssh/sshd_config.d/10-himoya.conf
+sshd -t && systemctl reload ssh
+sshd -T | grep -E "^(passwordauthentication|permitrootlogin) "   # no / prohibit-password
+```
+
+Kirib bo'lmay qolsa: Contabo paneli -> VPS -> VNC konsol, `rm /etc/ssh/sshd_config.d/10-himoya.conf && systemctl reload ssh`.
+
+**SSL tekshiruvi** (hech narsani o'zgartirmaydi): `certbot renew --dry-run`.
+
 ### 11.3 Cloudflare (tavsiya, DNS'ni ko'chirish)
 
 Hozir DNS Eskiz'da, sayt IP'si ochiq. Cloudflare'ning bepul rejasi:

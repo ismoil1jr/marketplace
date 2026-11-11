@@ -33,3 +33,18 @@ logpath  = /var/log/nginx/access.log
 maxretry = 10
 findtime = 600
 bantime  = 6h
+
+# Zararli botlar (WAF o'rnida): zaif joy qidiruvi (.php, wp-admin, .env, .git ...) va hujum vositalari
+# (sqlmap, nikto, nuclei, zgrab, masscan ...). Filtr: scripts/server/fail2ban-mp-yomon-bot.conf ->
+# /etc/fail2ban/filter.d/mp-yomon-bot.conf. 10 daqiqada 3 marta — 1 kunga, qaytsa 7 kungacha.
+# 2026-11-11 prod logida sinaldi: 2 kunda ~2100 hujum so'rovi, oddiy foydalanuvchi va API so'rovi ushlanmadi.
+[mp-yomon-bot]
+enabled  = true
+backend  = auto
+filter   = mp-yomon-bot
+logpath  = /var/log/nginx/access.log
+maxretry = 3
+findtime = 600
+bantime  = 24h
+bantime.increment = true
+bantime.maxtime   = 7d
