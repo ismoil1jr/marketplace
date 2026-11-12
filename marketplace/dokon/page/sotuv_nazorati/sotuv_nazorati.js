@@ -3,6 +3,8 @@
 // grafik, kimlar sotib oldi, menejerlar, tovar va manba bo'yicha, AI xulosalari.
 // Butun skript IIFE ichida: Desk sahifa skriptlari bitta global maydonda ishlaydi, nomlar boshqa sahifalar bilan to'qnashmasin.
 (() => {
+	const WEEKDAYS = ["yakshanba", "dushanba", "seshanba", "chorshanba", "payshanba", "juma", "shanba"];
+	const WEEKDAYS_SHORT = ["Ya", "Du", "Se", "Ch", "Pa", "Ju", "Sh"];
 	const MONTHS = ["Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun", "Iyul", "Avgust", "Sentabr", "Oktabr", "Noyabr", "Dekabr"];
 	const STATE_COLOR = {
 		Yangi: "purple", "Javob bermadi": "orange", Keyinroq: "blue", Oladi: "green", Olmaydi: "red", "Buyurtma berdi": "teal",
@@ -141,22 +143,23 @@
 					${this.kpi(__("Birinchi aloqagacha"), s.response_median == null ? "—" : ago(s.response_median),
 						s.response_hour_pct == null ? __("hali ma’lumot yo‘q") : __("{0}% lidga 1 soat ichida", [s.response_hour_pct]),
 						s.response_median != null && s.response_median > 60 ? "is-warn" : "", __("Lid kelgandan menejer bog‘langangacha (mediana)"))}
-					${this.kpi(__("Qo‘ng‘iroqlar"), num(d.managers.reduce((a, m) => a + m.calls, 0)),
+					${this.kpi(__("Qo‘ng‘iroqlar"), num(d.calls.total),
 						`${__("gaplashildi")}: ${talk(d.managers.reduce((a, m) => a + m.talk, 0))}`)}
 				</div>
 				<div class="mp-sn-two">
 					<div class="mp-sn-box">${this.box_head(__("Voronka"), __("shu davrda kelgan lidlar"))}${this.funnel_html(s)}</div>
-					<div class="mp-sn-box">${this.box_head(__("Lidlar holati"), __("hozirgi holati"))}${this.states_html(d.states, s.leads)}</div>
+					<div class="mp-sn-box">${this.box_head(__("Lidlar holati"), __("menejer yozgan natija bo‘yicha"))}${this.states_html(d.states, s.leads)}</div>
 				</div>
 				<div class="mp-sn-box">
-					${this.box_head(d.series.unit === "day" ? __("Kunlar bo‘yicha") : __("Oylar bo‘yicha"), __("lid tushdi va ulardan sotib olganlar"))}
+					${this.box_head(d.series.unit === "day" ? __("Har kuni nechta lid tushdi") : __("Har oy nechta lid tushdi"), __("yashil qismi — shu lidlardan sotib olganlar"))}
 					<div class="mp-sn-chart"></div>
 				</div>
 				<div class="mp-sn-box" data-wait-box>
 					<div class="mp-sn-box__head">
 						<div class="mp-sn-box__title">${__("Kutayotganlar")}</div>
 						<div class="mp-sn-seg">
-							<button data-wait="new" class="${this.state.wait === "new" ? "is-active" : ""}">${__("Qo‘ng‘iroq qilinmagan")} <span>${d.waiting.new_count}</span></button>
+							<button data-wait="new" class="${this.state.wait === "new" ? "is-active" : ""}">${__("Gaplashilmagan")} <span>${d.waiting.new_count}</span></button>
+							<button data-wait="no_result" class="${this.state.wait === "no_result" ? "is-active" : ""}">${__("Natija yozilmagan")} <span>${d.waiting.no_result_count}</span></button>
 							<button data-wait="callbacks" class="${this.state.wait === "callbacks" ? "is-active" : ""}">${__("Qayta qo‘ng‘iroq")} <span>${d.waiting.callback_count}</span></button>
 						</div>
 					</div>
@@ -171,7 +174,7 @@
 					<div class="mp-sn-box">${this.box_head(__("Tovarlar bo‘yicha"), __("qaysi tovarga lid ko‘p va qanchasi sotildi"))}${this.items_html(d.items)}</div>
 					<div class="mp-sn-box">${this.box_head(__("Manba va reklama"), __("lidlar qayerdan kelgan"))}${this.sources_html(d.sources)}</div>
 				</div>
-				<div class="mp-sn-box">${this.box_head(__("AI xulosalari"), __("oxirgi qo‘ng‘iroqlar"))}${this.ai_html(d.ai)}</div>
+				<div class="mp-sn-box">${this.box_head(__("Oxirgi qo‘ng‘iroqlar"), __("tinglash va AI xulosasi"))}${this.calls_html(d.calls)}</div>
 			`);
 			this.render_wait();
 			this.render_chart();
@@ -213,11 +216,13 @@
 			return `<div class="mp-sn-now">
 				<div class="mp-sn-now__title">${__("Hozir")}</div>
 				${tile('data-jump="new"', w.new_count ? (w.new_oldest_minutes > 60 ? "is-bad" : "is-warn") : "is-ok", num(w.new_count),
-					__("lid hali qo‘ng‘iroq qilinmagan"), w.new_count ? __("eng eskisi {0} kutmoqda", [ago(w.new_oldest_minutes)]) : __("hammasiga qo‘ng‘iroq qilingan"))}
+					__("lid bilan hali gaplashilmagan"), w.new_count ? __("eng eskisi {0} kutmoqda", [ago(w.new_oldest_minutes)]) : __("hammasiga qo‘ng‘iroq qilingan"))}
+				${tile('data-jump="no_result"', w.no_result_count ? "is-warn" : "is-ok", num(w.no_result_count),
+					__("gaplashilgan, natija yozilmagan"), w.no_result_count ? __("menejer natijani belgilashi kerak") : __("hamma natija yozilgan"))}
 				${tile('data-jump="callbacks"', w.callback_overdue ? "is-bad" : w.callback_count ? "is-warn" : "is-ok", num(w.callback_count),
 					__("qayta qo‘ng‘iroq vaqti keldi"), w.callback_overdue ? __("{0} tasi kechikkan", [w.callback_overdue]) : __("kechikkani yo‘q"))}
 				${tile('data-panel="1"', w.site_orders ? "is-warn" : "is-ok", num(w.site_orders),
-					__("saytdagi buyurtma, menejer gaplashmagan"), __("Sotuv panelida ochish"))}
+					__("saytdan buyurtma tasdiq kutmoqda"), w.site_orders ? __("Sotuv panelida ochish") : __("kutayotgan buyurtma yo‘q"))}
 			</div>`;
 		}
 
@@ -225,7 +230,7 @@
 			if (!s.leads) return `<div class="mp-sn-empty">${__("Bu davrda lid tushmagan")}</div>`;
 			const steps = [
 				[__("Lid tushdi"), s.leads, __("barcha manbalardan")],
-				[__("Bog‘lanildi"), s.contacted, __("menejer natija yozgan")],
+				[__("Bog‘lanildi"), s.contacted, __("qo‘ng‘iroq yoki natija bor")],
 				[__("Rozi bo‘ldi"), s.agreed, __("«Oladi» deb javob bergan")],
 				[__("Buyurtma berdi"), s.ordered, __("buyurtma yaratilgan")],
 				[__("Puli tushdi"), s.paid, __("Payme, Click yoki naqd")],
@@ -248,69 +253,116 @@
 					`<i style="flex:${x.count}; background: var(--${STATE_COLOR[x.state]}-500)" title="${esc(__(x.state))}: ${x.count}"></i>`).join("")}</div>
 				<div class="mp-sn-legend">${states.map((x) => `
 					<div class="mp-sn-legend__row ${x.count ? "" : "is-zero"}">
-						<span><i style="background: var(--${STATE_COLOR[x.state]}-500)"></i>${esc(__(x.state))}</span>
+						<span><i style="background: var(--${STATE_COLOR[x.state]}-500)"></i>${esc(__(x.state))}${x.state === "Yangi" ? ` <small class="mp-sn-muted">${__("natija yozilmagan")}</small>` : ""}</span>
 						<b>${num(x.count)}</b><span class="mp-sn-muted">${pct(x.count, total)}%</span>
 					</div>`).join("")}
 				</div>`;
 		}
 
+		// Grafik: har ustun — bir kun (yoki oy). Balandligi — nechta lid tushdi, yashil qismi — ulardan nechtasi sotib oldi.
+		// Ustun ustida soni, ostida kun va hafta kuni; ustunni bossangiz — o'sha kun ko'rsatiladi
 		render_chart() {
 			const { series } = this.data;
 			const $el = this.$body.find(".mp-sn-chart");
-			if (!series.points.some((p) => p.leads)) {
+			const pts = series.points;
+			const total = pts.reduce((a, p) => a + p.leads, 0);
+			if (!total) {
 				$el.html(`<div class="mp-sn-empty">${__("Bu davrda lid tushmagan")}</div>`);
 				return;
 			}
-			const labels = series.points.map((p) => {
-				const [y, m, d] = p.from.split("-").map(Number);
-				return series.unit === "day" ? `${d}.${String(m).padStart(2, "0")}` : `${__(MONTHS[m - 1]).slice(0, 3)} ${String(y).slice(2)}`;
-			});
-			new frappe.Chart($el.get(0), {
-				type: "bar",
-				height: 230,
-				data: {
-					labels,
-					datasets: [
-						{ name: __("Lid tushdi"), values: series.points.map((p) => p.leads) },
-						{ name: __("Sotib oldi"), values: series.points.map((p) => p.ordered) },
-					],
-				},
-				colors: ["#8b9cf7", "#16a34a"],
-				barOptions: { spaceRatio: 0.35 },
-				axisOptions: { xIsSeries: true },
-				tooltipOptions: { formatTooltipY: (v) => `${v} ${__("ta")}` },
-				isNavigable: false,
-			});
+			const daily = series.unit === "day";
+			const max = Math.max(...pts.map((p) => p.leads));
+			const step = Math.max(1, Math.ceil(max / 4));
+			const top = step * Math.ceil(max / step);
+			const ticks = [];
+			for (let v = 0; v <= top; v += step) ticks.push(v);
+			const best = pts.reduce((a, p) => (p.leads > a.leads ? p : a), pts[0]);
+			const ordered = pts.reduce((a, p) => a + p.ordered, 0);
+			const width = $el.width() || 800;
+			const every = Math.max(1, Math.ceil((pts.length * 30) / width));
+			const parse = (str) => { const [y, m, d] = str.split("-").map(Number); return new Date(y, m - 1, d); };
+			const label = (p) => {
+				const dt = parse(p.from);
+				return daily ? `${dt.getDate()}-${__(MONTHS[dt.getMonth()]).toLowerCase()}, ${__(WEEKDAYS[dt.getDay()])}` : `${__(MONTHS[dt.getMonth()])} ${dt.getFullYear()}`;
+			};
+			const cols = pts.map((p, i) => {
+				const dt = parse(p.from);
+				const h = (p.leads / top) * 100, g = p.leads ? (p.ordered / p.leads) * 100 : 0;
+				const month_start = daily && (i === 0 || dt.getDate() === 1);
+				const show = i % every === 0 || i === pts.length - 1 || month_start;
+				const weekend = daily && (dt.getDay() === 0 || dt.getDay() === 6);
+				const tip = `${label(p)}: ${p.leads} ${__("ta lid")}${p.leads ? `, ${p.ordered} ${__("tasi sotib oldi")}` : ""}`;
+				return `<button class="mp-sn-cc__col ${p.leads ? "" : "is-zero"} ${weekend ? "is-weekend" : ""}" data-from="${p.from}" data-to="${p.to}" title="${esc(tip)}">
+					<span class="mp-sn-cc__area">
+						${p.leads ? `<span class="mp-sn-cc__val">${p.leads}${p.ordered ? `<em>${p.ordered}✓</em>` : ""}</span>` : ""}
+						<span class="mp-sn-cc__bar" style="height:${h}%"><span style="height:${g}%"></span></span>
+					</span>
+					<span class="mp-sn-cc__x">${show ? (daily ? `<b>${dt.getDate()}</b><small>${__(WEEKDAYS_SHORT[dt.getDay()])}</small>` : `<b>${__(MONTHS[dt.getMonth()]).slice(0, 3)}</b><small>${String(dt.getFullYear()).slice(2)}</small>`) : ""}</span>
+					${month_start ? `<span class="mp-sn-cc__month">${__(MONTHS[dt.getMonth()])}</span>` : ""}
+				</button>`;
+			}).join("");
+			$el.html(`
+				<div class="mp-sn-cc__sum">
+					<span>${__("Jami")}: <b>${num(total)}</b> ${__("ta lid")}</span>
+					<span>${__("sotib oldi")}: <b>${num(ordered)}</b></span>
+					<span>${__("eng ko‘p")}: <b>${esc(label(best))}</b> (${best.leads} ${__("ta")})</span>
+					<span>${daily ? __("kuniga o‘rtacha") : __("oyiga o‘rtacha")}: <b>${(total / pts.length).toFixed(1)}</b></span>
+				</div>
+				<div class="mp-sn-cc">
+					<div class="mp-sn-cc__grid">${ticks.map((v) => `<span style="bottom:${(v / top) * 100}%"><i>${v}</i></span>`).join("")}</div>
+					<div class="mp-sn-cc__cols">${cols}</div>
+				</div>
+				<div class="mp-sn-cc__legend">
+					<span><i class="is-lead"></i>${__("Lid tushdi")}</span><span><i class="is-sold"></i>${__("Sotib oldi")}</span>
+					<span class="mp-sn-muted">${daily ? __("Ustunni bossangiz, o‘sha kun ko‘rsatiladi") : __("Ustunni bossangiz, o‘sha oy ko‘rsatiladi")}</span>
+				</div>`);
 		}
 
 		render_wait() {
 			const w = this.data.waiting;
-			const callbacks = this.state.wait === "callbacks";
-			const rows = callbacks ? w.callbacks : w.new;
+			const mode = this.state.wait;
+			const cfg = {
+				new: { rows: w.new, count: w.new_count, empty: __("Hamma lid bilan gaplashilgan"), when: __("Kelgan"), last: __("Kutmoqda") },
+				no_result: { rows: w.no_result, count: w.no_result_count, empty: __("Gaplashilgan hamma lidga natija yozilgan"), when: __("Qo‘ng‘iroq"), last: __("Kelgan") },
+				callbacks: { rows: w.callbacks, count: w.callback_count, empty: __("Bugunga qayta qo‘ng‘iroq yo‘q"), when: __("Qayta qo‘ng‘iroq"), last: __("Menejer") },
+			}[mode];
 			const $el = this.$body.find(".mp-sn-wait");
-			if (!rows.length) {
-				$el.html(`<div class="mp-sn-empty mp-sn-empty--ok">✓ ${callbacks ? __("Bugunga qayta qo‘ng‘iroq yo‘q") : __("Hamma lidga qo‘ng‘iroq qilingan")}</div>`);
+			if (!cfg.rows.length) {
+				$el.html(`<div class="mp-sn-empty mp-sn-empty--ok">✓ ${cfg.empty}</div>`);
 				return;
 			}
 			const now = moment(w.now);
-			$el.html(`<div class="mp-sn-table mp-sn-table--wait">
+			const when_cell = (r) => {
+				if (mode === "callbacks") {
+					const late = r.keyingi_qongiroq < w.today;
+					return `${esc(frappe.datetime.str_to_user(r.keyingi_qongiroq))}${late ? ` ${pill("kechikkan", "red")}` : ""}`;
+				}
+				if (mode === "no_result") return r.qongiroq ? esc(when(r.qongiroq)) : `<span class="mp-sn-muted">${__("qo‘ng‘iroqdan keyin qo‘shilgan")}</span>`;
+				return esc(when(r.creation));
+			};
+			const last_cell = (r) => {
+				if (mode === "callbacks") return esc(r.menejer_ismi || "—");
+				if (mode === "no_result") return esc(when(r.creation));
+				const waited = now.diff(moment(r.creation), "minutes");
+				return `<b class="${waited > 60 ? "mp-sn-bad" : ""}">${ago(waited)}</b>`;
+			};
+			$el.html(`
+			${mode === "no_result" ? `<div class="mp-sn-note">${__("Bu mijozlar bilan menejer gaplashgan, lekin Sotuv panelida natija («Oladi», «Olmaydi», «Keyinroq»…) yozmagan. Natija yozilmasa, lid «Yangi» bo‘lib qoladi va qayta qo‘ng‘iroq eslatmasi ishlamaydi.")}</div>` : ""}
+			<div class="mp-sn-table mp-sn-table--wait">
 				<div class="mp-sn-tr mp-sn-tr--head">
 					<span>${__("Mijoz")}</span><span>${__("Tovar")}</span><span>${__("Manba")}</span>
-					<span>${callbacks ? __("Qayta qo‘ng‘iroq") : __("Kelgan")}</span><span class="mp-sn-num">${callbacks ? __("Menejer") : __("Kutmoqda")}</span>
+					<span>${cfg.when}</span><span class="mp-sn-num">${cfg.last}</span>
 				</div>
-				${rows.map((r) => {
-					const late = callbacks && r.keyingi_qongiroq < w.today;
-					const waited = now.diff(moment(r.creation), "minutes");
-					return `<a class="mp-sn-tr ${late ? "is-late" : ""}" href="/desk/murojaat/${encodeURIComponent(r.name)}">
+				${cfg.rows.map((r) => `
+					<a class="mp-sn-tr ${mode === "callbacks" && r.keyingi_qongiroq < w.today ? "is-late" : ""}" href="/desk/murojaat/${encodeURIComponent(r.name)}">
 						<span class="mp-sn-who"><b>${esc(r.mijoz_ismi || "—")}</b><small>${esc(r.telefon || "")}</small></span>
 						<span class="mp-sn-cut" data-label="${__("Tovar")}">${r.tovar_nomi ? esc(r.tovar_nomi) : `<span class="mp-sn-muted">${__("ko‘rsatilmagan")}</span>`}</span>
 						<span class="mp-sn-muted" data-label="${__("Manba")}">${esc(__(r.manba || ""))}</span>
-						<span data-label="${callbacks ? __("Qayta qo‘ng‘iroq") : __("Kelgan")}">${callbacks ? `${esc(frappe.datetime.str_to_user(r.keyingi_qongiroq))}${late ? ` ${pill("kechikkan", "red")}` : ""}` : esc(when(r.creation))}</span>
-						<span class="mp-sn-num" data-label="${callbacks ? __("Menejer") : __("Kutmoqda")}">${callbacks ? esc(r.menejer_ismi || "—") : `<b class="${waited > 60 ? "mp-sn-bad" : ""}">${ago(waited)}</b>`}</span>
-					</a>`;
-				}).join("")}
+						<span data-label="${cfg.when}">${when_cell(r)}</span>
+						<span class="mp-sn-num" data-label="${cfg.last}">${last_cell(r)}</span>
+					</a>`).join("")}
 			</div>
-			${(callbacks ? w.callback_count : w.new_count) > rows.length ? `<div class="mp-sn-foot">${__("Ko‘rsatilgan: {0} ta, jami {1} ta", [rows.length, callbacks ? w.callback_count : w.new_count])}</div>` : ""}`);
+			${cfg.count > cfg.rows.length ? `<div class="mp-sn-foot">${__("Ko‘rsatilgan: {0} ta, jami {1} ta", [cfg.rows.length, cfg.count])}</div>` : ""}`);
 		}
 
 		bought_html(rows) {
@@ -387,24 +439,34 @@
 				${src.kampaniya.length ? `<div class="mp-sn-sub">${__("Reklama kampaniyalari")}</div>${block(src.kampaniya)}` : ""}`;
 		}
 
-		ai_html(ai) {
-			const off = ai.blockers && ai.blockers.length;
+		// Oxirgi qo'ng'iroqlar: xulosasi bo'lmasa ham ko'rinadi — yozuvni tinglash mumkin, AI holati va sababi yoziladi
+		calls_html(c) {
+			const off = c.blockers && c.blockers.length;
 			const head = `<div class="mp-sn-ai__stat">
-				${off ? `<span class="mp-sn-ai__off">⚠ ${__("AI tahlil o‘chiq")}: ${ai.blockers.map(esc).join("; ")}</span>`
+				${off ? `<span class="mp-sn-ai__off">⚠ ${__("AI tahlil o‘chiq")}: ${c.blockers.map(esc).join("; ")}</span>`
 					: `<span class="mp-sn-ai__on">● ${__("AI tahlil yoqilgan")}</span>`}
-				<span class="mp-sn-muted">${__("Shu davrda yozuvli qo‘ng‘iroq: {0}, matnga aylantirilgan: {1}", [ai.recorded, ai.transcribed])}</span>
+				<span class="mp-sn-muted">${__("Shu davrda: {0} ta qo‘ng‘iroq, {1} tasida yozuv bor, {2} tasiga AI xulosa yozgan", [c.total, c.recorded, c.transcribed])}${c.failed ? ` · <span class="mp-sn-bad">${__("{0} tasida xato", [c.failed])}</span>` : ""}</span>
 			</div>`;
-			if (!ai.rows.length) {
-				return `${head}<div class="mp-sn-empty">${off ? __("Gemini kaliti Telefoniya sozlamalariga kiritilgach, har qo‘ng‘iroqning qisqa xulosasi shu yerda chiqadi.") : __("Bu davrda AI xulosasi bor qo‘ng‘iroq yo‘q")}</div>`;
-			}
-			return `${head}<div class="mp-sn-ai">${ai.rows.map((r) => `
-				<a class="mp-sn-ai__row" href="/desk/telefon-qongiroq/${encodeURIComponent(r.name)}">
+			if (!c.rows.length) return `${head}<div class="mp-sn-empty">${__("Bu davrda qo‘ng‘iroq bo‘lmagan")}</div>`;
+			const state = (r) => ({
+				tayyor: `<div class="mp-sn-ai__text"><span class="mp-sn-ai__tag">AI</span>${esc(r.ai_xulosa).replace(/\n/g, "<br>")}</div>`,
+				jarayonda: `<div class="mp-sn-ai__state">⏳ ${__("AI suhbatni matnga aylantirmoqda…")}</div>`,
+				navbatda: `<div class="mp-sn-ai__state">⏳ ${__("AI navbatida — 15 daqiqa ichida xulosa chiqadi")}</div>`,
+				xato: `<div class="mp-sn-ai__state is-bad">⚠ ${__("AI xulosa yoza olmadi")}: ${esc(r.xato_matni || "")}</div>`,
+				ochiq: `<div class="mp-sn-ai__state">${__("AI o‘chiq — xulosa yozilmaydi")}</div>`,
+				qisqa: `<div class="mp-sn-ai__state">${__("Juda qisqa qo‘ng‘iroq — tahlil qilinmaydi")}</div>`,
+				yozuvsiz: `<div class="mp-sn-ai__state">${__("Ovoz yozuvi kelmagan")}</div>`,
+			}[r.ai] || "");
+			return `${head}<div class="mp-sn-ai">${c.rows.map((r) => `
+				<div class="mp-sn-ai__row">
 					<div class="mp-sn-ai__meta">
-						<b>${esc(r.mijoz_ismi || r.telefon || "—")}</b>
-						<span class="mp-sn-muted">${r.yonalish === "Kiruvchi" ? "📥" : "📤"} ${esc(when(r.boshlandi))} · ${talk(r.davomiyligi)} · ${esc(r.menejer_ismi || "")}</span>
+						<b>${esc(r.mijoz_ismi || r.telefon || __("Raqam noma’lum"))}</b>
+						<a href="/desk/telefon-qongiroq/${encodeURIComponent(r.name)}">${__("Ochish")} ›</a>
 					</div>
-					<div class="mp-sn-ai__text">${esc(r.ai_xulosa).replace(/\n/g, "<br>")}</div>
-				</a>`).join("")}</div>`;
+					<div class="mp-sn-muted mp-sn-ai__sub">${r.yonalish === "Kiruvchi" ? "📥 " + __("Kiruvchi") : "📤 " + __("Chiquvchi")} · ${esc(when(r.boshlandi))} · ${talk(r.davomiyligi)}${r.menejer_ismi ? ` · ${esc(r.menejer_ismi)}` : ""}</div>
+					${r.yozuv ? mp.voice_note(r.yozuv, {}) : ""}
+					${state(r)}
+				</div>`).join("")}</div>`;
 		}
 
 		bind() {
@@ -420,6 +482,11 @@
 				this.$body.find("[data-wait-box]").get(0).scrollIntoView({ behavior: "smooth", block: "start" });
 			});
 			this.$body.find("[data-panel]").on("click", () => frappe.set_route("sotuv-paneli"));
+			this.$body.find(".mp-sn-cc__col").on("click", (e) => {
+				const { from, to } = e.currentTarget.dataset;
+				this.set_range(from, to, "custom");
+			});
+			if (this.$body.find(".mp-sn-ai").length) mp.voice_init(this.$body.find(".mp-sn-ai"));
 		}
 	}
 
@@ -438,7 +505,7 @@
 			.mp-sn-tag { padding: 2px 10px; border-radius: 10px; background: var(--subtle-fg); color: var(--text-muted); font-size: var(--text-xs); }
 
 			/* Hozir */
-			.mp-sn-now { display: grid; grid-template-columns: auto repeat(3, minmax(0, 1fr)); gap: 10px; align-items: stretch; margin-bottom: 14px; }
+			.mp-sn-now { display: grid; grid-template-columns: auto repeat(4, minmax(0, 1fr)); gap: 10px; align-items: stretch; margin-bottom: 14px; }
 			.mp-sn-now__title { writing-mode: vertical-rl; transform: rotate(180deg); align-self: center; font-size: var(--text-xs); font-weight: 600;
 				letter-spacing: .08em; color: var(--text-muted); }
 			.mp-sn-now__tile { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 12px; align-items: center;
@@ -513,7 +580,7 @@
 			a.mp-sn-tr:hover { background: var(--subtle-fg); text-decoration: none; color: var(--text-color); }
 			.mp-sn-tr--head { border-top: 0; padding-top: 0; font-size: var(--text-xs); color: var(--text-muted); }
 			.mp-sn-tr.is-late { background: var(--bg-red); }
-			.mp-sn-table--wait .mp-sn-tr { grid-template-columns: minmax(150px, 1.3fr) minmax(120px, 1.2fr) 100px 150px 110px; min-width: 680px; }
+			.mp-sn-table--wait .mp-sn-tr { grid-template-columns: minmax(150px, 1.3fr) minmax(120px, 1.2fr) 100px 150px 140px; min-width: 700px; }
 			.mp-sn-table--bought .mp-sn-tr { grid-template-columns: minmax(150px, 1.3fr) minmax(120px, 1.1fr) 175px 130px 170px minmax(100px, 1fr); min-width: 880px; }
 			.mp-sn-table--mgr .mp-sn-tr { grid-template-columns: minmax(160px, 1.3fr) 90px 110px minmax(220px, 1.6fr) 80px minmax(150px, 1fr); min-width: 860px; }
 			.mp-sn-nowrap { white-space: nowrap; }
@@ -545,14 +612,49 @@
 			.mp-sn-tid { display: inline-block; margin-right: 6px; padding: 0 6px; border-radius: 4px; background: var(--subtle-fg);
 				font-family: var(--font-family-monospace, monospace); font-size: var(--text-xs); color: var(--text-muted); }
 
+			/* Grafik */
+			.mp-sn-cc__sum { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-bottom: 14px; font-size: var(--text-sm); color: var(--text-muted); }
+			.mp-sn-cc__sum b { color: var(--heading-color); }
+			.mp-sn-cc { position: relative; height: 240px; padding: 0 0 52px 28px; }
+			.mp-sn-cc__grid { position: absolute; left: 28px; right: 0; top: 18px; bottom: 52px; }
+			.mp-sn-cc__grid span { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--border-color); }
+			.mp-sn-cc__grid span:first-child { border-top: 1px solid var(--gray-300, #d1d5db); }
+			.mp-sn-cc__grid i { position: absolute; left: -28px; width: 22px; top: -8px; text-align: right; font-style: normal; font-size: 11px; color: var(--text-muted); }
+			.mp-sn-cc__cols { position: relative; display: flex; align-items: stretch; gap: 3px; height: 100%; padding-top: 18px; }
+			.mp-sn-cc__col { position: relative; flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; padding: 0; border: 0; background: none;
+				border-radius: 4px; cursor: pointer; }
+			.mp-sn-cc__col:hover { background: var(--subtle-fg); }
+			.mp-sn-cc__col.is-weekend .mp-sn-cc__x small { color: var(--red-500, #ef4444); }
+			.mp-sn-cc__area { position: relative; flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; }
+			.mp-sn-cc__bar { position: relative; display: flex; flex-direction: column; justify-content: flex-end; width: min(70%, 28px);
+				border-radius: 4px 4px 0 0; background: #8b9cf7; overflow: hidden; }
+			.mp-sn-cc__bar > span { display: block; width: 100%; background: #2f9e44; }
+			.mp-sn-cc__val { margin-bottom: 3px; font-size: 11px; font-weight: 600; line-height: 1; color: var(--heading-color); white-space: nowrap; }
+			.mp-sn-cc__val em { margin-left: 3px; font-style: normal; color: #2f9e44; }
+			.mp-sn-cc__x { position: absolute; left: 0; right: 0; bottom: -34px; display: flex; flex-direction: column; align-items: center; line-height: 1.2; }
+			.mp-sn-cc__x b { font-size: 12px; color: var(--heading-color); font-weight: 600; }
+			.mp-sn-cc__x small { font-size: 10px; color: var(--text-muted); }
+			.mp-sn-cc__month { position: absolute; bottom: -50px; left: 2px; font-size: 10px; font-weight: 600; color: var(--text-muted); white-space: nowrap; }
+			.mp-sn-cc__legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 12px; font-size: var(--text-sm); }
+			.mp-sn-cc__legend i { display: inline-block; width: 10px; height: 10px; margin-right: 6px; border-radius: 2px; vertical-align: -1px; }
+			.mp-sn-cc__legend i.is-lead { background: #8b9cf7; }
+			.mp-sn-cc__legend i.is-sold { background: #2f9e44; }
+			.mp-sn-note { margin-bottom: 10px; padding: 8px 12px; border-radius: var(--border-radius-md); background: var(--bg-orange); color: var(--orange-800, #9a3412); font-size: var(--text-sm); }
+			.mp-sn-ai__tag { display: inline-block; margin-right: 6px; padding: 0 5px; border-radius: 4px; background: var(--bg-purple, #f3e8ff);
+				color: var(--purple-700, #7e22ce); font-size: 10px; font-weight: 700; vertical-align: 1px; }
+
 			/* AI */
 			.mp-sn-ai__stat { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-bottom: 10px; font-size: var(--text-sm); }
 			.mp-sn-ai__on { color: var(--green-600, #16a34a); font-weight: 600; }
 			.mp-sn-ai__off { color: var(--orange-700, #c2410c); font-weight: 600; }
 			.mp-sn-ai { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-			.mp-sn-ai__row { display: block; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: var(--border-radius-md); color: var(--text-color); }
-			.mp-sn-ai__row:hover { background: var(--subtle-fg); text-decoration: none; color: var(--text-color); }
-			.mp-sn-ai__meta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 10px; margin-bottom: 6px; font-size: var(--text-sm); }
+			.mp-sn-ai__row { display: grid; gap: 6px; align-content: start; padding: 10px 12px; border: 1px solid var(--border-color);
+				border-radius: var(--border-radius-md); color: var(--text-color); min-width: 0; }
+			.mp-sn-ai__meta { display: flex; justify-content: space-between; gap: 10px; font-size: var(--text-sm); }
+			.mp-sn-ai__meta a { flex: none; color: var(--text-muted); }
+			.mp-sn-ai__sub { font-size: var(--text-xs); }
+			.mp-sn-ai__state { font-size: var(--text-sm); color: var(--text-muted); }
+			.mp-sn-ai__state.is-bad { color: var(--red-600, #dc2626); }
 			.mp-sn-ai__meta b { color: var(--heading-color); }
 			.mp-sn-ai__text { font-size: var(--text-sm); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
 
@@ -560,11 +662,15 @@
 			@media (max-width: 900px) {
 				.mp-sn-two { grid-template-columns: 1fr; }
 				.mp-sn-ai { grid-template-columns: 1fr; }
-				.mp-sn-now { grid-template-columns: 1fr; }
-				.mp-sn-now__title { writing-mode: horizontal-tb; transform: none; align-self: start; }
+				.mp-sn-now { grid-template-columns: 1fr 1fr; }
+				.mp-sn-now__title { grid-column: 1 / -1; writing-mode: horizontal-tb; transform: none; align-self: start; }
 			}
 			@media (max-width: 640px) {
 				.page-form .mp-sn-filter, .page-form .mp-sn-filter--wide { flex: 1 1 45%; max-width: none; }
+				.mp-sn-now { grid-template-columns: 1fr; }
+				.mp-sn-cc__cols { gap: 1px; }
+				.mp-sn-cc__val { font-size: 10px; }
+				.mp-sn-cc__val em { display: none; }
 				.mp-sn-kpis { grid-template-columns: 1fr 1fr; }
 				.mp-sn-kpi.is-money { grid-column: 1 / -1; }
 				.mp-sn-kpi.is-money .mp-sn-kpi__value { font-size: 24px; }

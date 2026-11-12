@@ -293,14 +293,22 @@ def status():
 	}
 
 
+def retry_failed():
+	"""Xato bo'lgan (transkripti yo'q) yozuvlar urinishlari nolga qaytariladi — 15 daqiqalik navbat ularni qayta oladi.
+	Masalan, kalit noto'g'ri bo'lganda 3 marta yiqilgan yozuv kalit tuzatilgach o'zi matnga aylanadi."""
+	names = frappe.get_all("Telefon Qongiroq", filters={"transkript": ["is", "not set"], "holat": "Xato"}, pluck="name")
+	for name in names:
+		frappe.db.set_value("Telefon Qongiroq", name, {"stt_urinish": 0, "holat": "Yozuv bor"}, update_modified=False)
+	return len(names)
+
+
 @frappe.whitelist()
 def transcribe_all():
 	"""Sozlamalardagi "Eski yozuvlarni transkripsiya qilish": transkripti yo'q hammasi fonda (xatolilar ham qaytadan)."""
 	_only_managers()
 	if reasons := blockers():
 		frappe.throw("<br>".join(reasons), title=_("AI ishlamayapti"))
-	for name in frappe.get_all("Telefon Qongiroq", filters={"transkript": ["is", "not set"], "holat": "Xato"}, pluck="name"):
-		frappe.db.set_value("Telefon Qongiroq", name, {"stt_urinish": 0, "holat": "Yozuv bor"}, update_modified=False)
+	retry_failed()
 	count = frappe.db.count("Telefon Qongiroq", _pending_filters())
 	if count:
 		frappe.enqueue("marketplace.sotuv.stt.process_queue", limit=count, queue="long", timeout=3 * 3600)
