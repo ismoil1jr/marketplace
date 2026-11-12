@@ -68,7 +68,7 @@
 		toast.t = setTimeout(() => el.classList.remove("is-on"), 1800);
 	}
 
-	// Tasdiq oynasi (telefonda pastdan chiqadi): «Yo'q» — qizil, «Ha» — oddiy. Promise<boolean>
+	// Tasdiq oynasi (telefonda pastdan chiqadi): «Ha» (chiqish) — qizil, «Yo'q» — yashil. Promise<boolean>
 	function confirmSheet({ title, text = "", yes = "Ha", no = "Yo‘q" }) {
 		return new Promise((resolve) => {
 			const box = document.createElement("div");
