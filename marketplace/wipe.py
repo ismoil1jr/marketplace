@@ -305,3 +305,47 @@ def _remove_files(paths):
 		except FileNotFoundError:
 			pass
 	return removed
+
+
+# ---------------- Faqat murojaatlar (test lidlar) ----------------
+
+LEADS_CONFIRM = "MUROJAATLARNI-OCHIR"
+
+
+def murojaatlar(dokon=None, confirm=None):
+	"""Faqat murojaatlarni o'chirish (masalan, test lidlar). Boshqa hech narsa o'chmaydi.
+
+	O'chadi: murojaatlar, ularga bog'langan menejer xulosalari va bildirishnomalari.
+	Qoladi: qo'ng'iroqlar (yozuvi bilan; murojaat havolasi bo'shatiladi), buyurtmalar, mijozlar, tovarlar.
+	O'chirilganlar «Deleted Document» ro'yxatida qoladi — kerak bo'lsa Desk'dan tiklanadi.
+
+	    bench --site <sayt> execute marketplace.wipe.murojaatlar                      # hisobot, hech narsa o'chmaydi
+	    bench --site <sayt> execute marketplace.wipe.murojaatlar --kwargs "{'confirm': 'MUROJAATLARNI-OCHIR'}"
+	    # faqat bitta do'kon: --kwargs "{'dokon': 'Pandoo', 'confirm': 'MUROJAATLARNI-OCHIR'}"
+	"""
+	filters = {"shop": dokon} if dokon else {}
+	rows = frappe.get_all("Murojaat", filters=filters, fields=["name", "shop", "mijoz_ismi", "telefon", "creation"], order_by="creation asc")
+	names = [r.name for r in rows] or [""]
+	by_shop = {}
+	for r in rows:
+		by_shop[r.shop] = by_shop.get(r.shop, 0) + 1
+	print("=== Murojaatlarni o'chirish ===")
+	print("Do'kon:", dokon or "barcha do'konlar")
+	print("Murojaatlar:", len(rows), "|", ", ".join(f"{k}: {v}" for k, v in by_shop.items()) or "—")
+	for r in rows[:30]:
+		print(f"  {r.name}  {r.shop}  {r.mijoz_ismi or ''}  {r.telefon or ''}  {str(r.creation)[:16]}")
+	if len(rows) > 30:
+		print(f"  … va yana {len(rows) - 30} ta")
+	print("Ular bilan o'chadigan menejer xulosalari:", frappe.db.count("Menejer Xulosasi", {"murojaat": ["in", names]}))
+	print("Qoladigan qo'ng'iroqlar (havolasi bo'shatiladi):", frappe.db.count("Telefon Qongiroq", {"murojaat": ["in", names]}))
+	if not rows:
+		return
+	if confirm != LEADS_CONFIRM:
+		print(f"\nHech narsa o'chirilmadi. O'chirish uchun: --kwargs \"{{'confirm': '{LEADS_CONFIRM}'}}\"")
+		return
+	for r in rows:
+		# Murojaat.on_trash: menejer xulosalarini o'chiradi, qo'ng'iroqdan havolani bo'shatadi
+		frappe.delete_doc("Murojaat", r.name, ignore_permissions=True)
+	frappe.db.delete("Notification Log", {"document_type": "Murojaat", "document_name": ["in", names]})
+	frappe.db.commit()
+	print(f"\nTayyor: {len(rows)} ta murojaat o'chirildi. Qolgan murojaatlar: {frappe.db.count('Murojaat', filters)}")
