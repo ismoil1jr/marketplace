@@ -175,6 +175,7 @@ def get_order(name: str):
 	unlinked = frappe.get_all(
 		"Telefon Qongiroq",
 		filters={"shop": shop, "buyurtma": ["is", "not set"], "boshlandi": [">=", add_days(now_datetime(), -3)]},
+		or_filters=[["notanish", "=", 0], ["menejer", "=", frappe.session.user]],
 		fields=["name", "boshlandi", "yonalish", "davomiyligi", "yozuv", "menejer", "telefon"],
 		order_by="boshlandi desc", limit_page_length=20,
 	)
@@ -292,11 +293,17 @@ def attach_call(call: str, order: str):
 	so = _order(order, shop)
 	if frappe.db.get_value("Telefon Qongiroq", call, "shop") != shop:
 		frappe.throw(_("Bu qo'ng'iroq sizning do'koningizniki emas"), frappe.PermissionError)
+	row = frappe.db.get_value("Telefon Qongiroq", call, ["notanish", "menejer"], as_dict=True)
+	if row.notanish and row.menejer != frappe.session.user:
+		frappe.throw(_("Bu qo'ng'iroq sizniki emas"), frappe.PermissionError)
 	frappe.db.set_value(
 		"Telefon Qongiroq", call,
-		{"buyurtma": so.name, "mijoz": so.customer, "mijoz_ismi": so.customer_name,
+		{"buyurtma": so.name, "mijoz": so.customer, "mijoz_ismi": so.customer_name, "notanish": 0,
 		 "telefon": so.customer_phone, "normal_telefon": normalize_phone(so.customer_phone)},
 	)
+	from marketplace.sotuv import stt
+
+	stt.enqueue(call)
 	return get_order(so.name)
 
 

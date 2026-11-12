@@ -49,7 +49,7 @@
    "fieldtype": "Check",
    "label": "Shaxsiy qo'ng'iroqlarni ham saqlash",
    "default": "0",
-   "description": "O'chiq bo'lsa (tavsiya), faqat do'konda buyurtmasi yoki murojaati bor raqam bilan bo'lgan qo'ng'iroq saqlanadi. Boshqa qo'ng'iroqlar yozuvi serverga kelsa ham saqlanmaydi."
+   "description": "O'chiq bo'lsa (tavsiya): buyurtma yoki murojaatda yo'q raqam bilan qo'ng'iroq 24 soat saqlanadi va faqat o'sha menejerga ko'rinadi — mijoz bo'lsa, Sotuv panelidan «Murojaat qilish» bosiladi; bosilmasa, o'chadi. Yoqilgan bo'lsa — hamma qo'ng'iroq muddatsiz saqlanadi."
   },
   {
    "fieldname": "section_ai",

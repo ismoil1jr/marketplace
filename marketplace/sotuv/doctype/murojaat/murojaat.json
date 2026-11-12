@@ -118,7 +118,7 @@
    "fieldname": "manba",
    "fieldtype": "Select",
    "label": "Manba",
-   "options": "Instagram\nFacebook\nTelegram\nSayt\nBoshqa",
+   "options": "Instagram\nFacebook\nTelegram\nSayt\nQo‘ng‘iroq\nBoshqa",
    "default": "Instagram",
    "in_standard_filter": 1
   },

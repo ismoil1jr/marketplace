@@ -136,7 +136,20 @@ def olcham_query(user=None):
 
 
 def telefon_qongiroq_query(user=None):
-	return shop_query(user, "Telefon Qongiroq")
+	"""Do'kon qo'ng'iroqlari; notanish raqamli (24 soat kutayotgan) qo'ng'iroq — faqat uni qilgan menejerga."""
+	cond = shop_query(user, "Telefon Qongiroq")
+	if cond == NOTHING:
+		return cond
+	own = "(`tabTelefon Qongiroq`.notanish = 0 or `tabTelefon Qongiroq`.menejer = {0})".format(
+		frappe.db.escape(user or frappe.session.user)
+	)
+	return f"{cond} and {own}" if cond else own
+
+
+def telefon_qongiroq_has_permission(doc, ptype=None, user=None):
+	if cint(doc.get("notanish")) and doc.get("menejer") != (user or frappe.session.user):
+		return False
+	return shop_doc_has_permission(doc, ptype, user)
 
 
 def menejer_xulosasi_query(user=None):

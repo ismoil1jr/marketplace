@@ -162,6 +162,15 @@
    "in_standard_filter": 1
   },
   {
+   "fieldname": "notanish",
+   "fieldtype": "Check",
+   "default": "0",
+   "read_only": 1,
+   "in_standard_filter": 1,
+   "label": "Ro'yxatda yo'q raqam",
+   "description": "Raqam buyurtma va murojaatlarda yo'q edi. Menejer 24 soat ichida murojaat qo'shmasa, qo'ng'iroq va yozuvi o'chadi. Faqat qo'ng'iroq qilgan menejerga ko'rinadi."
+  },
+  {
    "fieldname": "sb_yozuv",
    "fieldtype": "Section Break",
    "label": "Yozuv"
@@ -341,6 +350,7 @@
   "murojaat",
   "shop",
   "menejer",
+  "notanish",
   "sb_yozuv",
   "yozuv",
   "yozuv_html",

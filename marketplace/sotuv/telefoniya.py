@@ -8,8 +8,10 @@ contact_name, device_model, client_call_id, file_hash + audio fayl.
 
 Qo'ng'iroq mijozga RAQAM bo'yicha bog'lanadi: "998XXXXXXXXX" saytdagi buyurtmaning customer_phone'i bilan solishtiriladi
 (shu menejer do'koni buyurtmalari ichida) — mos kelsa mijoz va uning oxirgi buyurtmasi qo'ng'iroqqa yoziladi.
-Buyurtmada ham, murojaatda ham bo'lmagan raqam (shaxsiy qo'ng'iroq) saqlanmaydi — Telefoniya Sozlamalari'dagi
-"Shaxsiy qo'ng'iroqlarni ham saqlash" yoqilmagan bo'lsa.
+Buyurtmada ham, murojaatda ham bo'lmagan raqam (mijoz to'g'ridan-to'g'ri qo'ng'iroq qilgan yoki shaxsiy qo'ng'iroq) —
+"notanish": 24 soat saqlanadi, faqat o'sha menejerga ko'rinadi va AI'ga yuborilmaydi. Menejer Sotuv panelida
+«Murojaat qilish» bossa (yoki shu raqamdan murojaat / buyurtma kelsa) — qo'ng'iroq mijozga ulanadi; aks holda
+purge_unknown_calls uni yozuvi bilan o'chiradi. "Shaxsiy qo'ng'iroqlarni ham saqlash" yoqilgan bo'lsa — muddatsiz.
 """
 
 import json
@@ -19,13 +21,14 @@ from datetime import datetime, timezone
 
 import frappe
 from frappe import _
-from frappe.utils import cint, convert_utc_to_system_timezone, get_datetime, now_datetime
+from frappe.utils import add_to_date, cint, convert_utc_to_system_timezone, get_datetime, now_datetime
 
 from marketplace.permissions import get_user_shop
 
 ALLOWED_ROLES = {"Shop Sales Manager", "Shop Seller", "System Manager", "Marketplace Manager"}
 # Mijoz raqami: ilova versiyasiga qarab maydon nomi har xil bo'lishi mumkin — birinchi to'ldirilgani olinadi
 PHONE_KEYS = ("phone_number", "phone", "number", "remote_number", "other_number", "callee", "caller", "msisdn", "contact_number")
+UNKNOWN_HOURS = 24  # notanish raqamli qo'ng'iroq shuncha soat kutadi (menejer murojaat qo'shishi uchun)
 
 
 def normalize_phone(raw):
@@ -68,12 +71,13 @@ def ingest_call(**kwargs):
 	own_shop = get_user_shop()
 	order = _match_order(normal, own_shop)
 	lead = _match_lead(normal, order.shop if order else own_shop)
-	if not (order or lead) and not cint(frappe.db.get_single_value("Telefoniya Sozlamalari", "hammasini_saqlash")):
-		# Do'kon mijozi bo'lmagan raqam (shaxsiy qo'ng'iroq): yozuv ham, audio ham saqlanmaydi.
+	unknown = not (order or lead) and not cint(frappe.db.get_single_value("Telefoniya Sozlamalari", "hammasini_saqlash"))
+	if unknown and not own_shop:
+		# Do'konga biriktirilmagan foydalanuvchi (admin): notanish qo'ng'iroqni ko'rsatadigan joy yo'q.
 		# Javob 2xx — ilova faylni "yuborildi" deb hisoblaydi va qayta yubormaydi
 		_log_skipped(phone, form)
 		return {"status": "ok", "name": None, "duplicate": False, "matched": False, "skipped": True,
-		        "sabab": _("Bu raqam do'kon mijozlari (buyurtma, murojaat) orasida yo'q — qo'ng'iroq saqlanmadi")}
+		        "sabab": _("Foydalanuvchi do'konga biriktirilmagan — qo'ng'iroq saqlanmadi")}
 
 	upload, content = _upload()
 	limit_mb = cint(frappe.db.get_single_value("Telefoniya Sozlamalari", "maks_fayl_mb")) or 25
@@ -97,6 +101,7 @@ def ingest_call(**kwargs):
 			"murojaat": lead.name if lead else None,
 			"shop": order.shop if order else (lead.shop if lead else own_shop),
 			"menejer": frappe.session.user,
+			"notanish": int(unknown),
 			"xodim_id": (form.get("employee_id") or "")[:140],
 			"ish_raqami": (form.get("target_number") or "")[:140],
 			"sim_slot": str(form.get("target_sim_slot") or "")[:20],
@@ -113,8 +118,58 @@ def ingest_call(**kwargs):
 		_attach_audio(doc, upload, content)
 		from marketplace.sotuv import stt
 
-		stt.enqueue(doc.name)  # AI yoqilgan bo'lsa — yozuv fonda matnga aylanadi va qisqa tahlil yoziladi
-	return {"status": "ok", "name": doc.name, "duplicate": False, "matched": bool(order or lead)}
+		stt.enqueue(doc.name)  # AI yoqilgan bo'lsa — fonda matnga aylanadi (notanish qo'ng'iroq — mijozga ulangandan keyin)
+	return {"status": "ok", "name": doc.name, "duplicate": False, "matched": bool(order or lead), "notanish": unknown}
+
+
+def link_unknown_calls(shop, normal, murojaat=None, buyurtma=None, mijoz_ismi=None, calls=()):
+	"""Notanish qo'ng'iroqlar mijozga ulanadi: shu raqam bilan bo'lganlari (va raqami kelmagan, menejer o'zi
+	tanlagan `calls`). Ulangach odatiy qo'ng'iroq bo'ladi — muddatsiz saqlanadi va AI matnga aylantiradi."""
+	from marketplace.sotuv import stt
+
+	names = set(calls or ())
+	if normal:
+		names |= set(frappe.get_all("Telefon Qongiroq", filters={"shop": shop, "notanish": 1, "normal_telefon": normal}, pluck="name"))
+	values = {"notanish": 0}
+	if murojaat:
+		values["murojaat"] = murojaat
+	if buyurtma:
+		values["buyurtma"] = buyurtma
+	if mijoz_ismi:
+		values["mijoz_ismi"] = mijoz_ismi[:140]
+	done = []
+	for name in names:
+		row = frappe.db.get_value("Telefon Qongiroq", name, ["shop", "normal_telefon"], as_dict=True)
+		if not row or row.shop != shop:
+			continue
+		extra = {} if row.normal_telefon or not normal else {"normal_telefon": normal, "telefon": pretty_phone(normal)}
+		frappe.db.set_value("Telefon Qongiroq", name, {**values, **extra}, update_modified=False)
+		stt.enqueue(name)
+		done.append(name)
+	return done
+
+
+def purge_unknown_calls():
+	"""Har soat: 24 soat ichida mijozga ulanmagan notanish qo'ng'iroqlar yozuvi bilan o'chadi. O'chirishdan oldin
+	yana bir bor tekshiriladi — shu vaqt ichida bu raqamdan buyurtma yoki murojaat kelgan bo'lsa, ulanadi."""
+	old = frappe.get_all(
+		"Telefon Qongiroq",
+		filters={"notanish": 1, "creation": ["<", add_to_date(now_datetime(), hours=-UNKNOWN_HOURS)]},
+		fields=["name", "shop", "normal_telefon"],
+	)
+	removed = 0
+	for c in old:
+		order = _match_order(c.normal_telefon, c.shop) if c.normal_telefon else None
+		lead = _match_lead(c.normal_telefon, c.shop) if c.normal_telefon else None
+		if order or lead:
+			link_unknown_calls(c.shop, c.normal_telefon, murojaat=lead and lead.name, buyurtma=order and order.name,
+			                   mijoz_ismi=(order and order.customer_name) or (lead and lead.mijoz_ismi), calls=[c.name])
+		else:
+			# Biriktirilgan audio (File) ham diskdan o'chadi — frappe.delete_doc -> remove_all
+			frappe.delete_doc("Telefon Qongiroq", c.name, ignore_permissions=True, force=True, delete_permanently=True)
+			removed += 1
+		frappe.db.commit()
+	return removed
 
 
 def _log_skipped(phone, form):

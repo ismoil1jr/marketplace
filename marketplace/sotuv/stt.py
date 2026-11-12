@@ -89,6 +89,7 @@ def _pending_filters():
 	filters = [
 		["yozuv", "is", "set"],
 		["yozuv_ochirildi", "=", 0],
+		["notanish", "=", 0],
 		["transkript", "is", "not set"],
 		["holat", "!=", "Transkripsiya"],
 		["stt_urinish", "<", MAX_ATTEMPTS],

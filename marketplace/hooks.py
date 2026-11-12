@@ -216,7 +216,7 @@ has_permission = {
 	"Doimiy Mijoz": "marketplace.permissions.shop_doc_has_permission",
 	"Telegram Mijoz": "marketplace.permissions.shop_doc_has_permission",
 	"Olcham": "marketplace.permissions.shop_doc_has_permission",
-	"Telefon Qongiroq": "marketplace.permissions.shop_doc_has_permission",
+	"Telefon Qongiroq": "marketplace.permissions.telefon_qongiroq_has_permission",
 	"Menejer Xulosasi": "marketplace.permissions.shop_doc_has_permission",
 	"Rang": "marketplace.permissions.shop_doc_has_permission",
 	"Payment Transaction": "marketplace.permissions.shop_doc_has_permission",
@@ -301,6 +301,8 @@ scheduler_events = {
 		"marketplace.orders.cancel_abandoned",
 		# Sotuv paneli: qayta qo'ng'iroq sanasi kelgan buyurtmalar — menejerga eslatma
 		"marketplace.sotuv.api.remind_callbacks",
+		# Notanish raqamli qo'ng'iroqlar: 24 soatda murojaat bo'lmasa — yozuvi bilan o'chadi (sotuv/telefoniya.py)
+		"marketplace.sotuv.telefoniya.purge_unknown_calls",
 	],
 	"cron": {
 		# Har kuni 09:00 (sayt vaqt zonasi): do'kon egalariga kam qolgan / tugagan tovarlar ro'yxati

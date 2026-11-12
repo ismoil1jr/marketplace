@@ -28,7 +28,7 @@ from frappe import _
 from frappe.rate_limiter import rate_limit
 from frappe.utils import add_to_date, cint, flt, get_url, getdate, now_datetime, today
 
-from marketplace.sotuv.telefoniya import normalize_phone, pretty_phone
+from marketplace.sotuv.telefoniya import link_unknown_calls, normalize_phone, pretty_phone
 
 RESULTS = ("Oladi", "Olmaydi", "Javob bermadi", "Keyinroq")
 CHANNELS = ("Qo‘ng‘iroq", "SMS")
@@ -176,6 +176,7 @@ def save_lead(shop, data, asked=None):
 		}
 	)
 	doc.insert(ignore_permissions=True)
+	link_unknown_calls(shop, normal, murojaat=doc.name, mijoz_ismi=doc.mijoz_ismi)
 	_notify(doc)
 	return doc.name, False
 
@@ -437,7 +438,78 @@ def get_leads(view: str = "yangi", q: str | None = None, dan: str | None = None,
 	from marketplace.sotuv.api import _filters as _order_filters
 
 	return {"shop": shop, "shop_name": frappe.db.get_value("Shop", shop, "shop_name"), "rows": rows, "counts": counts,
-	        "order_new": frappe.db.count("Sales Order", _order_filters("yangi", shop)), "must": _has_must(shop)}
+	        "order_new": frappe.db.count("Sales Order", _order_filters("yangi", shop)), "must": _has_must(shop),
+	        "unknown_calls": _unknown_calls(shop)}
+
+
+def _unknown_calls(shop):
+	"""Buyurtma va murojaatlarda yo'q raqam bilan bo'lgan qo'ng'iroqlar — faqat shu menejerniki, 24 soat (keyin o'chadi)."""
+	from marketplace.sotuv.telefoniya import UNKNOWN_HOURS
+
+	rows = frappe.get_all(
+		"Telefon Qongiroq", filters={"shop": shop, "notanish": 1, "menejer": frappe.session.user},
+		fields=["name", "telefon", "normal_telefon", "kontakt_ism", "yonalish", "boshlandi", "davomiyligi", "yozuv", "creation"],
+		order_by="boshlandi desc", limit_page_length=30,
+	)
+	for r in rows:
+		r.ochadi = str(add_to_date(r.creation, hours=UNKNOWN_HOURS))
+	return rows
+
+
+@frappe.whitelist()
+def lead_items():
+	"""«Murojaat qo'shish» oynasi: do'kon tovarlari (andozalar) — qaysi tovar bo'yicha qo'ng'iroq qilgani."""
+	from marketplace.sotuv.api import _shop
+
+	return frappe.get_all(
+		"Item", filters={"shop": _shop(), "disabled": 0, "variant_of": ["is", "not set"]},
+		fields=["name", "item_name", "mp_tovar_id as tid"], order_by="item_name asc", limit_page_length=300,
+	)
+
+
+@frappe.whitelist(methods=["POST"])
+def add_lead(telefon: str, ism: str | None = None, manzil: str | None = None, izoh: str | None = None,
+             tovar: str | None = None, qongiroq: str | None = None):
+	"""Sotuv menejeri o'zi qo'shgan murojaat: mijoz reklama formasisiz, to'g'ridan-to'g'ri qo'ng'iroq qilgan.
+	Shu raqamdagi notanish qo'ng'iroqlar (va raqami kelmagan `qongiroq`) murojaatga ulanadi. Shu raqamdan murojaat
+	allaqachon bo'lsa — yangisi ochilmaydi, o'sha qaytadi. Buyurtma murojaat kartasidagi «Oladi» orqali yaratiladi."""
+	from marketplace.sotuv.api import _shop
+
+	shop = _shop()
+	normal = normalize_phone(telefon)
+	if not normal or len(normal) < 9:
+		frappe.throw(_("Telefon raqamini to'liq yozing, masalan: 90 123 45 67"))
+	calls = []
+	if qongiroq:
+		row = frappe.db.get_value("Telefon Qongiroq", qongiroq, ["shop", "menejer", "notanish"], as_dict=True)
+		if not row or row.shop != shop or (row.notanish and row.menejer != frappe.session.user):
+			frappe.throw(_("Bu qo'ng'iroq sizniki emas"), frappe.PermissionError)
+		calls.append(qongiroq)
+	full = " ".join((ism or "").split())[:140]
+	existing = frappe.db.get_value("Murojaat", {"shop": shop, "normal_telefon": normal}, "name", order_by="creation desc")
+	if existing:
+		doc = frappe.get_doc("Murojaat", existing)
+		updates = {}
+		if full and doc.mijoz_ismi in (None, "", doc.telefon):
+			updates["mijoz_ismi"] = full
+		if (manzil or "").strip() and not doc.shahar:
+			updates["shahar"] = manzil.strip()[:140]
+		if updates:
+			doc.db_set(updates, update_modified=False)
+	else:
+		first, _sep, last = full.partition(" ")
+		item, item_name = _item(shop, tovar) if tovar else (None, None)
+		doc = frappe.get_doc(
+			{
+				"doctype": "Murojaat", "shop": shop, "ism": first or None, "familiya": last or None,
+				"mijoz_ismi": full or pretty_phone(normal), "telefon": pretty_phone(normal)[:40], "normal_telefon": normal,
+				"shahar": (manzil or "").strip()[:140] or None, "izoh": (izoh or "").strip()[:2000] or None,
+				"tovar": item, "tovar_nomi": item_name, "manba": "Qo‘ng‘iroq", "holat": "Yangi",
+				"menejer": frappe.session.user,
+			}
+		).insert(ignore_permissions=True)
+	linked = link_unknown_calls(shop, normal, murojaat=doc.name, mijoz_ismi=doc.mijoz_ismi, calls=calls)
+	return {"name": doc.name, "existing": bool(existing), "calls": len(linked)}
 
 
 def _sync_orders(shop):

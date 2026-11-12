@@ -57,6 +57,8 @@ class SotuvPaneli {
 		this.page = page;
 		this.state = { mode: "buyurtma", view: "yangi", q: "", open: null, dan: "", gacha: "" };
 		this.page.set_secondary_action(__("Yangilash"), () => this.load(), "refresh");
+		// Mijoz reklama formasisiz, to'g'ridan-to'g'ri qo'ng'iroq qilsa — menejer murojaatni o'zi qo'shadi (sotuv/murojaat.add_lead)
+		this.page.set_primary_action(__("Murojaat qo‘shish"), () => this.add_lead_dialog(), "add");
 		this.$body = $(`<div class="mp-sp"></div>`).appendTo(page.main);
 		this.inject_style();
 	}
@@ -111,6 +113,7 @@ class SotuvPaneli {
 				<input class="form-control input-sm" type="date" data-gacha value="${esc(this.state.gacha)}" title="${__("qaysi kungacha")}">
 				${this.state.dan || this.state.gacha ? `<button class="btn btn-xs btn-default" data-dates-clear>✕ ${__("tozalash")}</button>` : ""}
 			</div>` : ""}
+			${leads ? this.unknown_html(this.data.unknown_calls || []) : ""}
 			<div class="mp-sp__shop text-muted small">
 				<b>${esc(shop_name || "")}</b>
 				${leads ? "" : `<span class="mp-sp__legend">${Object.keys(MP_STATE_CLS).map((s) => `<span title="${esc(MP_STATE_HINT[s])}">${mp_state_pill(s)}</span>`).join("")}</span>`}
@@ -190,6 +193,77 @@ class SotuvPaneli {
 			if ($(e.target).closest("a").length) return; // telefon havolasi — qo'ng'iroq
 			this.open(e.currentTarget.dataset.open);
 		});
+		this.$body.find("[data-unknown-add]").on("click", (e) => {
+			const c = (this.data.unknown_calls || []).find((x) => x.name === e.currentTarget.dataset.unknownAdd);
+			if (c) this.add_lead_dialog({ telefon: c.telefon || "", ism: c.kontakt_ism || "", qongiroq: c.name });
+		});
+		if (this.$body.find(".mp-sp__unknown").length) mp.voice_init(this.$body.find(".mp-sp__unknown"));
+	}
+
+	// Buyurtma ham, murojaat ham bo'lmagan raqam bilan qo'ng'iroqlar — faqat shu menejerniki, 24 soatdan keyin o'chadi
+	unknown_html(calls) {
+		if (!calls.length) return "";
+		const esc = frappe.utils.escape_html;
+		const rows = calls.map((c) => `
+			<div class="mp-sp__unknown-row">
+				<div>
+					<b>${c.telefon ? `<a class="mp-sp__tel" href="tel:${esc(c.telefon)}">${esc(c.telefon)}</a>` : __("Raqam kelmagan")}</b>
+					${c.kontakt_ism ? `<span class="text-muted"> · ${esc(c.kontakt_ism)}</span>` : ""}
+					<div class="text-muted small">${c.yonalish === "Kiruvchi" ? "📥 " + __("Kiruvchi") : "📤 " + __("Chiquvchi")}
+						· ${esc(frappe.datetime.str_to_user(c.boshlandi))}${c.davomiyligi ? ` · ${this.duration(c.davomiyligi)}` : ""}
+						· ${__("o‘chadi")}: ${esc(frappe.datetime.str_to_user(c.ochadi))}</div>
+					${c.yozuv ? mp.voice_note(c.yozuv, {}) : ""}
+				</div>
+				<button class="btn btn-xs btn-primary" data-unknown-add="${esc(c.name)}">➕ ${__("Murojaat qilish")}</button>
+			</div>`).join("");
+		return `<details class="mp-sp__unknown" open>
+			<summary>📞 ${__("Ro‘yxatda yo‘q raqamlar")} <span class="badge">${calls.length}</span>
+				<span class="text-muted small">— ${__("mijoz bo‘lsa «Murojaat qilish» bosing, aks holda 24 soatda o‘chadi. Faqat sizga ko‘rinadi.")}</span></summary>
+			${rows}
+		</details>`;
+	}
+
+	// Murojaatni qo'lda qo'shish: ism, telefon, manzil, tovar. Buyurtma — murojaat kartasidagi «Oladi» orqali
+	async add_lead_dialog(prefill = {}) {
+		let items = [];
+		try {
+			items = await frappe.xcall("marketplace.sotuv.murojaat.lead_items");
+		} catch (e) {
+			items = [];
+		}
+		const labels = new Map(items.map((i) => [`${i.tid ? i.tid + " · " : ""}${i.item_name}`, i.name]));
+		const d = new frappe.ui.Dialog({
+			title: __("Murojaat qo‘shish"),
+			fields: [
+				{ fieldname: "telefon", label: __("Telefon raqami"), fieldtype: "Data", reqd: 1, default: prefill.telefon || "",
+				  description: __("Masalan: 90 123 45 67") },
+				{ fieldname: "ism", label: __("Ism familiya"), fieldtype: "Data", default: prefill.ism || "" },
+				{ fieldname: "manzil", label: __("Manzil"), fieldtype: "Data", description: __("Shahar, tuman, ko‘cha — buyurtmada yetkazish manzili bo‘ladi") },
+				{ fieldname: "tovar", label: __("Qaysi tovar bo‘yicha"), fieldtype: "Select", options: ["", ...labels.keys()].join("\n") },
+				{ fieldname: "izoh", label: __("Izoh"), fieldtype: "Small Text" },
+			],
+			primary_action_label: __("Saqlash"),
+			primary_action: async (v) => {
+				d.get_primary_btn().prop("disabled", true);
+				try {
+					const r = await frappe.xcall("marketplace.sotuv.murojaat.add_lead", {
+						telefon: v.telefon, ism: v.ism || null, manzil: v.manzil || null, izoh: v.izoh || null,
+						tovar: labels.get(v.tovar) || null, qongiroq: prefill.qongiroq || null,
+					});
+					d.hide();
+					frappe.show_alert({
+						message: (r.existing ? __("Bu raqamdan murojaat bor edi — o‘sha ochildi") : __("Murojaat qo‘shildi"))
+							+ (r.calls ? ` · ${__("qo‘ng‘iroqlar ulandi")}: ${r.calls}` : ""),
+						indicator: "green",
+					}, 6);
+					Object.assign(this.state, { mode: "murojaat", view: "hammasi", q: "", dan: "", gacha: "", open: r.name });
+					this.load();
+				} finally {
+					d.get_primary_btn().prop("disabled", false);
+				}
+			},
+		});
+		d.show();
 	}
 
 	async open(name, scroll = true) {
@@ -799,6 +873,13 @@ class SotuvPaneli {
 			.mp-sp__modes button { border: 0; background: none; border-radius: 8px; padding: 6px 14px; font-weight: 600; color: var(--text-muted); }
 			.mp-sp__modes button.is-active { background: var(--card-bg); color: var(--heading-color); box-shadow: var(--shadow-sm); }
 			.mp-sp__dates { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: -4px 0 8px; }
+			.mp-sp__unknown { margin: 0 0 10px; padding: 8px 12px; border: 1px solid var(--orange-200, #fed7aa); border-radius: var(--border-radius-md);
+				background: var(--orange-50, #fff7ed); }
+			.mp-sp__unknown summary { cursor: pointer; font-weight: 600; }
+			.mp-sp__unknown-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 0;
+				border-top: 1px solid var(--orange-100, #ffedd5); }
+			.mp-sp__unknown-row:first-of-type { border-top: 0; }
+			.mp-sp__unknown-row .btn { flex: none; }
 			.mp-sp__dates input { width: 150px; }
 			.mp-sp__line { align-items: center; gap: 10px; }
 			.mp-sp__line .mp-sp__order-main { flex: 1; min-width: 0; }
