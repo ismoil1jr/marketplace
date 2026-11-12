@@ -156,11 +156,25 @@
    "parentfield": "items",
    "parenttype": "Sidebar",
    "type": "Link",
+   "label": "Sotuv nazorati",
+   "idx": 11,
+   "link_type": "Page",
+   "link_to": "sotuv-nazorati",
+   "icon": "gauge"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
+   "doctype": "Sidebar Item",
+   "parent": "Dokon",
+   "parentfield": "items",
+   "parenttype": "Sidebar",
+   "type": "Link",
    "label": "Kuryer paneli",
    "link_type": "Workspace",
    "link_to": "Kuryer",
    "icon": "truck",
-   "idx": 11
+   "idx": 12
   },
   {
    "child": 0,
@@ -174,7 +188,7 @@
    "link_type": "Page",
    "link_to": "upakovka",
    "icon": "package",
-   "idx": 12
+   "idx": 13
   },
   {
    "child": 0,
@@ -188,7 +202,7 @@
    "link_type": "DocType",
    "link_to": "Doimiy Mijoz",
    "icon": "users",
-   "idx": 13
+   "idx": 14
   },
   {
    "child": 0,
@@ -202,7 +216,7 @@
    "link_type": "DocType",
    "link_to": "Telegram Mijoz",
    "icon": "send",
-   "idx": 14
+   "idx": 15
   },
   {
    "child": 0,
@@ -213,7 +227,7 @@
    "parenttype": "Sidebar",
    "type": "Section Break",
    "label": "Do'kon",
-   "idx": 15,
+   "idx": 16,
    "link_type": "DocType"
   },
   {
@@ -225,7 +239,7 @@
    "parenttype": "Sidebar",
    "type": "Link",
    "label": "Kategoriyalar",
-   "idx": 16,
+   "idx": 17,
    "link_type": "DocType",
    "link_to": "Item Group",
    "icon": "folder"
@@ -239,7 +253,7 @@
    "parenttype": "Sidebar",
    "type": "Link",
    "label": "Ranglar",
-   "idx": 17,
+   "idx": 18,
    "link_type": "DocType",
    "link_to": "Rang",
    "icon": "palette"
@@ -253,7 +267,7 @@
    "parenttype": "Sidebar",
    "type": "Link",
    "label": "O'lchamlar",
-   "idx": 18,
+   "idx": 19,
    "link_type": "DocType",
    "link_to": "Olcham",
    "icon": "ruler"
@@ -267,13 +281,13 @@
    "parenttype": "Sidebar",
    "type": "Link",
    "label": "Do'kon sozlamalari",
-   "idx": 19,
+   "idx": 20,
    "link_type": "DocType",
    "link_to": "Shop",
    "icon": "store"
   }
  ],
- "modified": "2026-11-07 16:10:00.000000",
+ "modified": "2026-11-12 15:00:00.000000",
  "modified_by": "Administrator",
  "module": "Dokon",
  "name": "Dokon",

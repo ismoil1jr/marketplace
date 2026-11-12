@@ -460,6 +460,7 @@ def setup_seller_workspace():
 		("Ombor", "Page", "ombor", None, None, "Orange", None),
 		("Kontragentlar", "DocType", "Kontragent", "List", None, "Cyan", None),
 		("Hisobot", "Page", "hisobot", None, None, "Purple", None),
+		("Sotuv nazorati", "Page", "sotuv-nazorati", None, None, "Orange", None),
 		("Buyurtmalar", "DocType", "Sales Order", "List", None, "Blue", None),
 		("Sotuvlar", "DocType", "Sales Order", "List", {"payment_status": "To'langan"}, "Green", None),
 		("Kuryerlardagi naqd", "DocType", "Sales Order", "List", {"mp_cash_status": ["in", ["Kuryerda", "Topshirilmoqda"]]}, "Orange", None),
