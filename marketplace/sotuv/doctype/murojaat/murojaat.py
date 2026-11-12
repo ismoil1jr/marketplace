@@ -26,6 +26,14 @@ class Murojaat(Document):
 		if self.tovar and not self.tovar_nomi:
 			self.tovar_nomi = frappe.db.get_value("Item", self.tovar, "item_name")
 
+	def on_trash(self):
+		"""Murojaat o'chirilsa (masalan, test lidlar): uning menejer xulosalari ham o'chadi, qo'ng'iroqlardan esa faqat
+		bog'lanish olinadi — yozuvlar qoladi (kerak bo'lmasa Qo'ng'iroqlar ro'yxatidan alohida o'chiriladi).
+		Frappe bog'lanishni on_trash'dan keyin tekshiradi, shuning uchun ro'yxatdan ko'plab o'chirish ham ishlaydi."""
+		for name in frappe.get_all("Menejer Xulosasi", filters={"murojaat": self.name}, pluck="name"):
+			frappe.delete_doc("Menejer Xulosasi", name, ignore_permissions=True, force=True)
+		frappe.db.set_value("Telefon Qongiroq", {"murojaat": self.name}, "murojaat", None, update_modified=False)
+
 
 def lead_phone(raw):
 	"""'+998 90 123-45-67' / '901234567' -> '998901234567'; 9 raqamdan kam bo'lsa — None (API bilan bir xil qoida)."""
