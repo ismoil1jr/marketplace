@@ -183,6 +183,17 @@
 	const onFavChange = [];
 
 	function initFavorites() {
+		// Katalog do'konning barcha ochiq tovarlarini chiqaradi: o'chirilgan yoki saytdan olingan tovar sevimlilarda
+		// qolib ketmasin (aks holda tepada «1» turadi, «Sevimlilar» ochilsa — bo'sh). Faqat katalogda tozalanadi
+		const grid = $("[data-grid]");
+		if (grid) {
+			const live = new Set($$(".sf-card[data-code]", grid).map((c) => c.dataset.code));
+			const stale = [...favs].filter((code) => !live.has(code));
+			if (stale.length) {
+				stale.forEach((code) => favs.delete(code));
+				store.set(FAV_KEY, [...favs]);
+			}
+		}
 		const syncFilter = () => {
 			$$("[data-fav-filter]").forEach((b) => (b.hidden = !favs.size));
 			$$("[data-fav-count]").forEach((el) => { el.textContent = favs.size; el.hidden = !favs.size; });
