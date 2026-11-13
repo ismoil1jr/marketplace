@@ -171,10 +171,13 @@ def get_order(name: str):
 		fields=["name", "creation", "buyurtma", "kanal", "natija", "izoh", "keyingi_qongiroq", "menejer", "bekor_qilindi"],
 		order_by="creation desc", limit_page_length=100,
 	)
-	# Raqami kelmagan (mijozga bog'lanmagan) yaqindagi qo'ng'iroqlar — menejer shu buyurtmaga biriktira oladi
+	# Raqami kelmagan (ilova raqamni yubormagan) va hech kimga bog'lanmagan yaqindagi qo'ng'iroqlar — menejer shu
+	# buyurtmaga biriktira oladi. Raqami bor qo'ng'iroq bu yerga tushmaydi: u o'z mijozining kartasida (raqam bo'yicha)
+	# yoki murojaatida turadi, notanish raqamlisi — «Ro'yxatda yo'q raqamlar»da
 	unlinked = frappe.get_all(
 		"Telefon Qongiroq",
-		filters={"shop": shop, "buyurtma": ["is", "not set"], "boshlandi": [">=", add_days(now_datetime(), -3)]},
+		filters={"shop": shop, "buyurtma": ["is", "not set"], "murojaat": ["is", "not set"], "normal_telefon": ["is", "not set"],
+		         "boshlandi": [">=", add_days(now_datetime(), -3)]},
 		or_filters=[["notanish", "=", 0], ["menejer", "=", frappe.session.user]],
 		fields=["name", "boshlandi", "yonalish", "davomiyligi", "yozuv", "menejer", "telefon"],
 		order_by="boshlandi desc", limit_page_length=20,
