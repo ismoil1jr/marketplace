@@ -298,6 +298,19 @@ def transactions(from_date: str | None = None, to_date: str | None = None, provi
 		state = "Bekor" if so.docstatus == 2 or so.payment_status == "Bekor" else "To'langan" if so.payment_status == "To'langan" else "Kutilmoqda"
 		rows.append({"id": so.mp_payment_id, "provider": "Naqd", "status": state, "order": so.name, "amount": flt(so.grand_total),
 		             "time": get_datetime(so.mp_paid_at or so.creation)})
+	# Mijoz saytda Payme/Click'ni tanlagan, lekin to'lov tizimi hali murojaat qilmagan (ilovada «To'lash» bosilmagan,
+	# karta kiritilmagan) — shu yerda «Kutilmoqda» bo'lib turadi: kim, nima, qancha. ID — buyurtma raqami (mijoz Click/Payme
+	# ilovasida ham shuni ko'radi). To'lov boshlansa, o'rniga tranzaksiya qatori chiqadi
+	with_txn = {r["order"] for r in rows if r["order"]}
+	for so in frappe.get_all(
+		"Sales Order",
+		filters={"shop": shop, "docstatus": ["in", [1, 2]], "payment_method": ["in", ["Payme", "Click"]],
+		         "name": ["not in", list(with_txn) or [""]]},
+		fields=["name", "payment_method", "payment_status", "grand_total", "creation", "docstatus"],
+	):
+		state = "Bekor" if so.docstatus == 2 or so.payment_status == "Bekor" else "To'langan" if so.payment_status == "To'langan" else "Kutilmoqda"
+		rows.append({"id": so.name, "provider": so.payment_method, "status": state, "order": so.name, "amount": flt(so.grand_total),
+		             "time": get_datetime(so.creation)})
 
 	orders = {
 		o.name: o for o in frappe.get_all(
