@@ -22,6 +22,9 @@ PACKER_ROLE = "Shop Packer"
 MANAGER_ROLE = "Marketplace Manager"
 # Do'konning sotuv menejeri: Sotuv paneli (to'lanmagan buyurtmalar, qo'ng'iroqlar, natija). Faqat o'z do'koni
 SALES_ROLE = "Shop Sales Manager"
+# Sotuv nazoratchisi (Shop Member: "Nazoratchi", masalan CEO): faqat «Sotuv nazorati» va undagi murojaat, buyurtma,
+# qo'ng'iroqlarni o'qiydi — hech narsani o'zgartirmaydi (sotuv/nazorat.py)
+SUPERVISOR_ROLE = "Shop Supervisor"
 
 SHOP_FIELD = {
 	"fieldname": "shop",
@@ -654,6 +657,7 @@ def after_migrate():
 	setup_courier_role()
 	setup_sales_role()
 	setup_packer_role()
+	setup_supervisor_role()
 	setup_manager_role()
 	# Strict: shop maydoni bo'sh yozuvlar ham sotuvchiga ko'rinmaydi
 	frappe.db.set_single_value("System Settings", "apply_strict_user_permissions", 1)
@@ -777,6 +781,23 @@ SALES_PERMISSIONS = {
 	# Instagram murojaatlari (sotuv/murojaat.py) — menejer holat va qayta qo'ng'iroq sanasini yozadi
 	"Murojaat": ["read", "write"],
 }
+
+
+SUPERVISOR_PERMISSIONS = {
+	"Murojaat": ["read"],
+	"Telefon Qongiroq": ["read"],
+	"Menejer Xulosasi": ["read"],
+	"Sales Order": ["read"],
+}
+
+
+def setup_supervisor_role():
+	if not frappe.db.exists("Role", SUPERVISOR_ROLE):
+		frappe.get_doc({"doctype": "Role", "role_name": SUPERVISOR_ROLE, "desk_access": 1}).insert(ignore_permissions=True)
+	for doctype, rights in SUPERVISOR_PERMISSIONS.items():
+		add_permission(doctype, SUPERVISOR_ROLE, 0)
+		for right in rights:
+			update_permission_property(doctype, SUPERVISOR_ROLE, 0, right, 1, validate=False)
 
 
 def setup_sales_role():

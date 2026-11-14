@@ -208,6 +208,14 @@ def courier_ready(so):
 	return so.get("mp_aloqa_natija") == "Oladi" or so.get("payment_status") == PAID_STATUS
 
 
+def is_supervisor(user=None):
+	"""Faqat sotuv nazoratchisi (do'kon egasi/xodimi yoki admin emas) — Desk'da Sotuv nazorati sahifasi."""
+	from marketplace.setup import SELLER_ROLE, SUPERVISOR_ROLE
+
+	roles = set(frappe.get_roles(user or frappe.session.user))
+	return SUPERVISOR_ROLE in roles and not roles & {SELLER_ROLE, "System Manager", "Marketplace Manager"}
+
+
 def sales_order_query(user=None):
 	"""Saytdagi buyurtma mijoz naqdni tanlamaguncha yoki to'lamaguncha do'konga ko'rinmaydi (orders.confirm_order).
 	Kuryer — faqat kuryer bilan yetkaziladiganlar: hali hech kim olmagan yoki o'zi yetkazganlari."""

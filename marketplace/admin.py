@@ -72,7 +72,9 @@ def _count_by(doctype, shops, filters):
 
 def has_app_permission():
 	"""Desk bosh ekranidagi ikonka: admin, sotuvchi va sotuv menejeriga (do'konchida u o'z do'koni nomi bilan chiqadi)."""
-	return bool({"System Manager", "Marketplace Manager", "Shop Seller", "Shop Sales Manager"} & set(frappe.get_roles()))
+	return bool(
+		{"System Manager", "Marketplace Manager", "Shop Seller", "Shop Sales Manager", "Shop Supervisor"} & set(frappe.get_roles())
+	)
 
 
 @frappe.whitelist()

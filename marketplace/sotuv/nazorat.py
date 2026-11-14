@@ -23,7 +23,8 @@ from marketplace.permissions import get_user_shop
 from marketplace.reports import _is_admin, _pct, _shop_options
 from marketplace.sotuv.telefoniya import normalize_phone
 
-OWNER_ROLES = ("Ega", "Menejer")
+# Nazoratchi — faqat shu sahifa uchun berilgan rol (masalan CEO): ko'radi, hech narsani o'zgartirmaydi
+OWNER_ROLES = ("Ega", "Menejer", "Nazoratchi")
 STATES = ("Yangi", "Javob bermadi", "Keyinroq", "Oladi", "Olmaydi", "Buyurtma berdi")
 CLOSED = ("Olmaydi", "Buyurtma berdi")
 PAID, CANCELLED = "To'langan", "Bekor"
@@ -80,7 +81,7 @@ def get_dashboard(from_date: str | None = None, to_date: str | None = None, shop
 
 def _scope(shop):
 	"""Admin — tanlagan do'kon (yoki do'kon panelidagi do'kon, yoki hammasi). Do'kon a'zosi — faqat o'z do'koni va
-	faqat Ega / Menejer bo'lsa: Xodim, sotuv menejeri, kuryer bu sahifani ochmaydi."""
+	faqat Ega / Menejer / Nazoratchi bo'lsa: Xodim, sotuv menejeri, kuryer bu sahifani ochmaydi."""
 	if _is_admin():
 		if shop and not frappe.db.exists("Shop", shop):
 			frappe.throw(_("Do'kon topilmadi"))
@@ -88,7 +89,7 @@ def _scope(shop):
 	own = get_user_shop()
 	role = own and frappe.db.get_value("Shop Member", {"parent": own, "parenttype": "Shop", "user": frappe.session.user}, "role")
 	if role not in OWNER_ROLES:
-		frappe.throw(_("Sotuv nazorati faqat do'kon egasi va menejeri uchun"), frappe.PermissionError)
+		frappe.throw(_("Sotuv nazorati faqat do'kon egasi, menejeri va nazoratchisi uchun"), frappe.PermissionError)
 	return own
 
 

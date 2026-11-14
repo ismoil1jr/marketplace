@@ -47,16 +47,19 @@ COURIER_CARDS = [
 
 def _is_seller():
 	"""Do'kon egasi/xodimi yoki kuryer (platforma admini emas)."""
-	from marketplace.permissions import is_courier, is_packer
+	from marketplace.permissions import is_courier, is_packer, is_supervisor
 
 	if frappe.session.user in ("Administrator", "Guest"):
 		return False
 	roles = set(frappe.get_roles())
-	return (SELLER_ROLE in roles and not roles & {"System Manager", "Marketplace Manager"}) or is_courier() or is_packer()
+	return (
+		(SELLER_ROLE in roles and not roles & {"System Manager", "Marketplace Manager"})
+		or is_courier() or is_packer() or is_supervisor()
+	)
 
 
 def _shop_boot(shop, admin_view=False):
-	from marketplace.permissions import is_courier, is_packer
+	from marketplace.permissions import is_courier, is_packer, is_supervisor
 
 	shop = frappe.get_cached_doc("Shop", shop)
 	return {
@@ -68,6 +71,7 @@ def _shop_boot(shop, admin_view=False):
 		"admin_view": int(admin_view),
 		"courier": int(not admin_view and is_courier() and frappe.session.user != "Administrator"),
 		"packer": int(not admin_view and is_packer() and frappe.session.user != "Administrator"),
+		"supervisor": int(not admin_view and is_supervisor() and frappe.session.user != "Administrator"),
 	}
 
 
@@ -99,6 +103,8 @@ def boot_session(bootinfo):
 		route = "/desk/sotuv-paneli"
 	elif bootinfo.marketplace_shop["packer"]:
 		route = "/desk/upakovka"
+	elif bootinfo.marketplace_shop["supervisor"]:
+		route = "/desk/sotuv-nazorati"
 	else:
 		# Workspace hali yaratilmagan bo'lsa (migrate qilinmagan), ikonkani o'zgartirmaymiz
 		workspace = COURIER_WORKSPACE if bootinfo.marketplace_shop["courier"] else WORKSPACE

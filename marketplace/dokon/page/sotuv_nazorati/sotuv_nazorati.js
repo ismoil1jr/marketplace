@@ -27,6 +27,8 @@
 	})();
 
 	const esc = (s) => frappe.utils.escape_html(s == null ? "" : String(s));
+	// Shop Member «Nazoratchi» (seller_desk._shop_boot) — sahifani faqat ko'radi
+	const mp_sn_supervisor = () => !!frappe.boot.marketplace_shop?.supervisor;
 	const num = (x) => format_number(x || 0, null, 0);
 	const money = (x) => `${num(x)} so‘m`;
 	const pct = (a, b) => (b ? Math.round((a * 100) / b) : 0);
@@ -222,7 +224,7 @@
 				${tile('data-jump="callbacks"', w.callback_overdue ? "is-bad" : w.callback_count ? "is-warn" : "is-ok", num(w.callback_count),
 					__("qayta qo‘ng‘iroq vaqti keldi"), w.callback_overdue ? __("{0} tasi kechikkan", [w.callback_overdue]) : __("kechikkani yo‘q"))}
 				${tile('data-panel="1"', w.site_orders ? "is-warn" : "is-ok", num(w.site_orders),
-					__("saytdan buyurtma tasdiq kutmoqda"), w.site_orders ? __("Sotuv panelida ochish") : __("kutayotgan buyurtma yo‘q"))}
+					__("saytdan buyurtma tasdiq kutmoqda"), w.site_orders ? (mp_sn_supervisor() ? __("Buyurtmalarni ko‘rish") : __("Sotuv panelida ochish")) : __("kutayotgan buyurtma yo‘q"))}
 			</div>`;
 		}
 
@@ -481,7 +483,8 @@
 				this.render_wait();
 				this.$body.find("[data-wait-box]").get(0).scrollIntoView({ behavior: "smooth", block: "start" });
 			});
-			this.$body.find("[data-panel]").on("click", () => frappe.set_route("sotuv-paneli"));
+			// Nazoratchida Sotuv paneli yo'q (faqat ko'radi) — buyurtmalar ro'yxati ochiladi
+			this.$body.find("[data-panel]").on("click", () => (mp_sn_supervisor() ? frappe.set_route("List", "Sales Order") : frappe.set_route("sotuv-paneli")));
 			this.$body.find(".mp-sn-cc__col").on("click", (e) => {
 				const { from, to } = e.currentTarget.dataset;
 				this.set_range(from, to, "custom");
