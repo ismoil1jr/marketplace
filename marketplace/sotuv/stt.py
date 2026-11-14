@@ -22,8 +22,11 @@ from frappe.utils import add_days, add_to_date, cint, format_datetime, now_datet
 API = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 MODELS_API = "https://generativelanguage.googleapis.com/v1beta/models"
 MODELS_KEY = "mp_stt_models"  # kalit bilan ishlaydigan modellar ro'yxati (6 soat keshda)
-# Google model nomlarini almashtirib turadi: sozlamadagisi topilmasa — kalitda bor eng yangi "flash" modeli olinadi
+# Google model nomlarini almashtirib turadi: sozlamadagisi topilmasa — kalitda bor eng yangi "flash" modeli, u ham
+# bo'lmasa shu oiladagi boshqa arzon model (masalan «gemini-4-hydrogen») olinadi. Pro/Ultra — qimmat, olinmaydi
 FLASH = re.compile(r"^gemini-(\d+(?:\.\d+)?)-flash(-lite)?$")
+OTHER = re.compile(r"^gemini-(\d+(?:\.\d+)?)-([a-z]+)(-lite)?$")
+EXPENSIVE = {"pro", "ultra"}
 PAUSE_KEY = "mp_stt_pause"
 MAX_ATTEMPTS = 3
 MAX_INLINE = 14 * 1024 * 1024  # Gemini so'rovi 20 MB gacha; base64 hajmni 1/3 ga oshiradi
@@ -249,9 +252,17 @@ def available_models():
 
 
 def auto_models():
-	"""Kalitda bor barqaror flash modellari: eng yangi versiya birinchi, bir versiyada — oddiy, keyin lite."""
-	found = [(m, FLASH.match(m)) for m in available_models()]
-	return [m for m, g in sorted(((m, g) for m, g in found if g), key=lambda x: (-float(x[1].group(1)), bool(x[1].group(2))))]
+	"""Kalitda bor barqaror modellar: avval flash (eng yangi versiya birinchi, bir versiyada — oddiy, keyin lite),
+	keyin boshqa nomli arzon modellar (yangi avlod nomlari) — Pro/Ultra emas."""
+	names = available_models()
+	flash = [(m, FLASH.match(m)) for m in names]
+	flash = [m for m, g in sorted(((m, g) for m, g in flash if g), key=lambda x: (-float(x[1].group(1)), bool(x[1].group(2))))]
+	other = [(m, OTHER.match(m)) for m in names if m not in flash]
+	other = [
+		m for m, g in sorted(((m, g) for m, g in other if g and g.group(2) not in EXPENSIVE),
+		                     key=lambda x: (-float(x[1].group(1)), bool(x[1].group(3))))
+	]
+	return flash + other
 
 
 def _call(model, content, mime, cfg):

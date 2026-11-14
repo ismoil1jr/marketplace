@@ -11,12 +11,13 @@ from frappe.utils import flt
 
 from marketplace import kassa
 from marketplace.permissions import COURIER_READY_OR, require_roles
-from marketplace.setup import COURIER_ROLE, SELLER_ROLE
+from marketplace.setup import COURIER_ROLE, SELLER_ROLE, SUPERVISOR_ROLE
 
 
 def _shop(**kw):
-	"""Kuryer sahifalari rollari (kuryer_buyurtmalar.json bilan bir xil): kuryer, do'kon egasi/xodimi, admin."""
-	require_roles(COURIER_ROLE, SELLER_ROLE)
+	"""Kuryer sahifalari rollari (kuryer_buyurtmalar.json bilan bir xil): kuryer, do'kon egasi/xodimi, admin va
+	nazoratchi (faqat ko'radi: «Topshirildi» seller_desk.courier_delivered'da unga yopiq)."""
+	require_roles(COURIER_ROLE, SELLER_ROLE, SUPERVISOR_ROLE)
 	return kassa._shop(**kw)
 from marketplace.marketplace.doctype.rang.rang import color_names
 
@@ -112,7 +113,7 @@ def deliveries(tab: str = "active"):
 def active_count(filters=None):
 	"""Kuryer paneli kartasi «Yetkazilishi kerak» (Number Card, Custom): «Yetkaziladigan buyurtmalar» ro'yxati bilan
 	aynan bir xil son; bosilganda o'sha sahifa ochiladi."""
-	require_roles(COURIER_ROLE, SELLER_ROLE)
+	require_roles(COURIER_ROLE, SELLER_ROLE, SUPERVISOR_ROLE)
 	shop = kassa._shop(admin_optional=True)
 	return {"value": _count(shop, "active") if shop else 0, "fieldtype": "Int", "route": ["kuryer-buyurtmalar"]}
 

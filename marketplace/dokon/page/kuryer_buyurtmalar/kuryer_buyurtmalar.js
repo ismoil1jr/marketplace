@@ -124,8 +124,8 @@ class KuryerBuyurtmalar {
 					</div>
 					<div class="mp-kb-d__acts">
 						${o.phone ? `<a class="btn btn-default mp-kb-d__call" href="tel:${esc(o.phone)}">${mp_kb_icon("phone")}${esc(this.phone(o.phone))}</a>` : ""}
-						<button type="button" class="btn btn-default mp-kb-d__call" data-loyal>
-							${o.loyal ? `${mp_kb_icon("user_check")}${__("Doimiy mijoz anketasi")}` : `${mp_kb_icon("user_plus")}${__("Doimiy mijozga qo‘shish")}`}</button>
+						${frappe.boot.marketplace_shop?.supervisor ? "" : `<button type="button" class="btn btn-default mp-kb-d__call" data-loyal>
+							${o.loyal ? `${mp_kb_icon("user_check")}${__("Doimiy mijoz anketasi")}` : `${mp_kb_icon("user_plus")}${__("Doimiy mijozga qo‘shish")}`}</button>`}
 					</div>
 				</div>
 

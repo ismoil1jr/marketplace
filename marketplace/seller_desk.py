@@ -550,7 +550,7 @@ def setup_seller_workspace():
 
 def setup_courier_workspace():
 	"""Kuryer planshetidagi "Kuryer" sahifasi: yetkaziladigan buyurtmalar, qo'lidagi naqd va mijoz anketasi."""
-	from marketplace.setup import COURIER_ROLE
+	from marketplace.setup import COURIER_ROLE, SUPERVISOR_ROLE
 
 	_save_number_cards(COURIER_CARDS)
 	shortcuts = [
@@ -578,7 +578,8 @@ def setup_courier_workspace():
 			"for_user": "",
 		}
 	)
-	ws.set("roles", [{"role": r} for r in (COURIER_ROLE, "System Manager", "Marketplace Manager")])
+	# Nazoratchi (CEO) ham ko'radi — faqat o'qish: Doimiy mijoz, Qo'limdagi naqd, Upakovka yorliqlari unga yashirin
+	ws.set("roles", [{"role": r} for r in (COURIER_ROLE, SUPERVISOR_ROLE, "System Manager", "Marketplace Manager")])
 	ws.set("number_cards", [{"number_card_name": c[0], "label": c[0].split(": ", 1)[1]} for c in COURIER_CARDS])
 	ws.set(
 		"shortcuts",
