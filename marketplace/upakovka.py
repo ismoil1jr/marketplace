@@ -12,12 +12,17 @@ from frappe.utils import flt, get_fullname, now_datetime
 
 from marketplace import kassa
 from marketplace.permissions import COURIER_MEMBERS, PACKER_MEMBERS, courier_ready, require_roles
-from marketplace.setup import PACKER_ROLE, SELLER_ROLE
+from marketplace.setup import PACKER_ROLE, SELLER_ROLE, SUPERVISOR_ROLE
 
 
-def _shop():
-	"""Upakovka sahifasi rollari (upakovka.json bilan bir xil): upakovkachi, do'kon egasi/xodimi, admin."""
-	require_roles(PACKER_ROLE, SELLER_ROLE)
+def _shop(action=False):
+	"""Upakovka sahifasi rollari (upakovka.json bilan bir xil): upakovkachi, do'kon egasi/xodimi, admin va nazoratchi.
+	action — «Upakovka qilindi» / qaytarish: nazoratchi faqat ko'radi."""
+	from marketplace.permissions import is_supervisor
+
+	require_roles(PACKER_ROLE, SELLER_ROLE, SUPERVISOR_ROLE)
+	if action and is_supervisor():
+		frappe.throw(_("Nazoratchi faqat ko'radi — upakovkani upakovkachi belgilaydi"), frappe.PermissionError)
 	return kassa._shop()
 
 FIELDS = [
@@ -125,7 +130,7 @@ def mark_packed(name: str):
 	"""Upakovkachi: buyurtma yig'ildi va qadoqlandi — kuryerga xabar ketadi, ro'yxatida «📦 Tayyor»."""
 	from marketplace.seller_desk import _notify_users
 
-	shop = _shop()
+	shop = _shop(action=True)
 	so = _order(name, shop)
 	if so.mp_packed:
 		frappe.throw(_("Bu buyurtma allaqachon upakovka qilingan"))
@@ -144,7 +149,7 @@ def mark_packed(name: str):
 @frappe.whitelist(methods=["POST"])
 def unpack(name: str):
 	"""Adashib bosilgan bo'lsa — qaytarish (topshirilmagan bo'lsa)."""
-	shop = _shop()
+	shop = _shop(action=True)
 	so = _order(name, shop)
 	if flt(so.per_delivered) >= 100:
 		frappe.throw(_("Buyurtma allaqachon mijozga topshirilgan"))

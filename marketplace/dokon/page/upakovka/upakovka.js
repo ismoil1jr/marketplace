@@ -103,7 +103,10 @@ class Upakovka {
 			</div>`);
 		this.bind_images(dialog, o);
 		dialog.$body.find("[data-print]").on("click", () => this.print_label(o));
-		if (!o.packed && !o.delivered) {
+		// Nazoratchi (Shop Member «Nazoratchi») faqat ko'radi — tugmalar yo'q
+		if (frappe.boot.marketplace_shop?.supervisor) {
+			// faqat ko'rish
+		} else if (!o.packed && !o.delivered) {
 			if (!o.confirmed) {
 				dialog.$body.append(`<div class="mp-up-d__wait">${__("Menejer hali mijoz bilan gaplashib tasdiqlamagan")}</div>`);
 			} else {

@@ -10,6 +10,12 @@ if (frappe.utils?.map_defaults) {
 	frappe.utils.map_defaults.zoom = 12;
 }
 
+// Workspace'da ruxsati yo'q yorliq/karta (masalan nazoratchiga «Mijoz qo'shish») bo'sh katak bo'lib qolardi —
+// tahrirlash rejimidan tashqarida yashiramiz. Spacer'ning o'z klassi bor (.widget), unga tegilmaydi
+$("<style>")
+	.text(".layout-main-section:not(.edit-mode) .ce-block:has(> .ce-block__content > div:empty:not(.widget)) { display: none !important; }")
+	.appendTo(document.head);
+
 const MP_LIVE_WORKSPACES = new Set(["Dokonim", "Kuryer"]);
 mp.refresh_workspace = () => {
 	const ws = frappe.workspace;

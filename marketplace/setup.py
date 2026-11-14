@@ -784,6 +784,8 @@ SALES_PERMISSIONS = {
 
 
 SUPERVISOR_PERMISSIONS = {
+	# Kuryer paneli: doimiy mijozlar anketasi — ko'radi va qo'sha oladi («Mijoz qo'shish»), o'chira olmaydi
+	"Doimiy Mijoz": ["read", "write", "create"],
 	"Murojaat": ["read"],
 	"Telefon Qongiroq": ["read"],
 	"Menejer Xulosasi": ["read"],

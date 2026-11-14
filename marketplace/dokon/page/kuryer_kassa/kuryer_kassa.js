@@ -33,7 +33,7 @@ class KuryerKassa {
 		const esc = frappe.utils.escape_html;
 		return `
 			<a class="mp-kk__row" href="/desk/sales-order/${encodeURIComponent(o.name)}">
-				<span><b>${esc(o.customer_name || "—")}</b><small>${esc(o.name)}${when ? ` · ${esc(frappe.datetime.str_to_user(when))}` : ""}</small></span>
+				<span><b>${esc(o.customer_name || "—")}</b><small>${esc(o.name)}${this.data?.all && o.courier ? ` · 🚚 ${esc(o.courier)}` : ""}${when ? ` · ${esc(frappe.datetime.str_to_user(when))}` : ""}</small></span>
 				<b>${this.money(o.grand_total)}</b>
 			</a>`;
 	}
@@ -43,13 +43,13 @@ class KuryerKassa {
 		const esc = frappe.utils.escape_html;
 		this.$body.html(`
 			<div class="mp-kk__hero">
-				<div class="mp-kk__label">${__("Qo‘limdagi naqd")}</div>
+				<div class="mp-kk__label">${d.all ? __("Kuryerlardagi naqd") : __("Qo‘limdagi naqd")}</div>
 				<div class="mp-kk__total">${this.money(d.in_hand_total)}</div>
 				<div class="mp-kk__sub">${d.in_hand.length} ${__("ta buyurtmadan")} · ${esc(d.courier)} · ${esc(d.shop_name || "")}</div>
-				<button class="btn btn-primary btn-lg mp-kk__btn" data-handover ${d.in_hand.length ? "" : "disabled"}>
+				${d.all ? "" : `<button class="btn btn-primary btn-lg mp-kk__btn" data-handover ${d.in_hand.length ? "" : "disabled"}>
 					💵 ${__("Do‘kon kassiriga topshirish")}
-				</button>
-				${d.in_hand.length ? "" : `<div class="mp-kk__sub">${__("Qo‘lingizda topshiriladigan pul yo‘q")}</div>`}
+				</button>`}
+				${d.in_hand.length ? "" : `<div class="mp-kk__sub">${d.all ? __("Kuryerlarda topshirilmagan pul yo‘q") : __("Qo‘lingizda topshiriladigan pul yo‘q")}</div>`}
 			</div>
 
 			${d.in_hand.length ? `<div class="mp-kk__sec">${__("Qaysi buyurtmalardan")}</div>
@@ -57,11 +57,11 @@ class KuryerKassa {
 
 			${d.sent.length ? `<div class="mp-kk__sec mp-kk__sec--wait">⏳ ${__("Do‘konchi tasdiqlashini kutmoqda")} · ${this.money(d.sent_total)}</div>
 				<div class="mp-kk__list">${d.sent.map((o) => this.row(o, o.mp_cash_sent_at)).join("")}</div>
-				<div class="mp-kk__note text-muted small">${__("Do‘konchi «Qabul qildim» bosgach, bu pul do‘kon kassasiga o‘tadi va sizdan tushadi.")}</div>` : ""}
+				<div class="mp-kk__note text-muted small">${d.all ? __("Do‘konchi «Qabul qildim» bosgach, bu pul do‘kon kassasiga o‘tadi.") : __("Do‘konchi «Qabul qildim» bosgach, bu pul do‘kon kassasiga o‘tadi va sizdan tushadi.")}</div>` : ""}
 
-			${d.handovers.length ? `<div class="mp-kk__sec">🧾 ${__("Do‘kon kassasiga topshirganlarim")}</div>
+			${d.handovers.length ? `<div class="mp-kk__sec">🧾 ${d.all ? __("Do‘kon kassasiga topshirilganlar") : __("Do‘kon kassasiga topshirganlarim")}</div>
 				<div class="mp-kk__list">${d.handovers.map((h) => `<div class="mp-kk__row">
-					<span><b>${this.money(h.total)}</b><small>${h.count} ${__("ta buyurtma")} · ${__("topshirildi")}: ${esc(frappe.datetime.str_to_user(h.sent_at))}</small></span>
+					<span><b>${this.money(h.total)}</b><small>${d.all && h.courier ? `🚚 ${esc(h.courier)} · ` : ""}${h.count} ${__("ta buyurtma")} · ${__("topshirildi")}: ${esc(frappe.datetime.str_to_user(h.sent_at))}</small></span>
 					<span class="mp-kk__st ${h.accepted ? "is-ok" : "is-wait"}">${h.accepted ? `✅ ${__("qabul qilindi")}<small>${esc(frappe.datetime.str_to_user(h.handed_at))}</small>` : `⏳ ${__("tasdiq kutilmoqda")}`}</span>
 				</div>`).join("")}</div>` : ""}
 		`);

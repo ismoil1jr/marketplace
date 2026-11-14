@@ -13,7 +13,7 @@ import frappe
 from frappe import _
 from frappe.utils import flt, fmt_money, get_fullname, now_datetime
 
-from marketplace.setup import COURIER_ROLE, SELLER_ROLE
+from marketplace.setup import COURIER_ROLE, SELLER_ROLE, SUPERVISOR_ROLE
 from marketplace.permissions import get_user_shop, is_admin, member_shop, require_roles
 
 IN_HAND, SENT, HANDED = "Kuryerda", "Topshirilmoqda", "Do'konga topshirildi"
@@ -65,22 +65,38 @@ def _shop_owners(shop):
 
 @frappe.whitelist()
 def courier_cash():
-	"""Kuryer kassasi: qo'lidagi naqd (buyurtmalar bilan) va do'konchi tasdiqlashini kutayotganlari."""
-	require_roles(COURIER_ROLE, SELLER_ROLE)
+	"""Kuryer kassasi: qo'lidagi naqd (buyurtmalar bilan) va do'konchi tasdiqlashini kutayotganlari.
+	Nazoratchi — barcha kuryerlardagi naqd (har qatorda kuryer ismi), faqat ko'radi: topshirish tugmasi yo'q."""
+	from marketplace.permissions import is_supervisor
+
+	require_roles(COURIER_ROLE, SELLER_ROLE, SUPERVISOR_ROLE)
 	shop = _shop()
 	user = frappe.session.user
-	base = {"shop": shop, "docstatus": 1, "payment_method": "Naqd", "mp_courier": user}
+	every = is_supervisor()
+	base = {"shop": shop, "docstatus": 1, "payment_method": "Naqd"}
+	if not every:
+		base["mp_courier"] = user
 	in_hand = frappe.get_all("Sales Order", filters={**base, "mp_cash_status": IN_HAND}, fields=FIELDS, order_by="mp_delivered_at asc")
 	sent = frappe.get_all("Sales Order", filters={**base, "mp_cash_status": SENT}, fields=FIELDS, order_by="mp_cash_sent_at desc")
 	# Topshirish tarixi: bir vaqtda (bir daqiqada) topshirilgan buyurtmalar — bitta yozuv: qancha, qachon, qabul qilindimi
 	hist = frappe.get_all(
 		"Sales Order", filters={**base, "mp_cash_status": ["in", [SENT, HANDED]]},
-		fields=["name", "grand_total", "mp_cash_status", "mp_cash_sent_at", "mp_cash_handed_at"], limit_page_length=500,
+		fields=["name", "grand_total", "mp_cash_status", "mp_cash_sent_at", "mp_cash_handed_at", "mp_courier"], limit_page_length=500,
 	)
+	names = {}
+
+	def courier_name(u):
+		if u and u not in names:
+			names[u] = get_fullname(u)
+		return names.get(u) or ""
+
+	for o in in_hand + sent:
+		o.courier = courier_name(o.mp_courier)
 	groups = {}
 	for o in hist:
-		key = str(o.mp_cash_sent_at or o.mp_cash_handed_at or "")[:16]
-		g = groups.setdefault(key, {"sent_at": str(o.mp_cash_sent_at or o.mp_cash_handed_at or ""), "handed_at": "", "total": 0.0, "count": 0, "accepted": True})
+		key = (str(o.mp_cash_sent_at or o.mp_cash_handed_at or "")[:16], o.mp_courier or "")
+		g = groups.setdefault(key, {"sent_at": str(o.mp_cash_sent_at or o.mp_cash_handed_at or ""), "handed_at": "", "total": 0.0, "count": 0,
+		                            "accepted": True, "courier": courier_name(o.mp_courier)})
 		g["total"] += flt(o.grand_total)
 		g["count"] += 1
 		if o.mp_cash_status == HANDED:
@@ -89,7 +105,8 @@ def courier_cash():
 			g["accepted"] = False
 	handovers = sorted(groups.values(), key=lambda g: g["sent_at"], reverse=True)[:30]
 	return {
-		"courier": get_fullname(user), "shop_name": frappe.db.get_value("Shop", shop, "shop_name"),
+		"courier": _("Barcha kuryerlar") if every else get_fullname(user), "all": int(every),
+		"shop_name": frappe.db.get_value("Shop", shop, "shop_name"),
 		"in_hand": in_hand, "in_hand_total": sum(flt(o.grand_total) for o in in_hand),
 		"sent": sent, "sent_total": sum(flt(o.grand_total) for o in sent),
 		"handovers": handovers,

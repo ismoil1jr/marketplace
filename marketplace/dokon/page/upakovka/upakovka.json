@@ -5,7 +5,7 @@
  "doctype": "Page",
  "icon": "package",
  "idx": 0,
- "modified": "2026-11-07 16:00:00.000000",
+ "modified": "2026-11-14 15:00:00.000000",
  "modified_by": "Administrator",
  "module": "Dokon",
  "name": "upakovka",
@@ -23,6 +23,9 @@
   },
   {
    "role": "System Manager"
+  },
+  {
+   "role": "Shop Supervisor"
   }
  ],
  "script": null,
