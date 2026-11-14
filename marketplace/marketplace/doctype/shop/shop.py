@@ -140,13 +140,14 @@ class Shop(Document):
 		roles = (SELLER_ROLE, COURIER_ROLE, SALES_ROLE, PACKER_ROLE, SUPERVISOR_ROLE)
 		for m in self.members:
 			user = frappe.get_doc("User", m.user)
-			want = member_role(m.role)
+			want = set(member_roles(m.role))
 			have = set(frappe.get_roles(m.user))
-			other = [r for r in roles if r != want and r in have]
+			other = [r for r in roles if r not in want and r in have]
 			if other:
 				user.remove_roles(*other)
-			if want not in have:
-				user.add_roles(want)
+			missing = [r for r in roles if r in want and r not in have]
+			if missing:
+				user.add_roles(*missing)
 			block_erpnext_modules(m.user)
 
 		for user in existing - current:
@@ -191,13 +192,18 @@ def block_erpnext_modules(user):
 	doc.save()
 
 
-def member_role(shop_role):
-	"""Do'kon a'zosi roli (Shop Member.role) -> tizim roli."""
+def member_roles(shop_role):
+	"""Do'kon a'zosi roli (Shop Member.role) -> tizim rollari (Ega / Menejer / Xodim — Shop Seller)."""
+	from marketplace.permissions import COMBO_MEMBER
 	from marketplace.setup import COURIER_ROLE, PACKER_ROLE, SALES_ROLE, SELLER_ROLE, SUPERVISOR_ROLE
 
-	return {"Kuryer": COURIER_ROLE, "Sotuv menejer": SALES_ROLE, "Upakovkachi": PACKER_ROLE, "Nazoratchi": SUPERVISOR_ROLE}.get(
-		shop_role, SELLER_ROLE
-	)
+	return {
+		"Kuryer": (COURIER_ROLE,),
+		"Sotuv menejer": (SALES_ROLE,),
+		"Upakovkachi": (PACKER_ROLE,),
+		COMBO_MEMBER: (COURIER_ROLE, PACKER_ROLE),
+		"Nazoratchi": (SUPERVISOR_ROLE,),
+	}.get(shop_role, (SELLER_ROLE,))
 
 
 def user_validate(doc, method=None):
@@ -226,7 +232,7 @@ def user_validate(doc, method=None):
 			frappe.throw(
 				_("{0} roli shu yerda belgilanmaydi — foydalanuvchini do'konga biriktiring: User formasidagi «Do'konga biriktirish» "
 				  "tugmasi yoki Do'kon formasi → A'zolar jadvali. Rolni o'sha yerda tanlaysiz: Ega / Menejer / Xodim — do'kon paneli, "
-				  "Kuryer — yetkazish, Sotuv menejer — sotuv paneli, Upakovkachi — upakovka, Nazoratchi — sotuv nazorati (faqat ko'radi). Tizim roli, ruxsatlar va menyular o'zi qo'yiladi.").format(", ".join(shop_roles)),
+				  "Kuryer — yetkazish, Sotuv menejer — sotuv paneli, Upakovkachi — upakovka, Kuryer + Upakovkachi — ikkalasi, Nazoratchi — sotuv nazorati (faqat ko'radi). Tizim roli, ruxsatlar va menyular o'zi qo'yiladi.").format(", ".join(shop_roles)),
 				title=_("Avval do'konga biriktiring"),
 			)
 		return
@@ -239,9 +245,9 @@ def user_validate(doc, method=None):
 				doc.name, frappe.db.get_value("Shop", member.parent, "shop_name"), member.role, ", ".join(admin)
 			)
 		)
-	want = member_role(member.role)
-	if want not in roles:
-		doc.append("roles", {"role": want})
+	for want in member_roles(member.role):
+		if want not in roles:
+			doc.append("roles", {"role": want})
 
 
 def get_shops_group_warehouse(company):

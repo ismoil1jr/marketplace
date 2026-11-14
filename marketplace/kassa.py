@@ -35,7 +35,9 @@ def _money(amount):
 
 def shop_couriers(shop):
 	"""Do'kon kuryerlari: [{user, name}]."""
-	users = frappe.get_all("Shop Member", filters={"parent": shop, "parenttype": "Shop", "role": "Kuryer"}, pluck="user")
+	from marketplace.permissions import COURIER_MEMBERS
+
+	users = frappe.get_all("Shop Member", filters={"parent": shop, "parenttype": "Shop", "role": ["in", COURIER_MEMBERS]}, pluck="user")
 	return [{"user": u, "name": get_fullname(u)} for u in users]
 
 
@@ -49,9 +51,12 @@ def _notify(users, subject, order=None):
 
 
 def _shop_owners(shop):
-	"""Pulni qabul qiladiganlar: kuryer va sotuv menejeridan boshqa a'zolar."""
+	"""Pulni qabul qiladiganlar: do'kon paneli a'zolari (Ega / Menejer / Xodim) — kuryer, sotuv menejeri,
+	upakovkachi va nazoratchi emas."""
+	from marketplace.permissions import OWNER_MEMBERS
+
 	return frappe.get_all(
-		"Shop Member", filters={"parent": shop, "parenttype": "Shop", "role": ["not in", ["Kuryer", "Sotuv menejer"]]}, pluck="user"
+		"Shop Member", filters={"parent": shop, "parenttype": "Shop", "role": ["in", OWNER_MEMBERS]}, pluck="user"
 	)
 
 

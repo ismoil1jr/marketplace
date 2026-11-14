@@ -8,7 +8,7 @@ frappe.ui.form.on("User", {
 			const esc = frappe.utils.escape_html;
 			if (m.shop) {
 				frm.set_intro(`<b>${esc(m.shop_name)}</b> ${__("do‘koni")} — <b>${esc(m.role)}</b>. ${esc(m.access || "")}`, "blue");
-			} else if (frm.doc.roles?.some((r) => ["Shop Seller", "Shop Courier", "Shop Sales Manager"].includes(r.role))) {
+			} else if (frm.doc.roles?.some((r) => ["Shop Seller", "Shop Courier", "Shop Sales Manager", "Shop Packer", "Shop Supervisor"].includes(r.role))) {
 				frm.set_intro(__("Hech qaysi do‘konga biriktirilmagan — do‘kon ma’lumotlarini ko‘rmaydi. «Do‘konga biriktirish» ni bosing."), "orange");
 			}
 			frm.add_custom_button(m.shop ? __("Do‘kon / rolni o‘zgartirish") : __("Do‘konga biriktirish"), () => mp_attach_dialog(frm, m));

@@ -104,6 +104,9 @@ MEMBER_ROLES = {
 	"Xodim": "Do'kon paneli (ega bilan bir xil)",
 	"Kuryer": "Faqat yetkazish: o'ziga tegishli buyurtmalar, qo'lidagi naqd, doimiy mijoz anketasi",
 	"Sotuv menejer": "Faqat Sotuv paneli: to'lanmagan buyurtmalar, qo'ng'iroqlar, aloqa natijalari",
+	"Upakovkachi": "Faqat Upakovka: tasdiqlangan buyurtmalarni kuryer uchun yig'ib qadoqlash",
+	"Kuryer + Upakovkachi": "Bitta odam ikkalasini qiladi: buyurtmani qadoqlaydi va yetkazadi, qo'lidagi naqd",
+	"Nazoratchi": "Faqat Sotuv nazorati: lidlar, menejerlar, qo'ng'iroqlar va AI xulosalari (o'zgartira olmaydi)",
 }
 
 

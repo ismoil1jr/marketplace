@@ -11,7 +11,7 @@ from frappe import _
 from frappe.utils import flt, get_fullname, now_datetime
 
 from marketplace import kassa
-from marketplace.permissions import courier_ready, require_roles
+from marketplace.permissions import COURIER_MEMBERS, PACKER_MEMBERS, courier_ready, require_roles
 from marketplace.setup import PACKER_ROLE, SELLER_ROLE
 
 
@@ -137,7 +137,7 @@ def mark_packed(name: str):
 	who = get_fullname(frappe.session.user)
 	so.add_comment("Info", _("📦 {0}: buyurtma upakovka qilindi, kuryerga tayyor").format(who))
 	if so.delivery_method == "Kuryer":
-		_notify_users(so, _("📦 {0} tayyor: {1} — {2}").format(so.name, so.customer_name, so.delivery_address or _("manzil yo'q")), {"role": "Kuryer"})
+		_notify_users(so, _("📦 {0} tayyor: {1} — {2}").format(so.name, so.customer_name, so.delivery_address or _("manzil yo'q")), {"role": ["in", COURIER_MEMBERS]})
 	return {"packed_at": str(so.mp_packed_at)}
 
 
@@ -160,4 +160,4 @@ def notify_packers(so):
 	if so.get("mp_packed"):
 		return
 	subject = _("Upakovka {0}: {1} — {2:g} dona").format(so.name, so.customer_name, flt(so.get("total_qty")))
-	_notify_users(so, subject, {"role": "Upakovkachi"})
+	_notify_users(so, subject, {"role": ["in", PACKER_MEMBERS]})

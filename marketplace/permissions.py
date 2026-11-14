@@ -13,6 +13,15 @@ from frappe.model.naming import make_autoname
 from frappe.utils import cint
 
 
+# Shop Member rollari (Do'kon → A'zolar) guruhlari: xabar kimga borishi, kim naqd qabul qilishi va h.k.
+# «Kuryer + Upakovkachi» — kichik do'konda bitta odam ham qadoqlaydi, ham yetkazadi (ikkala tizim roli beriladi)
+COMBO_MEMBER = "Kuryer + Upakovkachi"
+COURIER_MEMBERS = ("Kuryer", COMBO_MEMBER)
+PACKER_MEMBERS = ("Upakovkachi", COMBO_MEMBER)
+# Do'kon paneli egalari (Shop Seller): kassada kuryerdan naqd shular qabul qiladi
+OWNER_MEMBERS = ("Ega", "Menejer", "Xodim")
+
+
 def is_admin(user=None):
 	user = user or frappe.session.user
 	return user == "Administrator" or bool({"System Manager", "Marketplace Manager"} & set(frappe.get_roles(user)))

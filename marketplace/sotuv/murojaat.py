@@ -28,6 +28,7 @@ from frappe import _
 from frappe.rate_limiter import rate_limit
 from frappe.utils import add_to_date, cint, flt, get_url, getdate, now_datetime, today
 
+from marketplace.permissions import COURIER_MEMBERS, PACKER_MEMBERS
 from marketplace.sotuv.telefoniya import link_unknown_calls, normalize_phone, pretty_phone
 
 RESULTS = ("Oladi", "Olmaydi", "Javob bermadi", "Keyinroq")
@@ -358,7 +359,8 @@ def _notify(doc):
 		f" — {doc.tovar_nomi}" if doc.tovar_nomi else ""
 	)
 	users = set(
-		frappe.get_all("Shop Member", filters={"parent": doc.shop, "parenttype": "Shop", "role": ["!=", "Kuryer"]}, pluck="user")
+		frappe.get_all("Shop Member", filters={"parent": doc.shop, "parenttype": "Shop",
+		              "role": ["not in", (*COURIER_MEMBERS, *PACKER_MEMBERS)]}, pluck="user")
 	)
 	for user in users:
 		frappe.get_doc(

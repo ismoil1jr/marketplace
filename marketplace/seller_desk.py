@@ -101,7 +101,8 @@ def boot_session(bootinfo):
 
 	if sales:
 		route = "/desk/sotuv-paneli"
-	elif bootinfo.marketplace_shop["packer"]:
+	elif bootinfo.marketplace_shop["packer"] and not bootinfo.marketplace_shop["courier"]:
+		# «Kuryer + Upakovkachi» — Kuryer sahifasi (unda «Upakovka» yorlig'i bor)
 		route = "/desk/upakovka"
 	elif bootinfo.marketplace_shop["supervisor"]:
 		route = "/desk/sotuv-nazorati"
@@ -168,7 +169,9 @@ def notify_new_order(doc, method=None):
 def notify_shop(doc, subject):
 	"""Do'kon a'zolariga (kuryerdan tashqari): qo'ng'iroqcha (Notification Log) + ochiq Desk'da ovoz va ekrandagi xabar.
 	Kuryer buyurtmani menejer tasdiqlaganda oladi (notify_couriers)."""
-	_notify_users(doc, subject, {"role": ["!=", "Kuryer"]})
+	from marketplace.permissions import COURIER_MEMBERS
+
+	_notify_users(doc, subject, {"role": ["not in", COURIER_MEMBERS]})
 
 
 def notify_couriers(doc):
@@ -176,7 +179,9 @@ def notify_couriers(doc):
 	from marketplace.upakovka import notify_packers
 
 	subject = _("Yetkazish {0}: {1} — {2}").format(doc.name, doc.customer_name, doc.get("delivery_address") or _("manzil yo'q"))
-	_notify_users(doc, subject, {"role": "Kuryer"})
+	from marketplace.permissions import COURIER_MEMBERS
+
+	_notify_users(doc, subject, {"role": ["in", COURIER_MEMBERS]})
 	# Upakovkachi ham shu paytdan boshlab buyurtmani yig'ib qo'yadi (kuryer kelguncha tayyor bo'lsin)
 	notify_packers(doc)
 
@@ -555,6 +560,8 @@ def setup_courier_workspace():
 		("Mijoz qo'shish", "DocType", "Doimiy Mijoz", "New", None, "Green"),
 		("Doimiy mijozlar", "DocType", "Doimiy Mijoz", "List", None, "Green"),
 		("Qo'limdagi naqd", "Page", "kuryer-kassa", None, None, "Orange"),
+		# Faqat upakovka ruxsati borlarga ko'rinadi («Kuryer + Upakovkachi»): Frappe yorliqni sahifa rollari bo'yicha yashiradi
+		("Upakovka", "Page", "upakovka", None, None, "Purple"),
 		("Topshirilganlar", "DocType", "Sales Order", "List", {"per_delivered": [">=", 100]}, "Grey"),
 	]
 	exists = frappe.db.exists("Workspace", COURIER_WORKSPACE)
