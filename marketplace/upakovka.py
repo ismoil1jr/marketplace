@@ -11,7 +11,7 @@ from frappe import _
 from frappe.utils import flt, get_fullname, now_datetime
 
 from marketplace import kassa
-from marketplace.permissions import require_roles
+from marketplace.permissions import courier_ready, require_roles
 from marketplace.setup import PACKER_ROLE, SELLER_ROLE
 
 
@@ -35,9 +35,9 @@ def _filters(shop, tab):
 
 
 def _confirmed(so):
-	"""Kuryer bilan yetkaziladigan buyurtma faqat menejer "Oladi" degandan keyin tayyorlanadi (kuryer ham shundan
-	keyin ko'radi); o'zi olib ketadigan — saytda yakunlangani bilan."""
-	return so.delivery_method != "Kuryer" or so.mp_aloqa_natija == "Oladi"
+	"""Kuryer bilan yetkaziladigan buyurtma menejer "Oladi" degandan yoki mijoz onlayn to'lagandan keyin tayyorlanadi
+	(kuryer ham shundan keyin ko'radi); o'zi olib ketadigan — saytda yakunlangani bilan."""
+	return so.delivery_method != "Kuryer" or courier_ready(so)
 
 
 def _row(so):
@@ -80,7 +80,7 @@ def orders(tab: str = "todo"):
 	out = [{**_row(r), "lines": lines.get(r.name, [])} for r in rows]
 	counts = {}
 	for t in ("todo", "done"):
-		found = frappe.get_all("Sales Order", filters=_filters(shop, t), fields=["delivery_method", "mp_aloqa_natija"], limit_page_length=0)
+		found = frappe.get_all("Sales Order", filters=_filters(shop, t), fields=["delivery_method", "mp_aloqa_natija", "payment_status"], limit_page_length=0)
 		counts[t] = sum(1 for r in found if _confirmed(r))
 	return {"shop_name": frappe.db.get_value("Shop", shop, "shop_name") or shop, "rows": out, "counts": counts}
 

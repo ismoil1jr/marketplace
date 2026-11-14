@@ -416,7 +416,8 @@ def _notify(so):
 
 	notify_new_order(so)
 	enqueue_order_notification(so)
-	# O'zi olib ketadigan buyurtma menejer tasdig'isiz tayyorlanadi; kuryerniki — "Oladi"dan keyin (notify_couriers)
+	# O'zi olib ketadigan buyurtma menejer tasdig'isiz tayyorlanadi; kuryerniki — "Oladi"dan yoki onlayn to'lovdan
+	# keyin (notify_couriers: sotuv/api.save_result, payments.mark_paid)
 	if so.get("delivery_method") != "Kuryer":
 		from marketplace.upakovka import notify_packers
 

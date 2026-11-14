@@ -2,6 +2,14 @@
 // hisoblanadi, Frappe esa ochilgan workspace'ga qaytganda uni qayta chizmaydi ("already shown") — eskirgan raqam
 // turardi. Shu ikki sahifaga qaytilganda — qayta chizamiz. mp.refresh_workspace() — pul harakatidan keyin (kassa).
 window.mp = window.mp || {};
+
+// Xarita maydonlari (Doimiy mijoz → «Xaritadagi joyi» va boshqalar): Frappe standart holda Mumbayni ochadi.
+// Nuqta qo'yilmagan bo'lsa — Toshkent markazi; qo'yilgan bo'lsa Frappe o'zi o'sha nuqtaga suradi.
+if (frappe.utils?.map_defaults) {
+	frappe.utils.map_defaults.center = [41.3111, 69.2797];
+	frappe.utils.map_defaults.zoom = 12;
+}
+
 const MP_LIVE_WORKSPACES = new Set(["Dokonim", "Kuryer"]);
 mp.refresh_workspace = () => {
 	const ws = frappe.workspace;

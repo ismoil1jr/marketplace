@@ -10,7 +10,7 @@ from frappe import _
 from frappe.utils import flt
 
 from marketplace import kassa
-from marketplace.permissions import require_roles
+from marketplace.permissions import COURIER_READY_OR, require_roles
 from marketplace.setup import COURIER_ROLE, SELLER_ROLE
 
 
@@ -28,15 +28,21 @@ FIELDS = [
 
 
 def _filters(shop, tab):
+	"""(filters, or_filters) — frappe.get_list uchun."""
 	from marketplace.permissions import is_courier
 
 	base = {"shop": shop, "docstatus": 1, "delivery_method": "Kuryer"}
 	if tab == "done":
 		# Kuryerga — o'zi topshirganlari (do'konning o'zi bergani aralashmasin)
 		mine = {"mp_courier": frappe.session.user} if is_courier() else {}
-		return {**base, **mine, "per_delivered": [">=", 100]}
-	# Faqat menejer mijoz bilan gaplashib "Oladi" deb tasdiqlaganlari (sotuv/api.save_result)
-	return {**base, "per_delivered": ["<", 100], "payment_status": ["!=", "Bekor"], "mp_aloqa_natija": "Oladi"}
+		return {**base, **mine, "per_delivered": [">=", 100]}, None
+	# Menejer mijoz bilan gaplashib "Oladi" deb tasdiqlaganlari (sotuv/api.save_result) yoki onlayn to'langanlari
+	return {**base, "per_delivered": ["<", 100], "payment_status": ["!=", "Bekor"]}, COURIER_READY_OR
+
+
+def _count(shop, tab):
+	filters, or_filters = _filters(shop, tab)
+	return len(frappe.get_list("Sales Order", filters=filters, or_filters=or_filters, pluck="name", limit_page_length=0))
 
 
 def _state(so):
@@ -88,16 +94,27 @@ def deliveries(tab: str = "active"):
 	shop = _shop()
 	shop_name = frappe.db.get_value("Shop", shop, "shop_name") or shop
 	tab = "done" if tab == "done" else "active"
+	filters, or_filters = _filters(shop, tab)
 	rows = frappe.get_list(
 		"Sales Order",
-		filters=_filters(shop, tab),
+		filters=filters,
+		or_filters=or_filters,
 		fields=FIELDS,
 		order_by="mp_delivered_at desc, creation desc" if tab == "done" else "creation desc",
 		limit_page_length=50 if tab == "done" else 200,
 	)
-	counts = {t: len(frappe.get_list("Sales Order", filters=_filters(shop, t), pluck="name", limit_page_length=0)) for t in ("active", "done")}
+	counts = {t: _count(shop, t) for t in ("active", "done")}
 	loyal = _loyal(shop, [so.customer_phone for so in rows])
 	return {"shop_name": shop_name, "rows": [_row(so, shop_name, loyal) for so in rows], "counts": counts}
+
+
+@frappe.whitelist()
+def active_count(filters=None):
+	"""Kuryer paneli kartasi «Yetkazilishi kerak» (Number Card, Custom): «Yetkaziladigan buyurtmalar» ro'yxati bilan
+	aynan bir xil son; bosilganda o'sha sahifa ochiladi."""
+	require_roles(COURIER_ROLE, SELLER_ROLE)
+	shop = kassa._shop(admin_optional=True)
+	return {"value": _count(shop, "active") if shop else 0, "fieldtype": "Int", "route": ["kuryer-buyurtmalar"]}
 
 
 def _line_images(codes):

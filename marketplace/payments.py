@@ -89,6 +89,12 @@ def mark_paid(order, method, provider_ref=None):
 	# To'lov o'tdi — buyurtma endi do'konga "Yangi buyurtma" bo'lib boradi (naqd tanlangan bo'lsa — "To'landi")
 	if not confirm_order(so.name):
 		notify_shop(so, _("To‘landi {0}: {1} — {2}").format(so.name, so.customer_name, _money(so)))
+	# Oldindan to'langan yetkazish menejer qo'ng'irog'ini kutmaydi: kuryer va upakovkachiga darhol (permissions.courier_ready).
+	# Menejer avval «Oladi» degan bo'lsa — ular o'shanda xabar olgan.
+	if so.get("delivery_method") == "Kuryer" and so.get("mp_aloqa_natija") != "Oladi" and flt(so.per_delivered) < 100:
+		from marketplace.seller_desk import notify_couriers
+
+		notify_couriers(so)
 
 
 def mark_refunded(order, method, provider_ref=None):

@@ -37,8 +37,8 @@ NUMBER_CARDS = [
 
 # Kuryer paneli kartalari: ro'yxat kuryerga faqat o'zinikini beradi (permissions.sales_order_query)
 COURIER_CARDS = [
-	("Kuryer: Yetkazilishi kerak", "Sales Order", "Count", None,
-		[["docstatus", "=", 1], ["per_delivered", "<", 100], ["payment_status", "!=", "Bekor"]], "#2563eb"),
+	# Son ro'yxatning o'zidan (kuryer.active_count): tasdiqlangan yoki onlayn to'langan, kuryer bilan, hali topshirilmagan
+	("Kuryer: Yetkazilishi kerak", "Sales Order", "marketplace.kuryer.active_count", None, None, "#2563eb"),
 	("Kuryer: Qo'limdagi naqd", "Sales Order", "Sum", "grand_total",
 		[["docstatus", "=", 1], ["mp_cash_status", "=", "Kuryerda"]], "#ea580c"),
 	("Kuryer: Doimiy mijozlar", "Doimiy Mijoz", "Count", None, [], "#16a34a"),
@@ -424,16 +424,20 @@ def setup_site_block():
 
 
 def _save_number_cards(cards):
+	"""function nuqtali yo'l bo'lsa — Custom karta: whitelisted metod ({value, fieldtype, route} qaytaradi). doctype shunda
+	ham kerak: Frappe Custom kartani faqat shu hujjatni o'qiy oladiganlarga ko'rsatadi (number_card.has_permission)."""
 	for name, doctype, function, field, filters, color in cards:
+		custom = "." in function
 		card = frappe.get_doc("Number Card", name) if frappe.db.exists("Number Card", name) else frappe.new_doc("Number Card")
 		card.update(
 			{
 				"label": name,
-				"type": "Document Type",
+				"type": "Custom" if custom else "Document Type",
+				"method": function if custom else None,
 				"document_type": doctype,
-				"function": function,
+				"function": None if custom else function,
 				"aggregate_function_based_on": field or "",
-				"filters_json": json.dumps(filters),
+				"filters_json": json.dumps(filters or []),
 				"is_public": 1,
 				"is_standard": 0,
 				"module": "Marketplace",

@@ -197,6 +197,17 @@ def is_packer(user=None):
 	return PACKER_ROLE in roles and not roles & {SELLER_ROLE, "System Manager", "Marketplace Manager"}
 
 
+PAID_STATUS = "To'langan"
+# frappe.get_list(or_filters=...) uchun: kuryer/upakovkaga chiqqan buyurtma (courier_ready bilan bir xil)
+COURIER_READY_OR = [["mp_aloqa_natija", "=", "Oladi"], ["payment_status", "=", PAID_STATUS]]
+
+
+def courier_ready(so):
+	"""Kuryer bilan yetkaziladigan buyurtma kuryer va upakovkachiga chiqadimi: menejer mijoz bilan gaplashib «Oladi»
+	degan yoki mijoz onlayn oldindan to'lagan (to'lovning o'zi tasdiq — qo'ng'iroq kutilmaydi)."""
+	return so.get("mp_aloqa_natija") == "Oladi" or so.get("payment_status") == PAID_STATUS
+
+
 def sales_order_query(user=None):
 	"""Saytdagi buyurtma mijoz naqdni tanlamaguncha yoki to'lamaguncha do'konga ko'rinmaydi (orders.confirm_order).
 	Kuryer — faqat kuryer bilan yetkaziladiganlar: hali hech kim olmagan yoki o'zi yetkazganlari."""
@@ -206,13 +217,14 @@ def sales_order_query(user=None):
 		return ""
 	cond += " and ifnull(`tabSales Order`.mp_placed, 1) = 1"
 	if is_courier(user):
-		# Kuryer — menejer mijoz bilan gaplashib "Oladi" deb tasdiqlagan yetkazishlar (sotuv/api.save_result)
+		# Kuryer — menejer "Oladi" deb tasdiqlagan yoki onlayn to'langan yetkazishlar (courier_ready)
 		# va o'zi topshirganlari (tarix)
 		cond += (
 			" and `tabSales Order`.delivery_method = 'Kuryer'"
 			" and (ifnull(`tabSales Order`.mp_courier, '') = {0}"
-			" or (ifnull(`tabSales Order`.mp_courier, '') = '' and `tabSales Order`.mp_aloqa_natija = 'Oladi'))"
-		).format(frappe.db.escape(user))
+			" or (ifnull(`tabSales Order`.mp_courier, '') = ''"
+			" and (`tabSales Order`.mp_aloqa_natija = 'Oladi' or `tabSales Order`.payment_status = {1})))"
+		).format(frappe.db.escape(user), frappe.db.escape(PAID_STATUS))
 	return cond
 
 
@@ -226,7 +238,7 @@ def sales_order_has_permission(doc, ptype=None, user=None):
 		return False
 	if doc.get("mp_courier") == user:
 		return True
-	return not doc.get("mp_courier") and doc.get("mp_aloqa_natija") == "Oladi"
+	return not doc.get("mp_courier") and courier_ready(doc)
 
 
 def delivery_note_query(user=None):

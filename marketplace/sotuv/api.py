@@ -13,7 +13,7 @@ import frappe
 from frappe import _
 from frappe.utils import add_days, cint, flt, getdate, now_datetime, today
 
-from marketplace.permissions import get_user_shop, is_admin, member_shop
+from marketplace.permissions import courier_ready, get_user_shop, is_admin, member_shop
 from marketplace.sotuv.telefoniya import normalize_phone
 
 ROLES = {"Shop Sales Manager", "Shop Seller", "System Manager", "Marketplace Manager"}
@@ -197,8 +197,8 @@ def get_order(name: str):
 		# Menejer mijoz bilan gaplashib yana tovar qo'shishi mumkin (orders.add_lines) — onlayn to'langanida yo'q
 		"can_add": so.docstatus == 1 and so.payment_status != CANCELLED and flt(so.per_delivered) < 100
 		           and not (so.payment_status == "To'langan" and so.payment_method != "Naqd"),
-		# Kuryer buyurtmani faqat menejer "Oladi" deganidan keyin ko'radi (permissions.sales_order_query)
-		"courier_open": _courier_open(so), "confirmed": so.get("mp_aloqa_natija") == "Oladi",
+		# Kuryer buyurtmani menejer "Oladi" deganidan yoki onlayn to'langanidan keyin ko'radi (permissions.courier_ready)
+		"courier_open": _courier_open(so), "confirmed": courier_ready(so),
 	}
 
 
@@ -323,7 +323,8 @@ def save_result(order: str, kanal: str, natija: str, izoh: str | None = None, ke
 	so = _order(order, shop)
 	if kanal not in CHANNELS or natija not in RESULTS:
 		frappe.throw(_("Kanal va natijani tanlang"))
-	was_confirmed = so.get("mp_aloqa_natija") == "Oladi"
+	# Onlayn to'langani kuryerga to'lov paytida o'tgan (payments.mark_paid) — qayta xabar bermaymiz
+	was_confirmed = courier_ready(so)
 	# qoshimcha bo'sh kelishi mumkin: null, "" yoki "null" (qo'shimcha tovar tanlanmagan) — JSON o'qish faqat matn bo'lsa
 	rows = frappe.parse_json(qoshimcha) if isinstance(qoshimcha, str) and qoshimcha.strip() else qoshimcha
 	extra = [{"code": (l.get("item") or "").strip(), "qty": cint(l.get("qty")) or 1} for l in (rows or []) if isinstance(l, dict) and l.get("item")]
