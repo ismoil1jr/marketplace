@@ -23,6 +23,7 @@ class TelefoniyaSozlamalari(Document):
 		from marketplace.sotuv import stt
 
 		frappe.clear_document_cache(self.doctype, self.name)
+		frappe.cache.delete_value(stt.MODELS_KEY)  # kalit almashgan bo'lishi mumkin — modellar ro'yxati qayta so'raladi
 		if stt.blockers():
 			return
 		stt.retry_failed()

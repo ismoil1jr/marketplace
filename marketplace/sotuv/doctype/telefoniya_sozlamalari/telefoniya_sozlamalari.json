@@ -78,13 +78,13 @@
    "fieldtype": "Data",
    "label": "Gemini model",
    "default": "gemini-3.8-flash",
-   "description": "gemini-3.8-flash (aniqroq) yoki gemini-3.8-flash-lite (2x arzon)"
+   "description": "gemini-3.8-flash (aniqroq) yoki gemini-3.5-flash-lite (arzonroq). Topilmasa — kalitda bor eng yangi flash modeli o'zi olinadi (Holat blokida ro'yxati)"
   },
   {
    "fieldname": "zaxira_model",
    "fieldtype": "Data",
    "label": "Zaxira model",
-   "default": "gemini-3.8-flash-lite",
+   "default": "gemini-3.5-flash-lite",
    "description": "Asosiy model band bo'lsa (503) yoki topilmasa shunga o'tadi. Bo'sh — zaxirasiz."
   },
   {
@@ -116,7 +116,7 @@
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-11-04 10:00:00.000000",
+ "modified": "2026-11-14 13:30:00.000000",
  "modified_by": "Administrator",
  "module": "Sotuv",
  "name": "Telefoniya Sozlamalari",

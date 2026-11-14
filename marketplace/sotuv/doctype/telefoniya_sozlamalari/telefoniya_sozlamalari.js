@@ -44,6 +44,7 @@ async function draw_status(frm) {
 				${__("Model")}: ${esc(d.model || "—")}${d.zaxira ? ` · ${__("zaxira")}: ${esc(d.zaxira)}` : ""}
 				· ${__("o‘tkazib yuborilganlar har 15 daqiqada qayta uriniladi")}
 			</div>
+			${d.mavjud?.length ? `<div class="text-muted small" style="margin-top:4px">${__("Kalit bilan ishlaydigan modellar")}: ${d.mavjud.map(esc).join(", ")}</div>` : ""}
 			${d.pauza ? `<button class="btn btn-xs btn-default" style="margin-top:8px" data-clear-pause>${__("Kvota pauzasini olib tashlash")}</button>` : ""}
 		</div>`);
 	field.$wrapper.find("[data-clear-pause]").on("click", async () => {

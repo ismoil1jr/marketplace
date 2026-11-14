@@ -20,6 +20,10 @@ from frappe import _
 from frappe.utils import add_days, add_to_date, cint, format_datetime, now_datetime
 
 API = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+MODELS_API = "https://generativelanguage.googleapis.com/v1beta/models"
+MODELS_KEY = "mp_stt_models"  # kalit bilan ishlaydigan modellar ro'yxati (6 soat keshda)
+# Google model nomlarini almashtirib turadi: sozlamadagisi topilmasa — kalitda bor eng yangi "flash" modeli olinadi
+FLASH = re.compile(r"^gemini-(\d+(?:\.\d+)?)-flash(-lite)?$")
 PAUSE_KEY = "mp_stt_pause"
 MAX_ATTEMPTS = 3
 MAX_INLINE = 14 * 1024 * 1024  # Gemini so'rovi 20 MB gacha; base64 hajmni 1/3 ga oshiradi
@@ -47,11 +51,12 @@ class SttError(Exception):
 	"""retry — boshqa model/keyinroq urinsa o'tishi mumkin (band, tarmoq); pause — kvota tugadi;
 	mime — audio turi qabul qilinmadi (boshqa tur bilan qayta urinish mumkin)."""
 
-	def __init__(self, message, retry=False, pause=False, mime=False):
+	def __init__(self, message, retry=False, pause=False, mime=False, missing=False):
 		super().__init__(message)
 		self.retry = retry
 		self.pause = pause
 		self.mime = mime
+		self.missing = missing  # 404: bunday model yo'q (nomi eskirgan)
 
 
 def settings():
@@ -190,24 +195,63 @@ def _failed(doc, error):
 
 
 def _ask(content, mime):
-	"""Avval asosiy model, band/topilmasa — zaxira. m4a (audio/mp4) qabul qilinmasa — audio/aac deb qayta."""
+	"""Avval asosiy model, band/topilmasa — zaxira; ikkalasi ham topilmasa (nomi eskirgan) — kalitda bor eng yangi
+	flash modellari (auto_models). m4a (audio/mp4) qabul qilinmasa — audio/aac deb qayta.
+	Hammasi yiqilsa — har bir modelning o'z xatosi bilan (oxirgisinigina emas)."""
 	cfg = settings()
-	models = [m for m in (cfg.gemini_model, cfg.zaxira_model) if m]
-	last = None
+	models = list(dict.fromkeys(m.strip() for m in (cfg.gemini_model, cfg.zaxira_model) if m and m.strip()))
+	if not models:
+		raise SttError(_("Gemini model yozilmagan"))
 	kinds = (mime, "audio/aac") if mime == "audio/mp4" else (mime,)
-	for model in dict.fromkeys(models):
+	errors, last, auto_added = [], None, False
+	i = 0
+	while i < len(models):
+		model = models[i]
+		i += 1
 		for kind in kinds:
 			try:
 				return _call(model, content, kind, cfg), model
 			except SttError as e:
-				if e.mime:
-					last = e
-					continue  # shu model, boshqa audio turi
-				if not e.retry:
-					raise
 				last = e
-				break  # band yoki topilmadi — keyingi model
-	raise last or SttError(_("Gemini model yozilmagan"))
+				if e.mime:
+					if kind != kinds[-1]:
+						continue  # shu model, boshqa audio turi
+				elif not e.retry:
+					raise  # kalit noto'g'ri, kvota tugadi — boshqa model ham o'tmaydi
+				errors.append(f"{model}: {e}")
+				break  # band, topilmadi yoki audio turi o'tmadi — keyingi model
+		if i == len(models) and not auto_added and last and last.missing:
+			auto_added = True
+			models += [m for m in auto_models() if m not in models][:2]
+	raise SttError("; ".join(errors)[:480] or str(last), retry=True)
+
+
+def available_models():
+	"""Shu API kalit bilan generateContent qila oladigan modellar (Google'ning o'z ro'yxati). Xato bo'lsa — []."""
+	cached = frappe.cache.get_value(MODELS_KEY)
+	if cached is not None:
+		return cached
+	from marketplace.telegram_bot import http
+
+	names = []
+	try:
+		r = http.get(MODELS_API, headers={"x-goog-api-key": api_key()}, params={"pageSize": 1000}, timeout=30)
+		if r.status_code == 200:
+			names = [
+				m["name"].split("/", 1)[-1]
+				for m in r.json().get("models") or []
+				if "generateContent" in (m.get("supportedGenerationMethods") or [])
+			]
+	except (requests.RequestException, ValueError, KeyError):
+		names = []
+	frappe.cache.set_value(MODELS_KEY, names, expires_in_sec=6 * 3600 if names else 600)
+	return names
+
+
+def auto_models():
+	"""Kalitda bor barqaror flash modellari: eng yangi versiya birinchi, bir versiyada — oddiy, keyin lite."""
+	found = [(m, FLASH.match(m)) for m in available_models()]
+	return [m for m, g in sorted(((m, g) for m, g in found if g), key=lambda x: (-float(x[1].group(1)), bool(x[1].group(2))))]
 
 
 def _call(model, content, mime, cfg):
@@ -235,7 +279,7 @@ def _call(model, content, mime, cfg):
 		if r.status_code in (500, 502, 503, 504):
 			raise SttError(_("Gemini band ({0}) — keyinroq qayta uriniladi").format(r.status_code), retry=True)
 		if r.status_code == 404:
-			raise SttError(_("«{0}» modeli topilmadi — sozlamada model nomini tekshiring").format(model), retry=True)
+			raise SttError(_("«{0}» modeli topilmadi — sozlamada model nomini tekshiring").format(model), retry=True, missing=True)
 		if r.status_code in (401, 403) or "API key" in message:
 			raise SttError(_("Gemini API kalit noto'g'ri yoki ruxsati yo'q: {0}").format(message))
 		raise SttError(_("Gemini xatosi ({0}): {1}").format(r.status_code, message), mime="mime" in message.lower())
@@ -290,6 +334,8 @@ def status():
 		"model": cfg.gemini_model,
 		"zaxira": cfg.zaxira_model,
 		"pauza": frappe.cache.get_value(PAUSE_KEY),
+		# Kalit bilan ishlaydigan flash modellari — sozlamadagi nom eskirgan bo'lsa shundan tanlanadi
+		"mavjud": auto_models()[:6] if api_key() else [],
 	}
 
 
