@@ -1,132 +1,151 @@
 # Instagram AI sotuvchi — dizayn
 
-Sana: 2026-11-16 · Holat: ko‘rib chiqishda
+Sana: 2026-11-16, yangilandi 2026-11-17 · Holat: ko‘rib chiqishda
 
 ## Maqsad
 
-Pandoo’ning Instagramidagi DM va izohlarga AI darhol javob beradi. Hozir mijozlar soatlab javob kutib qolmoqda.
+Panda Books (do‘kon: Pandoo) Instagramida AI mijozlarga darhol javob beradi. U uchta joyni kuzatadi:
+1. barcha post va reellar ostidagi **izohlar**;
+2. reklama (target) videolari ostidagi **izohlar**;
+3. **Direct** (DM) xabarlari.
 
-AI quyidagilarni qiladi:
-- tovar, narx va bor-yo‘qligi haqida javob beradi;
-- sotib olmoqchi bo‘lgan mijozdan ism va telefon oladi;
-- olgan ma’lumotdan saytda **Murojaat** yaratadi, keyin operatorlar mijozga qo‘ng‘iroq qiladi.
+AI do‘kon nomidan, mijoz yozgan tilda (o‘zbek lotin/kirill yoki rus) javob beradi. Javob avval salom bilan boshlanadi, keyin savolga aniq javob beradi. Misollar:
 
-**Bunga kirmaydi** (Kamoliddin aka, 2026-11-16):
-- AI qo‘ng‘iroq qilmaydi;
-- Telegram va Facebook Messenger’ga javob bermaydi;
-- buyurtmani o‘zi rasmiylashtirmaydi.
+- «Narxi qancha?» → «Assalomu alaykum! «Panda Books» kitobining narxi — <saytdagi narx> so‘m.»
+- «Bormi?» → «Assalomu alaykum! Ha, albatta bor.»
+  - Ombordagi aniq son hech qachon aytilmaydi.
+  - Qoldiq 0 bo‘lsa: «Hozircha tugagan, menejerimiz aniqlab beradi».
 
-Dastlab faqat Pandoo’da ishlaydi, lekin sozlamalar har bir do‘kon uchun alohida. Boshqa do‘konlar o‘z sahifasini ulab, AI’ni yoqsa, ularda ham ishlaydi.
+ManyChat ishlatilmaydi. AI — Gemini API. Kalit saytdagi **Telefoniya Sozlamalari → Gemini API kalit** maydonida turadi; qo‘ng‘iroq tahlili ham shu kalit bilan ishlaydi.
 
-## Meta cheklovlari
+**Bunga kirmaydi:** AI qo‘ng‘iroq qilmaydi (Kamoliddin aka, 2026-11-16), buyurtmani o‘zi rasmiylashtirmaydi, Telegram va Facebook Messenger’ga javob bermaydi.
 
-Meta hujjatlaridan (Instagram API, Facebook Login orqali):
+## Bosqichlar
 
-1. **Webhook faqat ilova «рабочий режим»da (Live) bo‘lganda keladi.** Live qilish uchun App Review shart emas. Ilovaga belgi (ikonka), maxfiylik va ma’lumot o‘chirish havolasi va kategoriya kerak. Havolalar va kategoriya allaqachon to‘ldirilgan.
-2. **Izohlar (`comments`) webhooki Advanced Access talab qiladi.** Buning uchun App Review va biznes tasdiqlash kerak, bu bir necha hafta oladi.
+1. **Izohlar** (birinchi navbatda): oddiy postlar, reellar va reklama videolari.
+2. **Direct:** shu kod ustiga qo‘shiladi.
 
-Shuning uchun xabarlar ikki yo‘l bilan olinadi:
-- **Webhook:** DM’lar shu zahoti keladi (Live’dan keyin).
-- **Har daqiqada tortib olish (poll):** DM’lar `/{page-id}/conversations?platform=instagram` dan, izohlar so‘nggi postlarning `comments` ro‘yxatidan olinadi. Bu App Review’siz, faqat o‘z akkauntimizda ishlaydi.
+Kod har bir do‘kon uchun ishlaydi. Boshqa do‘kon yoki sinov akkaunti ham Shop formasidan ulanadi.
 
-Ikkalasi ham bir xil xabar ID’si bo‘yicha dublikatni o‘tkazib yuboradi. Ilova Live bo‘lmaguncha ham, App Review bo‘lmaguncha ham bot poll orqali 1 daqiqa kechikish bilan ishlayveradi.
+## Meta’dan ma’lumot olish
 
-## Ishlash tartibi
+App Review talab qilinmasligi uchun sayt har daqiqada Instagram’ni o‘zi tekshiradi (poll). Izohlar webhooki faqat Advanced Access bilan ishlaydi (App Review + biznesni tasdiqlash), shuning uchun u ishlatilmaydi.
 
-**DM**
-1. Yangi xabar keladi.
-2. Suhbat yoziladi.
-3. AI o‘chiq yoki suhbat menejerga o‘tgan bo‘lsa, shu yerda to‘xtaydi. Aks holda Gemini javob tuzadi va javob Send API orqali yuboriladi.
+- **Post va reel izohlari:**
+  - `GET /{ig-user-id}/media` — oxirgi ~25 post;
+  - `GET /{media-id}/comments` — oxirgi 15 daqiqadagi yangilari.
+- **Reklama izohlari:**
+  - `GET /act_{ad-account}/ads?effective_status=["ACTIVE"]&fields=creative{effective_instagram_media_id}` — faol reklamalarning Instagram media ID’lari;
+  - keyin ular xuddi postlar kabi tekshiriladi.
+  - Buning uchun Ismoilga reklama kabinetiga (ad account) kirish huquqi va tokenda `ads_read` ruxsati kerak.
+- **Izohga javob:** `POST /{comment-id}/replies` (`instagram_manage_comments`).
+- **Direct (2-bosqich):**
+  - olish: `GET /{page-id}/conversations?platform=instagram`;
+  - javob: `POST /{page-id}/messages`.
+- **Takrorlanmaslik:** har bir izoh yoki xabar ID’si bazada saqlanadi. Bitta izohga faqat bitta javob yoziladi. Do‘konning o‘z izohlari va javoblariga javob yozilmaydi.
+- **Ruxsat darajasi:** Panda Books akkauntini Ismoil boshqaradi («Полный контроль»), shuning uchun Standard Access yetarli. Meta «разработка» rejimida yuborishni rad etsa, ilovaga ikonka qo‘yilib, «рабочий режим»ga o‘tkaziladi (App Review kerak emas).
+- **Limit:** Meta limit xatosi kelsa (kod 4/17/32/613), do‘kon tekshiruvi 15 daqiqaga to‘xtatiladi.
 
-**Izoh**
-1. Yangi izoh keladi.
-2. AI izohga javob kerakmi yoki yo‘qligini o‘zi baholaydi. Spam, faqat emoji yoki rahmat bo‘lsa, javob bermaydi.
-3. Javob kerak bo‘lsa, izohga qisqa ochiq javob yozadi («Batafsil Direct’ga yozdik») va shu izoh egasiga bitta private reply DM yuboradi.
-4. Mijoz DM’da javob qaytarsa, suhbat oddiy DM kabi davom etadi.
-
-**Lid**
-1. AI suhbatdan telefon raqamini ajratib olsa (zaxira sifatida regex ham tekshiradi), `murojaat.save_lead()` chaqiriladi. Unga quyidagilar beriladi:
-   - `manba="Instagram"`;
-   - ism;
-   - tovar;
-   - izoh: suhbat qisqacha mazmuni;
-   - `tashqi_id = "ig:<mijoz_id>:<sana>"` (bir kunda bitta murojaat).
-2. Operatorlarga mavjud `_notify` orqali saytda bildirishnoma boradi.
-
-**Menejerga o‘tish.** AI quyidagi hollarda jim bo‘ladi va suhbat «Menejerda» holatiga o‘tadi:
-- mijoz operator yoki odam so‘rasa;
-- AI javobga ishonchi yo‘qligini bildirsa;
-- shikoyat bo‘lsa;
-- menejer Instagram ilovasining o‘zidan javob yozsa. Bunda bizning yuborgan ro‘yxatimizda yo‘q bo‘lgan sahifa xabari (echo) kelgani aniqlanadi.
-
-Suhbat 24 soat davomida yangi xabar bo‘lmasa, yoki menejer tugma bilan qaytarsa, yana AI’ga qaytadi.
+**Token ruxsatlari** (Pandoo qayta ulanadi, jami 10 ta):
+- `pages_show_list`
+- `pages_read_engagement`
+- `pages_manage_metadata`
+- `pages_manage_ads`
+- `leads_retrieval`
+- `business_management`
+- `instagram_basic`
+- `instagram_manage_comments`
+- `instagram_manage_messages`
+- `ads_read`
 
 ## AI qoidalari
 
-- Javoblar faqat berilgan ma’lumotdan tuziladi:
-  - do‘kon katalogi: nom, narx (Item Price), qoldiq bor/yo‘q, magazinlar.uz’dagi havola;
-  - do‘kon yozib qo‘ygan **«AI uchun ma’lumot»** matni: yetkazib berish, to‘lov, ish vaqti, uslub.
-- Narx, chegirma yoki muddatni o‘zidan o‘ylab topmaydi. Ma’lumot yo‘q bo‘lsa, «menejer aniqlab beradi» deydi va telefon so‘raydi.
-- Mijoz qaysi tilda yozsa (o‘zbek lotin/kirill yoki rus), o‘sha tilda javob beradi. Javoblar qisqa, 1–3 gap.
-- Javob qat’iy JSON ko‘rinishida bo‘ladi: `{javob, ism, telefon, tovar_kodi, menejerga, izohga_javob_kerak}`. JSON buzilsa, mijozga hech narsa yuborilmaydi va xato yoziladi.
-- Gemini kaliti va modeli mavjud **Telefoniya Sozlamalari**dan olinadi (`stt.api_key()` va model zaxirasi). Yangi kalit kerak emas.
-- Xarajat taxminan: Flash modelda 1000 ta suhbat uchun $5–10.
+- Javob faqat quyidagi ma’lumotdan tuziladi:
+  - **do‘kon katalogi:** nom, narx (Item Price), qoldiq bor/yo‘q, magazinlar.uz havolasi;
+  - **«AI uchun ma’lumot»** matni (Shop maydoni): yetkazib berish, to‘lov, ish vaqti, buyurtma qanday beriladi.
+- **Izohga javob:** 1–2 gap. **DM javobi:** 1–3 gap.
+- Narx, chegirma yoki muddat o‘ylab topilmaydi. Ma’lumot yo‘q bo‘lsa: «Menejerimiz Direct’da aniqlab beradi».
+- Javob berilmaydigan izohlar: spam, faqat emoji, «rahmat», haqorat, raqib reklamasi. Bularni AI `javob_kerak=false` deb belgilaydi.
+- Mijoz telefon raqam qoldirsa (izohda yoki DM’da), `murojaat.save_lead()` orqali **Murojaat** yoziladi:
+  - `manba="Instagram"`;
+  - `tashqi_id="ig:<user_id>:<sana>"`.
+- **Gemini so‘rovi:**
+  - `responseMimeType: application/json`;
+  - javob shakli: `{javob_kerak, javob, til, telefon, ism, tovar_kodi}`;
+  - temperature 0.3;
+  - model va zaxira model mavjud `stt` sozlamalaridan olinadi.
+  - JSON buzilsa, hech narsa yuborilmaydi va xato yoziladi.
+- **Xarajat:** Flash modelda bitta javob taxminan $0.001–0.002 turadi. $5 kredit taxminan 3–5 ming javobga yetadi.
+
+## Rejimlar (Shop → «Instagram AI»)
+
+- **O‘chiq**
+- **Sinov:** AI javobni yozadi, lekin Instagram’ga yubormaydi; javob saytda «Qoralama» bo‘lib turadi.
+- **Yoqilgan:** javoblar avtomatik yuboriladi.
+
+Qoralama yoki yuborilgan javobni operator saytda ko‘radi. Qoralamani **«Yuborish»** tugmasi bilan qo‘lda yuborsa ham bo‘ladi.
 
 ## Ma’lumotlar
 
-**Shop**ga yangi maydonlar («Instagram AI» bo‘limi):
-- `ig_ai_rejim`: **O‘chiq / Sinov / Yoqilgan**. «Sinov» rejimida AI javobni faqat qoralama sifatida yozadi va mijozga yubormaydi. Operatorlar AI qanday javob berishini 1–2 kun ko‘rib, keyin yoqadi.
-- `ig_ai_malumot`: «AI uchun ma’lumot» matni.
-- `ig_user_id`: ulangan Instagram akkaunt ID’si. Sahifani ulaganda o‘zi to‘ladi.
+**Shop**ga yangi maydonlar:
+- `ig_ai_rejim` (O‘chiq / Sinov / Yoqilgan);
+- `ig_ai_malumot` (Text);
+- `ig_user_id`: ulanganda o‘zi to‘ladi;
+- `meta_ad_account`: reklama kabineti ID’si; ulanganda ro‘yxatdan tanlanadi.
 
-**Yangi doctype’lar:**
-- **Instagram Suhbat:**
-  - `shop`, `mijoz_id` (IGSID), `username`;
-  - `holat`: AI / Menejerda;
-  - `oxirgi_xabar` (vaqt), `murojaat` (havola);
-  - `xabarlar`: ichki jadval **Instagram Xabar**.
-- **Instagram Xabar:**
-  - `kimdan`: Mijoz / AI / Menejer / Qoralama;
-  - `turi`: DM / Izoh;
-  - `matn`, `tashqi_id` (mid yoki comment id), `vaqt`.
+**Instagram Xabar** (yangi doctype, ro‘yxat ko‘rinishi):
+- `shop`;
+- `turi` (Izoh / DM);
+- `tashqi_id` (comment yoki message id, unikal);
+- `media_id`, `media_havola`;
+- `mijoz_id`, `username`;
+- `matn`;
+- `ai_javob`;
+- `holat` (Yangi / Qoralama / Yuborildi / Javobsiz / Xato);
+- `xato`, `vaqt`, `murojaat`.
 
-Ko‘rish huquqi Murojaat bilan bir xil (`shop_query`):
-- platforma admini hammasini ko‘radi;
-- do‘kon egasi va sotuv menejerlari faqat o‘z do‘konini ko‘radi.
-
-Suhbat formasida yozishma tarixi ko‘rinadi. Unda **«AI’ni to‘xtatish / qaytarish»** tugmasi bo‘ladi.
+Ko‘rish huquqi Murojaat bilan bir xil (`shop_query`): admin hammasini ko‘radi; do‘kon egasi va sotuv menejerlari faqat o‘z do‘konini ko‘radi.
 
 ## Kod tuzilishi
 
 - `sotuv/meta.py`:
-  - `connect()` sahifa tokeni bilan birga `instagram_business_account` ID’sini ham saqlaydi;
-  - `_subscribe_app()` `page` obunasiga qo‘shimcha ravishda `instagram` (messages) obunasini ham qiladi;
-  - `webhook()` `object == "instagram"` bo‘lgan xabarlarni yangi modulga uzatadi.
-- Yangi `sotuv/instagram.py`: xabar va izohlarni qabul qilish, poll, yuborish (Send API, private reply, izohga javob), echo’ni aniqlash, Suhbat yozish.
-- Yangi `sotuv/ig_ai.py`: Gemini promptini tuzish (katalog, «AI uchun ma’lumot», tarix), javob JSON’ini tekshirish, lid yaratish. Graph API’ga tegmaydi, shuning uchun alohida test qilinadi.
-- `hooks.py`: har daqiqada `instagram.poll` ishga tushadi. Ulangan va AI’si o‘chiq bo‘lmagan do‘konlar tekshiriladi. Meta limit xatosi (kod 4/17/32/613) kelsa, 15 daqiqa pauza qilinadi.
-- AI javobi fon ishida (`frappe.enqueue`) tuziladi. Webhook Meta’ga darhol 200 qaytaradi.
+  - `connect()` qo‘shimcha ravishda `instagram_business_account` va reklama kabinetini saqlaydi;
+  - `_graph()` qayta ishlatiladi.
+- Yangi `sotuv/instagram.py`:
+  - `poll()` — har daqiqada, hooks orqali;
+  - izoh va reklama izohlarini yig‘ish;
+  - Instagram Xabar yozish;
+  - javobni yuborish.
+- Yangi `sotuv/ig_ai.py`:
+  - prompt tuzish;
+  - Gemini chaqiruvi;
+  - JSON tekshiruvi;
+  - telefonni ajratish.
+  - Graph API’ga tegmaydi, shuning uchun alohida test qilinadi.
+- AI va yuborish fon ishida bajariladi (`frappe.enqueue`, `job_id=tashqi_id`).
 
 ## Xatolar
 
-- Gemini xatosi yoki kvota tugashi: mijozga hech narsa yuborilmaydi va suhbat «Menejerda» holatiga o‘tadi. Shu xatoni Error Log va do‘kon **«Oxirgi holat»** maydoni ko‘rsatadi.
-- 24 soatlik oyna tugagan bo‘lsa, Meta yuborishni rad etadi: suhbatga belgi qo‘yiladi va qayta urinilmaydi.
-- Bitta suhbatda AI bir soatda 20 tadan ortiq javob bermaydi (sikl yoki spamdan himoya).
+- **Gemini xatosi yoki kvota tugashi:** hech narsa yuborilmaydi, holat «Xato» bo‘ladi, do‘kon «Oxirgi holat» maydoniga yoziladi.
+- **Meta rad etsa:** holat «Xato» va sababi yoziladi. Qayta urinishni operator tugma bilan qiladi.
+- **Bitta mijozga** soatiga 10 tadan ortiq AI javob yuborilmaydi.
 
 ## Test
 
 - Unit testlar quyidagilar uchun yoziladi:
-  - webhook tahlili: DM, echo, izoh, dublikat;
-  - AI JSON’ini tekshirish va telefon ajratib olish;
-  - menejerga o‘tish qoidalari;
-  - lid dublikati.
+  - izoh va reklama media ro‘yxatini yig‘ish;
+  - dublikat;
+  - o‘z izohini o‘tkazib yuborish;
+  - AI JSON tekshiruvi;
+  - qoldiq so‘zi («ha, bor»; son aytilmaydi);
+  - telefon ajratish;
+  - rejimlar (Sinov yubormaydi).
 - Graph va Gemini mock qilinadi.
-- Lokalda Meta’ning namuna payloadlari bilan sinab ko‘riladi.
-- Prod’da Pandoo’da avval 1–2 kun «Sinov» rejimi, keyin «Yoqilgan».
+- Prod’da Panda Books avval «Sinov» rejimida ishlaydi; javoblar ko‘rib chiqilgach, «Yoqilgan»ga o‘tkaziladi.
 
-## Foydalanuvchi qiladigan ishlar (koddan tashqari)
+## Foydalanuvchi qiladigan ishlar
 
-1. Kamoliddin aka Ismoilni Pandoo sahifasiga «Полный контроль» bilan qo‘shadi. Pandoo Instagram shu sahifaga ulangan bo‘lishi kerak.
-2. Pandoo’ni Graph API Explorer tokeni bilan ulash. Token 9 ta ruxsat bilan olinadi.
-3. Ilovaga ikonka qo‘yib, uni Live’ga o‘tkazish (DM’lar shu zahoti kelishi uchun).
-4. Ixtiyoriy, keyinroq: izohlar uchun App Review va biznes tasdiqlash. Poll ishlab turgani uchun shoshilinch emas.
+1. SMM’chi Ismoilga reklama kabinetiga kirish huquqini beradi: Business Suite → Настройки → Рекламные аккаунты → Добавить людей → «Просмотр эффективности» yetarli.
+2. Pandoo’ni 10 ta ruxsat bilan qayta ulash. Ulash oynasida Panda Books Instagrami va reklama kabineti ham belgilanadi.
+3. «AI uchun ma’lumot» matnini tasdiqlash (qoralamani Claude yozadi).
+4. Gemini kaliti Telefoniya Sozlamalarida turganini tekshirish.
