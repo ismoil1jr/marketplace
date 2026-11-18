@@ -1,15 +1,15 @@
-# Instagram AI — comment replies (Phase 1) Implementation Plan
+# Instagram AI — comment + Direct replies Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Every minute the site reads new comments on Panda Books' Instagram posts, reels and active ad videos, asks Gemini for a short reply in the customer's language, and posts it under the comment as the shop. A «Sinov» (draft) mode shows replies on the site without posting them.
+**Goal:** Every minute the site reads new comments on Panda Books' Instagram posts, reels and active ad videos, plus new Direct messages. For each one it asks Gemini for a short reply in the customer's language, then sends that reply to that same customer: a threaded reply under the comment, or a DM in the same conversation. A «Sinov» (draft) mode shows replies on the site without sending them.
 
 **Architecture:**
 - Polling only. Comment webhooks need Advanced Access, so they are not used.
 - `sotuv/instagram.py` talks to the Graph API through the existing `meta._graph()` and `meta._page_token()`.
 - `sotuv/ig_ai.py` builds the prompt from the shop catalog and calls Gemini with the key and models in Telefoniya Sozlamalari. It never touches Graph.
 - A new doctype, **Instagram Xabar**, stores each comment, its AI reply and its status.
-- Direct (DM) replies are Phase 2 and get a separate plan.
+- Direct (DM) messages are added in Task 7 (`sotuv/instagram_dm.py`). The user asked for comments and DMs in one delivery.
 
 **Tech Stack:** Frappe 16 / ERPNext 16, Python 3.14, `requests`, Gemini `generateContent` (JSON mode), Graph API (version from `meta._conf().ver`).
 
@@ -19,7 +19,11 @@
 
 - **Language:** reply in the commenter's language — Uzbek (Latin or Cyrillic, as written) or Russian.
 - **Greeting:** every reply starts with a greeting: «Assalomu alaykum!» or «Здравствуйте!».
-- **Length:** a comment reply is at most 2 sentences.
+- **Length:** a comment reply is at most 2 sentences; a DM reply is at most 3 sentences.
+- **Every question is answered to its own author:**
+  - a comment gets a reply under that comment (`POST {comment_id}/replies`); a reply-to-reply gets `@username` under the parent;
+  - a DM gets a message to that sender's IGSID.
+- **Human takeover (DM):** if the shop's account sends a DM in a conversation that our system did not send (an operator typed in the Instagram app), AI stays silent for that customer for 24 hours.
 - **Stock count:** never revealed. The AI receives only `holat: "bor" | "tugagan"`, never a quantity. «Bor» → «Ha, albatta bor». «Tugagan» → «Hozircha tugagan, menejerimiz aniqlab beradi».
 - **No invention:** no prices, discounts or dates beyond the catalog and the «AI uchun ma'lumot» text. If the price is missing → «Menejerimiz Direct'da aniqlab beradi».
 - **Gemini:**
@@ -44,7 +48,9 @@
 2. **First run on an account with old comments.** Comments older than 15 minutes must not be answered. Test: `test_fetch_ignores_old_comments` (Task 3).
 3. **Customer replies under our reply (a reply-to-reply).** We answer under the parent comment with an `@username` prefix, because Instagram only nests one level. Test: `test_process_reply_to_reply_targets_parent` (Task 4).
 4. **Item with no Item Price.** The catalog passes `narx: None` and the prompt says not to quote a price. Test: `test_catalog_missing_price_is_none` (Task 2).
-5. **Gemini wraps JSON in ```json fences or adds text around it.** The parser still extracts the object. Test: `test_parse_reply_fenced_json` (Task 2).
+5. **Operator answers a DM in the Instagram app.** AI must not talk over them; it stays silent for that customer for 24 hours. Test: `test_dm_operator_message_pauses_ai` (Task 7).
+
+Also pinned, though less likely: Gemini wrapping the JSON in fences → `test_parse_reply_fenced_json` (Task 2).
 
 ---
 
@@ -110,15 +116,16 @@
 - **Produces:**
   - `class IgAiError(Exception)` — attributes `pause: bool` (quota, 429) and `retry: bool`.
   - `catalog(shop: str) -> list[dict]` — items where `shop=shop`, `is_published=1`, `disabled=0` and `variant_of` is not set, up to 60. Each dict is `{"kod", "nom", "narx": float | None, "holat": "bor" | "tugagan", "havola": get_url(f"/s/{shop}/p/{kod}")}`. Never includes a quantity.
-  - `build_prompt(shop_name: str, malumot: str, items: list[dict], matn: str, turi: str) -> str`.
+  - `build_prompt(shop_name: str, malumot: str, items: list[dict], matn: str, turi: str, tarix: list[dict] | None = None) -> str` — `tarix` is the earlier DM turns `[{"kim": "Mijoz" | "Do'kon", "matn": str}]`, oldest first, at most 10.
   - `parse_reply(raw: str) -> dict` — returns the six keys with types `bool, str, str, str|None, str|None, str|None`. Raises `IgAiError` when there is no JSON object, or when `javob_kerak` is true but `javob` is empty.
   - `extract_phone(text: str) -> str | None` — the first run of 9 or more digits, normalized with `normalize_phone`; otherwise `None`.
-  - `answer(shop: str, matn: str, turi: str = "Izoh") -> dict` — `parse_reply` output plus `"model"`. When the AI's `telefon` is empty, it is filled from `extract_phone(matn)`.
+  - `answer(shop: str, matn: str, turi: str = "Izoh", tarix: list[dict] | None = None) -> dict` — `parse_reply` output plus `"model"`. When the AI's `telefon` is empty, it is filled from `extract_phone(matn)`.
 
 - [ ] **Step 1: Write the failing tests** (`unittest.mock.patch` for DB and HTTP):
   - `test_catalog_hides_quantity` — with stock 1500 → `holat == "bor"`, and no value in the dict equals 1500; with stock 0 → `"tugagan"`.
   - `test_catalog_missing_price_is_none` — an item missing from `_get_prices` → `narx is None`.
   - `test_prompt_rules` — `build_prompt(...)` contains «Assalomu alaykum», «Здравствуйте», «aniq sonini aytma», the item name and «javob_kerak».
+  - `test_prompt_includes_history` — with `tarix=[{"kim": "Mijoz", "matn": "Salom"}, {"kim": "Do'kon", "matn": "Assalomu alaykum!"}]` and `turi="DM"`, the prompt contains both turns in order and the «3 gap» rule.
   - `test_parse_reply_plain` — `'{"javob_kerak": true, "javob": "Assalomu alaykum! Narxi 99 000 so\'m.", "til": "uz", "telefon": null, "ism": null, "tovar_kodi": null}'` parses to the matching dict.
   - `test_parse_reply_fenced_json` — the same JSON inside ```` ```json … ``` ```` plus a leading sentence still parses.
   - `test_parse_reply_invalid` — `"salom"` → raises `IgAiError`; `{"javob_kerak": true, "javob": ""}` → raises `IgAiError`.
@@ -185,6 +192,8 @@
     - any `IgAiError` or `MetaError` → «Xato» with `xato` set. On `IgAiError.pause`, call `frappe.cache.set_value("mp_ig_ai_pause", 1, expires_in_sec=3600)`.
     - When `telefon` is present: `save_lead(shop, {"telefon", "ism", "manba": "Instagram", "izoh": f"Izoh: {matn}", "lead_id": f"ig:{mijoz_id}:{date}"}, tovar_kodi)` and link `murojaat`.
   - `_post(shop: str, doc) -> str` — `POST {ota_id or tashqi_id}/replies message=…`. When `ota_id` is set, the message is prefixed with `@{username} `. Returns the reply id.
+  - `_deliver(shop: str, doc) -> str` — the only sending entry point used by `process` and `send`. For `turi == "Izoh"` it calls `_post`; for any other `turi` it raises `frappe.ValidationError`. Task 7 adds the DM branch.
+  - `process` passes `tarix` to `ig_ai.answer` only for DMs, via `instagram_dm.history(doc)`. Until Task 7 exists, guard it with `turi == "DM"`.
   - `@frappe.whitelist(methods=["POST"]) send(name: str)` — operator posts the existing `ai_javob`. Allowed for the same roles that can write the doc, and only when holat is Qoralama or Xato.
   - `@frappe.whitelist(methods=["POST"]) regenerate(name: str)` — re-runs AI and keeps the result as a draft, whatever the mode.
 
@@ -253,7 +262,41 @@
 - [ ] **Step 4: Run, expect PASS**
 - [ ] **Step 5: Commit** — `git commit -m "feat(sotuv): Meta ulashda Instagram akkaunt va reklama kabineti saqlanadi"`
 
-### Task 7: Sidebar link, full test run, local smoke test, deploy notes
+### Task 7: Direct (DM) — collect, reply to the same sender, operator takeover
+
+**Files:**
+- Create: `marketplace/sotuv/instagram_dm.py`
+- Modify: `marketplace/sotuv/instagram.py` — `_deliver` gets a DM branch; `poll` also calls `instagram_dm.fetch_messages` and stores with `turi="DM"`.
+- Test: `marketplace/sotuv/tests/test_instagram_dm.py`
+
+**Interfaces:**
+- **Consumes:** `meta._graph`, `meta._page_token`, and from Task 3/4: `instagram.store`, `instagram.process`, `instagram._deliver`. Shop fields `meta_page_id`, `ig_user_id`.
+- **Produces:**
+  - `HUMAN_PAUSE = 24 * 3600`
+  - `fetch_messages(shop: str, since_ts: int) -> list[dict]`:
+    - Calls `GET {page_id}/conversations platform=instagram fields=id,updated_time,messages.limit(10){id,message,created_time,from{id,username}} limit=25` with the page token.
+    - Skips conversations with `updated_time < since_ts`.
+    - Returns customer messages newer than `since_ts` with non-empty text, as `{"id", "parent_id": None, "text", "username", "from_id", "timestamp", "media_id": None, "havola": None, "suhbat_id": conversation id}`.
+    - A shop-sent message whose `id` is not any Instagram Xabar `javob_id` and that is newer than the customer's last message is treated as an operator reply. It sets `frappe.cache.set_value(f"mp_ig_human:{shop}:{customer_id}", 1, expires_in_sec=HUMAN_PAUSE)`.
+  - `history(doc) -> list[dict]` — last 10 Instagram Xabar rows of type DM for the same `shop` and `mijoz_id`, oldest first. Each row gives `{"kim": "Mijoz", "matn": matn}`, plus `{"kim": "Do'kon", "matn": ai_javob}` when holat is «Yuborildi».
+  - `send_dm(shop: str, doc) -> str` — `POST {page_id}/messages` with `recipient=json.dumps({"id": doc.mijoz_id})`, `message=json.dumps({"text": doc.ai_javob})` and the page token. Returns `message_id`.
+  - `is_human_paused(shop: str, mijoz_id: str) -> bool`
+- **Changes in `instagram.py`:**
+  - `_deliver` routes `turi == "DM"` to `instagram_dm.send_dm`.
+  - `process` leaves a DM as «Qoralama» with `xato` «Operator suhbatda» when `is_human_paused`.
+
+- [ ] **Step 1: Write the failing tests** (patch `_graph`):
+  - `test_dm_fetch_customer_messages_only` — a conversation with 2 customer messages and 1 of our own (its id equals a stored `javob_id`) → 2 returned; no pause set.
+  - `test_dm_operator_message_pauses_ai` — the newest message is from the shop and its id is unknown → the `mp_ig_human:{shop}:{customer}` key is set. A following `process` of that customer's DM in Yoqilgan mode → «Qoralama», no POST.
+  - `test_dm_send_targets_sender` — `send_dm` POSTs to `"{page_id}/messages"`, and `recipient` decodes to `{"id": mijoz_id}`.
+  - `test_dm_history_order` — 3 stored DMs → `history` returns them oldest first with the «Do'kon» turns included.
+  - `test_poll_includes_dms` — `poll()` with one new comment and one new DM → `enqueue` called twice.
+- [ ] **Step 2: Run, expect FAIL** — `bench --site marketplace.local run-tests --module marketplace.sotuv.tests.test_instagram_dm`
+- [ ] **Step 3: Implement `instagram_dm.py` and the `instagram.py` hooks.**
+- [ ] **Step 4: Run Task 4, 5 and 7 tests, expect PASS** — run the `test_instagram_process`, `test_instagram_poll` and `test_instagram_dm` modules.
+- [ ] **Step 5: Commit** — `git commit -m "feat(sotuv): Instagram Direct — AI o'sha mijozga javob beradi, operator yozsa jim turadi"`
+
+### Task 8: Sidebar link, full test run, local smoke test, deploy notes
 
 **Files:**
 - Modify: `marketplace/sotuv/sidebar/sotuv/sotuv.json` — add the item «Instagram izohlar» → List «Instagram Xabar» after «Murojaatlar».
@@ -265,6 +308,7 @@
   - `test_instagram_process`
   - `test_instagram_poll`
   - `test_meta_instagram`
+  - `test_instagram_dm`
 - [ ] **Step 2: Local smoke test**
   - Run `(nohup bench start > $SCR/bench.log 2>&1 &)`.
   - Check that the Shop form shows the «Instagram AI» section and that `/desk/instagram-xabar` lists records.
@@ -277,6 +321,6 @@
   1. Reconnect Pandoo with the 10 permissions; the result shows `ig_username` and the ad account.
   2. Fill «AI uchun ma'lumot» (Claude drafts it).
   3. Set rejim to «Sinov».
-  4. Comment on a Panda Books post from a personal account. Within 2 minutes a «Qoralama» appears in «Instagram izohlar».
+  4. From a personal account, comment on a Panda Books post and send a DM. Within 2 minutes both appear as «Qoralama» in «Instagram izohlar».
   5. Review the drafts, then switch to «Yoqilgan».
   6. If Meta rejects posting in development mode, add the app icon and switch the app to Live.
