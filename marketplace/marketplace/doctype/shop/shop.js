@@ -136,7 +136,8 @@ function marketplace_meta_connect(frm) {
 				options: `<ol style="padding-left:18px;line-height:1.7;margin-bottom:12px">
 					<li>${__("Oching")}: <a href="${explorer}" target="_blank" rel="noopener">Graph API Explorer</a></li>
 					<li>${__("Meta App — bizning ilova; User or Page — «Get User Access Token»")}</li>
-					<li>${__("Ruxsatlar")}: <code>pages_show_list</code>, <code>pages_read_engagement</code>, <code>pages_manage_metadata</code>, <code>pages_manage_ads</code>, <code>leads_retrieval</code>, <code>business_management</code></li>
+					<li>${__("Ruxsatlar")}: <code>pages_show_list</code>, <code>pages_read_engagement</code>, <code>pages_manage_metadata</code>, <code>pages_manage_ads</code>, <code>leads_retrieval</code>, <code>business_management</code>, <code>instagram_basic</code>, <code>instagram_manage_comments</code>, <code>instagram_manage_messages</code>, <code>ads_read</code></li>
+					<li>${__("Facebook oynasida do'konning Instagram akkaunti va reklama kabinetini ham belgilang")}</li>
 					<li>${__("«Generate Access Token» → sahifani tanlang → tokenni nusxalab pastga qo'ying")}</li>
 				</ol>
 				<div class="text-muted small">${__("Token saqlanmaydi: undan faqat sahifa tokeni olinadi va shifrlanib saqlanadi.")}</div>`,
@@ -160,7 +161,9 @@ function marketplace_meta_connect(frm) {
 						frappe.msgprint({
 							title: __("Ulandi"),
 							indicator: m.warning ? "orange" : "green",
-							message: __("«{0}» sahifasi ulandi, formalar: {1}.", [m.page, m.forms]) + (m.warning ? `<br><br>${frappe.utils.escape_html(m.warning)}` : "")
+							message: __("«{0}» sahifasi ulandi, formalar: {1}.", [m.page, m.forms]) + (m.ig_username ? `<br>${__("Instagram")}: @${frappe.utils.escape_html(m.ig_username)}` : "")
+								+ (m.meta_ad_account ? `<br>${__("Reklama kabineti")}: ${frappe.utils.escape_html(m.meta_ad_account)}` : "")
+								+ (m.warning ? `<br><br>${frappe.utils.escape_html(m.warning)}` : "")
 								+ "<br><br>" + __("Endi jadvalda har bir formaga tovarni tanlab saqlang."),
 						});
 						frm.reload_doc();

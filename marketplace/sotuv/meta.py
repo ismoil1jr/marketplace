@@ -362,10 +362,10 @@ def connect(shop: str, user_token: str, page_id: str | None = None):
 	page = pages[0] if not page_id else next((p for p in pages if p["id"] == page_id), None)
 	if not page:
 		frappe.throw(_("Sahifa topilmadi"))
-	return _attach(shop, page)
+	return _attach(shop, page, long_token)
 
 
-def _attach(shop, page):
+def _attach(shop, page, user_token=None):
 	other = frappe.db.get_value("Shop", {"meta_page_id": page["id"], "name": ["!=", shop]}, "name")
 	if other:
 		frappe.throw(_("«{0}» sahifasi allaqachon {1} do'koniga ulangan").format(page.get("name"), other))
@@ -382,8 +382,51 @@ def _attach(shop, page):
 	except MetaError as e:
 		forms = []
 		warning = (warning + " " if warning else "") + _("Formalar olinmadi: {0} (token «leads_retrieval», «pages_manage_ads» ruxsatlari bilanmi?)").format(e)
+	ig_warning = _link_instagram(shop, page, user_token)
+	if ig_warning:
+		warning = (warning + " " if warning else "") + ig_warning
 	_status(shop, _("ulandi: {0}").format(page.get("name")))
-	return {"page": page.get("name"), "forms": len(forms), "warning": warning}
+	ig_username, ad_account = frappe.db.get_value("Shop", shop, ["ig_username", "meta_ad_account"]) or (None, None)
+	return {"page": page.get("name"), "forms": len(forms), "warning": warning,
+	        "ig_username": ig_username or "", "meta_ad_account": ad_account or ""}
+
+
+def _link_instagram(shop, page, user_token):
+	"""Sahifaga bog'langan Instagram professional akkaunt va reklama kabinetini Shop'ga yozadi. Hech qachon xato
+	ko'tarmaydi — lead-forma ulanishi buzilmasin; muammo bo'lsa ogohlantirish matni qaytadi (tokensiz)."""
+	warnings = []
+	try:
+		body = _graph("GET", page["id"], page["access_token"], fields="instagram_business_account{id,username}")
+		ig = body.get("instagram_business_account") or {}
+		if ig.get("id"):
+			frappe.db.set_value("Shop", shop, {"ig_user_id": str(ig["id"]), "ig_username": ig.get("username") or ""}, update_modified=False)
+		else:
+			frappe.db.set_value("Shop", shop, {"ig_user_id": "", "ig_username": ""}, update_modified=False)
+			warnings.append(_("Sahifaga Instagram professional akkaunt ulanmagan"))
+	except MetaError as e:
+		warnings.append(_("Instagram akkaunt olinmadi: {0}").format(e))
+
+	if not user_token:
+		warnings.append(_("Reklama kabineti qidirilmadi (token yo'q) — «Reklama kabineti» maydonini qo'lda to'ldiring"))
+	else:
+		try:
+			accounts = _graph("GET", "me/adaccounts", user_token, fields="account_id,name,account_status", limit=100).get("data") or []
+			active = [a for a in accounts if a.get("account_status") == 1 and a.get("account_id")]
+			if len(active) == 1:
+				frappe.db.set_value("Shop", shop, {"meta_ad_account": "act_" + str(active[0]["account_id"])}, update_modified=False)
+			else:
+				names = ", ".join(f"{a.get('name') or a['account_id']} (act_{a['account_id']})" for a in active)
+				current = frappe.db.get_value("Shop", shop, "meta_ad_account")
+				if not active:
+					text = _("Faol reklama kabineti topilmadi")
+				else:
+					text = _("Bir nechta faol reklama kabineti bor: {0}").format(names)
+				if not current:
+					text += _(" — «Reklama kabineti» maydonini qo'lda to'ldiring")
+				warnings.append(text)
+		except MetaError as e:
+			warnings.append(_("Reklama kabineti olinmadi: {0}").format(e))
+	return " ".join(warnings) or None
 
 
 def _subscribe_app():
