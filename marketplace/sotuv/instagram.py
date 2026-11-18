@@ -236,11 +236,13 @@ def _writable(name):
 
 @frappe.whitelist(methods=["POST"])
 def send(name: str):
-	_writable(name)
-	frappe.db.get_value("Instagram Xabar", name, "holat", for_update=True)
-	doc = frappe.get_doc("Instagram Xabar", name)
-	if doc.holat not in ("Qoralama", "Xato") or not (doc.ai_javob or "").strip():
+	# Avval qulf: holatni qulflangan o'qishdan olamiz (ikkinchi bosuvchi birinchisi tugaguncha kutadi)
+	row = frappe.db.get_value("Instagram Xabar", name, ["holat", "ai_javob"], as_dict=True, for_update=True)
+	if not row:
+		frappe.throw(_("Xabar topilmadi"), frappe.DoesNotExistError)
+	if row.holat not in ("Qoralama", "Xato") or not (row.ai_javob or "").strip():
 		frappe.throw(_("Faqat tayyor javobli qoralamani yuborish mumkin"))
+	doc = _writable(name)
 	try:
 		reply_id = _deliver(doc.shop, doc)
 	except MetaError as e:

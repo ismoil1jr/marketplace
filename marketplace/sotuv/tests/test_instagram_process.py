@@ -163,3 +163,19 @@ class TestInstagramProcess(UnitTestCase):
 			patch.object(frappe.db, "commit", side_effect=lambda: order.append("commit")):
 			self._run(doc, ai=_ai(telefon="998901234567"))
 		self.assertEqual(order, ["commit", "lead"])
+
+	def test_send_second_clicker_sees_locked_state(self):
+		doc = self._doc(holat="Qoralama", ai_javob="Salom")
+		real = frappe.db.get_value
+
+		def gv(*a, **kw):
+			if kw.get("for_update"):
+				return frappe._dict(holat="Yuborildi", ai_javob="Salom")
+			return real(*a, **kw)
+
+		with patch.object(frappe.db, "get_value", side_effect=gv), \
+			patch.object(instagram, "_page_token", return_value="tok"), \
+			patch.object(instagram, "_graph") as g:
+			with self.assertRaises(frappe.ValidationError):
+				instagram.send(doc.name)
+		g.assert_not_called()
