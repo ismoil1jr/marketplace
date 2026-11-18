@@ -422,7 +422,7 @@ def sheets_setup(shop: str):
 
 
 def _notify(doc):
-	"""Yangi murojaat — faqat saytda (Telegram'ga emas): do'kon egasi va sotuv menejerlariga Desk qo'ng'iroqchasi
+	"""Yangi murojaat: do'kon egasi va sotuv menejerlariga Desk qo'ng'iroqchasi
 	va ochiq oynada ovozli xabar. Murojaatning o'zi Sotuv panelidagi "Murojaatlar" bo'limida."""
 	subject = _("Yangi murojaat ({0}): {1}, {2}").format(doc.manba, doc.mijoz_ismi, doc.telefon) + (
 		f" — {doc.tovar_nomi}" if doc.tovar_nomi else ""
@@ -437,6 +437,8 @@ def _notify(doc):
 			 "document_name": doc.name, "subject": subject}
 		).insert(ignore_permissions=True)
 		frappe.publish_realtime("marketplace_new_order", {"name": doc.name, "subject": subject}, user=user, after_commit=True)
+	# Telefonga: menejerlarning Telegram'iga (Shop.murojaat_telegram_ids) — sayt yopiq bo'lsa ham
+	frappe.enqueue("marketplace.telegram_bot.notify_new_lead", queue="short", enqueue_after_commit=True, name=doc.name)
 
 
 # ---------------- Sotuv paneli: Murojaatlar ----------------

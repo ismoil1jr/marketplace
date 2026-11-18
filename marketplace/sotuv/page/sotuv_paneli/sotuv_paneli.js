@@ -7,6 +7,12 @@ frappe.pages["sotuv-paneli"].on_page_load = function (wrapper) {
 };
 
 frappe.pages["sotuv-paneli"].on_page_show = function (wrapper) {
+	// Telegram'dagi «Murojaatni ochish» tugmasi: /desk/sotuv/sotuv-paneli?murojaat=MRJ-... — shu murojaat ochiladi
+	const lead = frappe.utils.get_query_params().murojaat;
+	if (wrapper.sotuv && lead) {
+		Object.assign(wrapper.sotuv.state, { mode: "murojaat", view: "hammasi", q: "", dan: "", gacha: "", open: lead });
+		window.history.replaceState(null, "", window.location.pathname);
+	}
 	wrapper.sotuv?.load();
 };
 

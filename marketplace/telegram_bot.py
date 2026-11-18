@@ -683,6 +683,46 @@ def notify_new_order(order):
 				frappe.log_error(f"Telegram: {chat_id} ga yuborilmadi: {e}", "Telegram bot")
 
 
+def notify_new_lead(name):
+	"""Navbatdan (worker): yangi murojaat — do'konning menejerlariga (Shop.murojaat_telegram_ids) xabar va
+	«Murojaatni ochish» tugmasi (Sotuv paneli shu murojaat bilan ochiladi)."""
+	if not token():
+		return
+	lead = frappe.db.get_value("Murojaat", name, ["shop", "mijoz_ismi", "telefon", "tovar_nomi", "manba", "izoh"], as_dict=True)
+	if not lead:
+		return
+	shop = frappe.db.get_value("Shop", lead.shop, ["shop_name", "murojaat_telegram_ids"], as_dict=True) or frappe._dict()
+	ids = _ids(shop.murojaat_telegram_ids)
+	if not ids:
+		return
+	esc = html.escape
+	lines = [f"📣 <b>Yangi murojaat</b> · {esc(shop.shop_name or lead.shop)}", ""]
+	lines.append(f"👤 {esc(lead.mijoz_ismi or '')}")
+	if lead.telefon:
+		lines.append(f"📞 {esc(lead.telefon)}")
+	if lead.tovar_nomi:
+		lines.append(f"📚 {esc(lead.tovar_nomi)}")
+	if lead.manba:
+		lines.append(f"📍 {esc(lead.manba)}")
+	if lead.izoh:
+		lines.append("")
+		lines.append(f"💬 {esc(lead.izoh[:300])}")
+	text = "\n".join(lines)
+	url = f"{site_url()}/desk/sotuv/sotuv-paneli?murojaat={name}"
+	button = {"inline_keyboard": [[{"text": "📋 Murojaatni ochish", "url": url}]]}
+	for chat_id in dict.fromkeys(ids):
+		try:
+			send(chat_id, text, reply_markup=button)
+		except TelegramError as e:
+			if e.code == 400 and ("button" in str(e).lower() or "url" in str(e).lower()):
+				try:  # lokal manzil tugmaga qabul qilinmaydi — havola matnda
+					send(chat_id, f"{text}\n\n{url}")
+				except TelegramError as e2:
+					frappe.log_error(f"Telegram: {chat_id} ga yuborilmadi: {e2}", "Telegram bot")
+			else:
+				frappe.log_error(f"Telegram: {chat_id} ga yuborilmadi: {e}", "Telegram bot")
+
+
 def order_text(so, shop_name):
 	from marketplace.storefront import fmt_sum
 

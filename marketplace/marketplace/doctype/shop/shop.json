@@ -13,6 +13,7 @@
   "tagline",
   "city",
   "telegram_ids",
+  "murojaat_telegram_ids",
   "low_stock_qty",
   "cb_main",
   "logo",
@@ -128,6 +129,13 @@
    "label": "Do'kon egasining Telegram ID'si",
    "permlevel": 1,
    "description": "Ixtiyoriy. Kiritilsa, yangi buyurtma, \"kam qoldi / tugadi\" xabarlari va botdagi Ombor shu ID'ga ishlaydi. Bir nechta bo'lsa vergul bilan. Egasi botni ochib /id yozsa, bot ID'ni ko'rsatadi. Bir ID faqat bitta do'konga biriktiriladi"
+  },
+  {
+   "fieldname": "murojaat_telegram_ids",
+   "fieldtype": "Small Text",
+   "permlevel": 1,
+   "label": "Yangi murojaat — menejerlar Telegram ID'si",
+   "description": "Har bir yangi murojaat shu ID'larga @magazinlar_uz_bot orqali keladi («Murojaatni ochish» tugmasi bilan). Menejer botni ochib /id yozsa, bot ID'ni ko'rsatadi. Bir nechta bo'lsa vergul bilan"
   },
   {
    "fieldname": "low_stock_qty",
@@ -532,7 +540,7 @@
  "image_field": "logo",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-11-18 12:00:00.000000",
+ "modified": "2026-11-18 19:45:00.000000",
  "modified_by": "Administrator",
  "module": "Marketplace",
  "name": "Shop",
