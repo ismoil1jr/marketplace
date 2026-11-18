@@ -91,7 +91,7 @@ class TestIgAi(UnitTestCase):
 		self.assertEqual(
 			ig_ai.parse_reply(OK),
 			{"javob_kerak": True, "javob": "Assalomu alaykum! Narxi 99 000 so'm.", "til": "uz",
-			 "telefon": None, "ism": None, "tovar_kodi": None},
+			 "telefon": None, "ism": None, "tovar_kodi": None, "direct": None},
 		)
 
 	def test_parse_reply_fenced_json(self):
@@ -328,3 +328,16 @@ class TestIgAi(UnitTestCase):
 	def test_gemini_timeout_30s(self):
 		_, post = self._answer("Narxi?")
 		self.assertEqual(post.call_args.kwargs["timeout"], 30)
+
+
+class TestIgAiDirect(UnitTestCase):
+	def test_parse_reply_direct(self):
+		raw = '{"javob_kerak": true, "javob": "Assalomu alaykum! Direct\'ga yubordik.", "til": "uz", "telefon": null, ' \
+			'"ism": null, "tovar_kodi": null, "direct": "Assalomu alaykum! Batafsil: ..."}'
+		self.assertEqual(ig_ai.parse_reply(raw)["direct"], "Assalomu alaykum! Batafsil: ...")
+		self.assertIsNone(ig_ai.parse_reply(raw.replace('"Assalomu alaykum! Batafsil: ..."', "null"))["direct"])
+
+	def test_prompt_has_plus_rule_for_comments(self):
+		p = ig_ai.build_prompt("Pandoo", "", [], "+", "Izoh")
+		self.assertIn("«+»", p)
+		self.assertIn('"direct"', p)

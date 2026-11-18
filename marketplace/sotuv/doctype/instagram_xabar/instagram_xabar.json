@@ -8,7 +8,7 @@
  "name": "Instagram Xabar",
  "owner": "Administrator",
  "modified_by": "Administrator",
- "modified": "2026-11-18 13:00:00.000000",
+ "modified": "2026-11-18 18:30:00.000000",
  "links": [],
  "states": [],
  "row_format": "Dynamic",
@@ -125,6 +125,19 @@
    "fieldname": "ai_javob",
    "fieldtype": "Small Text",
    "label": "AI javobi"
+  },
+  {
+   "fieldname": "direct_javob",
+   "fieldtype": "Small Text",
+   "label": "Direct'ga yuborilgan javob",
+   "description": "«+» yoki batafsil so'rovda izoh egasining Direct'iga boradigan to'liq javob"
+  },
+  {
+   "fieldname": "direct_id",
+   "fieldtype": "Data",
+   "label": "Direct xabar ID",
+   "read_only": 1,
+   "search_index": 1
   },
   {
    "fieldname": "til",

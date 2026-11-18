@@ -272,6 +272,27 @@ def _deliver(shop, doc):
 	frappe.throw(_("Bu turdagi xabarni yuborib bo'lmaydi"))
 
 
+def _private_reply(shop, doc):
+	"""Izoh egasining Direct'iga bitta xabar (Instagram «private reply»: bitta izohga bitta, 7 kun ichida)."""
+	res = _graph("POST", f"{_shop(shop, 'meta_page_id')}/messages", _page_token(shop),
+		recipient=json.dumps({"comment_id": doc.tashqi_id}), message=json.dumps({"text": doc.direct_javob}))
+	return res.get("message_id") or res.get("id")
+
+
+def _send_direct(doc):
+	"""«+» / batafsil so'rov: avval Direct (izohga «Direct'ga yubordik» deb yozishdan oldin). Xato bo'lsa — matni, aks holda None.
+	Bir marta: direct_id bor bo'lsa qayta yuborilmaydi."""
+	if doc.turi != "Izoh" or not (doc.direct_javob or "").strip() or doc.direct_id:
+		return None
+	try:
+		mid = _private_reply(doc.shop, doc)
+	except MetaError as e:
+		return _("Direct yuborilmadi: {0}").format(e)
+	doc.db_set("direct_id", mid or "-")
+	frappe.db.commit()  # Direct ketdi — keyingi xato uni qayta yubormasin
+	return None
+
+
 def _customer(doc):
 	"""Mijoz kaliti: IG ID, bo'lmasa username; ikkalasi ham bo'lmasa — None (har bir yozuv alohida mijoz)."""
 	if doc.mijoz_id:
@@ -302,10 +323,10 @@ def _lead(doc, info):
 	"""Telefon bor bo'lsa murojaat yaratadi (yoki mavjudiga ulaydi); yomon raqamda lidsiz davom etadi."""
 	if not info.get("telefon") or doc.murojaat:
 		return
-	izoh = ("Direct: " if doc.turi == "DM" else "Izoh: ") + (doc.matn or "")
+	izoh = (f"Instagram: @{doc.username}\n" if doc.username else "") + ("Direct: " if doc.turi == "DM" else "Izoh: ") + (doc.matn or "")
 	try:
 		name, _dup = save_lead(doc.shop, {
-			"telefon": info["telefon"], "ism": info.get("ism") or doc.username or "",
+			"telefon": info["telefon"], "ism": info.get("ism") or (f"@{doc.username}" if doc.username else ""),
 			"manba": "Instagram", "izoh": izoh, "lead_id": f"ig:{doc.mijoz_id or doc.username or doc.name}:{today()}",
 		}, info.get("tovar_kodi"))
 	except frappe.ValidationError:
@@ -336,7 +357,8 @@ def _run(doc, rejim, draft_only=False):
 		_lead(doc, info)
 		doc.db_set({"holat": "Javobsiz", "ai_javob": "", "til": info.get("til"), "xato": ""})
 		return "Javobsiz"
-	vals = {"ai_javob": info.get("javob") or "", "til": info.get("til"), "xato": ""}
+	vals = {"ai_javob": info.get("javob") or "", "til": info.get("til"), "xato": "",
+		"direct_javob": (info.get("direct") or "") if doc.turi == "Izoh" else ""}
 	if not draft_only and not vals["ai_javob"].strip():
 		_lead(doc, info)
 		doc.db_set({**vals, "holat": "Xato", "xato": "AI bo'sh javob qaytardi"})
@@ -347,7 +369,11 @@ def _run(doc, rejim, draft_only=False):
 		return "Qoralama"
 	# Haqiqiy post oldidan: salomlashuv, uzunlik, havolalar. O'tmasa — qoralama (operator «Yuborish» bilan yubora oladi)
 	own_text = " ".join(filter(None, frappe.db.get_value("Shop", doc.shop, ["ig_ai_malumot", "phone"]) or []))
-	reason = ig_ai.check_reply(vals["ai_javob"], doc.turi, urlparse(get_url()).hostname or "", own_text)
+	host = urlparse(get_url()).hostname or ""
+	reason = ig_ai.check_reply(vals["ai_javob"], doc.turi, host, own_text)
+	if not reason and vals["direct_javob"].strip():
+		direct_reason = ig_ai.check_reply(vals["direct_javob"], "DM", host, own_text)
+		reason = direct_reason and _("Direct: {0}").format(direct_reason)
 	if reason:
 		_lead(doc, info)
 		doc.db_set({**vals, "holat": "Qoralama", "xato": reason})
@@ -361,6 +387,12 @@ def _run(doc, rejim, draft_only=False):
 		doc.db_set({**vals, "holat": "Qoralama", "xato": "do'kon soatlik limiti"})
 		return "Qoralama"
 	doc.ai_javob = vals["ai_javob"]
+	doc.direct_javob = vals["direct_javob"]
+	direct_error = _send_direct(doc)
+	if direct_error:
+		_lead(doc, info)
+		doc.db_set({**vals, "holat": "Xato", "xato": direct_error[:500]})
+		return "Xato"
 	try:
 		reply_id = _deliver(doc.shop, doc)
 	except (MetaError, frappe.ValidationError) as e:
@@ -404,6 +436,11 @@ def send(name: str):
 	if row.holat not in ("Qoralama", "Xato") or not (row.ai_javob or "").strip():
 		frappe.throw(_("Faqat tayyor javobli qoralamani yuborish mumkin"))
 	doc = _writable(name)
+	direct_error = _send_direct(doc)
+	if direct_error:
+		doc.db_set({"holat": "Xato", "xato": direct_error[:500]})
+		frappe.db.commit()
+		frappe.throw(direct_error)
 	try:
 		reply_id = _deliver(doc.shop, doc)
 	except MetaError as e:

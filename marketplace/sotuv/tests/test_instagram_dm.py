@@ -244,3 +244,39 @@ class TestInstagramDm(UnitTestCase):
 		for pattern in frappe.get_hooks("persistent_cache_keys"):
 			kept.update(frappe.cache.get_keys(pattern))
 		self.assertIn(frappe.cache.make_key(self.key), kept)
+
+
+class TestDirectFromComment(UnitTestCase):
+	def setUp(self):
+		self.shop = frappe.db.get_value("Shop", {}, "name")
+		if not self.shop:
+			self.skipTest("Shop yo'q")
+
+	def tearDown(self):
+		frappe.db.rollback()
+
+	def _izoh(self, **kw):
+		vals = {"doctype": "Instagram Xabar", "shop": self.shop, "turi": "Izoh", "holat": "Yuborildi",
+			"tashqi_id": f"pr-{frappe.generate_hash(length=8)}", "username": "ali_77", "matn": "+",
+			"direct_javob": "Assalomu alaykum! Batafsil:  narxi 490 000 so'm.", "direct_id": "MID-1"}
+		vals.update(kw)
+		return frappe.get_doc(vals).insert(ignore_permissions=True)
+
+	def test_private_reply_is_ours_by_id_and_text(self):
+		from marketplace.sotuv import instagram_dm
+
+		self._izoh()
+		self.assertTrue(instagram_dm._is_ours(self.shop, "cust9", {"id": "MID-1", "text": "x"}))
+		self.assertTrue(instagram_dm._is_ours(self.shop, "cust9", {"id": "other", "text": "Assalomu alaykum! Batafsil: narxi 490 000 so'm."}))
+		self.assertFalse(instagram_dm._is_ours(self.shop, "cust9", {"id": "other", "text": "Operator yozdi"}))
+
+	def test_history_starts_with_comment_and_private_reply(self):
+		from marketplace.sotuv import instagram_dm
+
+		self._izoh()
+		dm = frappe.get_doc({"doctype": "Instagram Xabar", "shop": self.shop, "turi": "DM", "holat": "Yangi",
+			"tashqi_id": f"dm-{frappe.generate_hash(length=8)}", "username": "ali_77", "mijoz_id": "cust9",
+			"matn": "Qanday buyurtma beraman?"}).insert(ignore_permissions=True)
+		h = instagram_dm.history(dm)
+		self.assertEqual(h[0], {"kim": "Mijoz", "matn": "(izoh) +"})
+		self.assertEqual(h[1]["kim"], "Do'kon")

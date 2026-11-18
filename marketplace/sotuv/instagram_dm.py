@@ -27,7 +27,8 @@ def _norm(t):
 
 def _is_ours(shop, customer_id, m):
 	"""Do'kon nomidan yozilgan xabar bizning (AI) javobimizmi? id yoki oxirgi 24 soatdagi matn bo'yicha."""
-	if frappe.db.exists("Instagram Xabar", {"shop": shop, "javob_id": m["id"]}):
+	if frappe.db.exists("Instagram Xabar", {"shop": shop, "javob_id": m["id"]}) or \
+			frappe.db.exists("Instagram Xabar", {"shop": shop, "direct_id": m["id"]}):
 		return True
 	text = _norm(m.get("text"))
 	if not text:
@@ -36,6 +37,11 @@ def _is_ours(shop, customer_id, m):
 		"shop": shop, "turi": "DM", "mijoz_id": customer_id, "holat": "Yuborildi",
 		"modified": (">", add_to_date(now_datetime(), hours=-24)),
 	}, pluck="ai_javob", limit=50)
+	# «+» izohiga Direct'ga yuborilgan javob (private reply) ham bizniki
+	rows += frappe.get_all("Instagram Xabar", filters={
+		"shop": shop, "turi": "Izoh", "direct_id": ["is", "set"],
+		"modified": (">", add_to_date(now_datetime(), hours=-24)),
+	}, pluck="direct_javob", limit=100)
 	return any(_norm(r) == text for r in rows)
 
 
@@ -99,6 +105,13 @@ def history(doc) -> list[dict]:
 	rows = frappe.get_all("Instagram Xabar", filters=filters,
 		fields=["matn", "ai_javob", "holat"], order_by="vaqt desc, creation desc", limit=10)
 	out = []
+	# Suhbat «+» izohi va unga Direct'ga yuborilgan javobdan boshlangan bo'lishi mumkin — AI uni ham ko'rsin
+	if doc.username:
+		for r in reversed(frappe.get_all("Instagram Xabar", filters={
+			"shop": doc.shop, "turi": "Izoh", "username": doc.username, "direct_id": ["is", "set"],
+		}, fields=["matn", "direct_javob"], order_by="vaqt desc", limit=2)):
+			out.append({"kim": "Mijoz", "matn": f"(izoh) {r.matn}"})
+			out.append({"kim": "Do'kon", "matn": r.direct_javob})
 	for r in reversed(rows):
 		out.append({"kim": "Mijoz", "matn": r.matn})
 		if r.holat == "Yuborildi" and r.ai_javob:

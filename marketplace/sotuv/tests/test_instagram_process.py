@@ -209,7 +209,7 @@ class TestInstagramProcess(UnitTestCase):
 		self.assertEqual(doc.murojaat, "MUR-1")
 		shop, data, asked = sl.call_args.args
 		self.assertEqual(data["manba"], "Instagram")
-		self.assertEqual(data["izoh"], "Izoh: narxi qancha?")
+		self.assertEqual(data["izoh"], "Instagram: @ali\nIzoh: narxi qancha?")
 		self.assertTrue(data["lead_id"].startswith("ig:cust1:"))
 		self.assertEqual(asked, "X1")
 
@@ -286,3 +286,81 @@ class TestInstagramProcess(UnitTestCase):
 			with self.assertRaises(frappe.ValidationError):
 				instagram.send(doc.name)
 		g.assert_not_called()
+
+
+DIRECT = "Assalomu alaykum! Panda Books — gapiradigan ruchkali kitoblar. Narxi 490 000 so'm, yetkazish bepul. Buyurtma uchun ism va telefon raqamingizni yozing."
+
+
+class TestInstagramPlusToDirect(UnitTestCase):
+	"""«+» / batafsil so'rov: avval o'sha izoh egasiga Direct (private reply), keyin izohga qisqa javob."""
+
+	setUp = TestInstagramProcess.setUp
+	tearDown = TestInstagramProcess.tearDown
+	_doc = TestInstagramProcess._doc
+	_run = TestInstagramProcess._run
+
+	def test_plus_sends_private_reply_then_public(self):
+		doc = self._doc(matn="+")
+		ai = _ai(javob="Assalomu alaykum! Batafsil ma'lumotni Direct'ga yubordik 📩", direct=DIRECT)
+		res, g, _ = self._run(doc, ai=ai)
+		self.assertEqual((res, doc.holat), ("Yuborildi", "Yuborildi"))
+		self.assertEqual(g.call_count, 2)
+		first, second = g.call_args_list
+		self.assertTrue(first.args[1].endswith("/messages"))
+		self.assertEqual(frappe.parse_json(first.kwargs["recipient"]), {"comment_id": doc.tashqi_id})
+		self.assertEqual(frappe.parse_json(first.kwargs["message"]), {"text": DIRECT})
+		self.assertEqual(second.args[1], f"{doc.tashqi_id}/replies")
+		self.assertEqual(doc.direct_javob, DIRECT)
+		self.assertTrue(doc.direct_id)
+
+	def test_private_reply_failure_no_public_reply(self):
+		doc = self._doc(matn="+")
+		ai = _ai(javob="Assalomu alaykum! Batafsil ma'lumotni Direct'ga yubordik 📩", direct=DIRECT)
+		with patch.object(instagram, "_shop", return_value="Yoqilgan"), \
+			patch.object(instagram, "_page_token", return_value="tok"), \
+			patch.object(instagram.ig_ai, "answer", return_value=ai), \
+			patch.object(instagram, "_graph", side_effect=MetaError("no messaging", 10)) as g:
+			res = instagram.process(doc.name)
+		doc.reload()
+		self.assertEqual((res, doc.holat), ("Xato", "Xato"))
+		self.assertIn("Direct", doc.xato)
+		g.assert_called_once()  # izohga «Direct'ga yubordik» deb yozilmadi
+
+	def test_direct_text_goes_through_gate(self):
+		doc = self._doc(matn="+")
+		ai = _ai(javob="Assalomu alaykum! Batafsil ma'lumotni Direct'ga yubordik 📩",
+			direct="Assalomu alaykum! Arzonrog'i @raqib_shop sahifasida.")
+		res, g, _ = self._run(doc, ai=ai)
+		self.assertEqual((res, doc.holat), ("Qoralama", "Qoralama"))
+		self.assertIn("Direct", doc.xato)
+		g.assert_not_called()
+
+	def test_sinov_keeps_direct_as_draft(self):
+		doc = self._doc(matn="+")
+		ai = _ai(javob="Assalomu alaykum! Batafsil ma'lumotni Direct'ga yubordik 📩", direct=DIRECT)
+		res, g, _ = self._run(doc, "Sinov", ai=ai)
+		self.assertEqual((res, doc.direct_javob), ("Qoralama", DIRECT))
+		g.assert_not_called()
+
+	def test_send_delivers_pending_direct_once(self):
+		doc = self._doc(matn="+", holat="Qoralama", ai_javob="Assalomu alaykum! Direct'ga yubordik 📩", direct_javob=DIRECT)
+		with patch.object(instagram, "_shop", return_value="Yoqilgan"), \
+			patch.object(instagram, "_page_token", return_value="tok"), \
+			patch.object(instagram, "_graph", return_value={"id": "R1", "message_id": "M1"}) as g:
+			instagram.send(doc.name)
+		doc.reload()
+		self.assertEqual(doc.holat, "Yuborildi")
+		self.assertEqual(g.call_count, 2)
+		self.assertEqual(doc.direct_id, "M1")
+
+	def test_lead_has_username_and_name(self):
+		doc = self._doc(matn="ismim Ali, 90 123 45 67", username="ali_77")
+		_res, _g, sl = self._run(doc, ai=_ai(telefon="998901234567", ism="Ali"))
+		data = sl.call_args.args[1]
+		self.assertEqual(data["ism"], "Ali")
+		self.assertIn("@ali_77", data["izoh"])
+
+	def test_lead_without_name_uses_username(self):
+		doc = self._doc(matn="90 123 45 67", username="ali_77")
+		_res, _g, sl = self._run(doc, ai=_ai(telefon="998901234567"))
+		self.assertEqual(sl.call_args.args[1]["ism"], "@ali_77")
