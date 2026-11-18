@@ -1,5 +1,6 @@
 """Instagram izohlarini yig'ish (post, reel, faol reklama) va saqlash. AI ham, javob yuborish ham bu yerda emas."""
 import json
+import time
 from datetime import datetime, timezone
 
 import frappe
@@ -125,6 +126,38 @@ def store(shop: str, c: dict, turi: str = "Izoh") -> str | None:
 	except (frappe.UniqueValidationError, frappe.DuplicateEntryError):
 		return None
 	return doc.name
+
+
+def poll() -> None:
+	"""Har daqiqada: yoqilgan do'konlarning yangi izohlarini yig'ib, AI qayta ishlashga qo'yadi."""
+	if frappe.cache.get_value("mp_ig_ai_pause"):
+		return
+	shops = frappe.get_all("Shop", filters={
+		"meta_page_id": ["is", "set"], "ig_user_id": ["is", "set"], "ig_ai_rejim": ["!=", "O'chiq"],
+	}, pluck="name")
+	for shop in shops:
+		if frappe.cache.get_value(f"mp_ig_pause:{shop}"):
+			continue
+		start = int(time.time())
+		since = max(int(frappe.cache.get_value(f"mp_ig_since:{shop}") or 0), start - LOOKBACK)
+		try:
+			for c in fetch_comments(shop, since):
+				name = store(shop, c)
+				if name:
+					frappe.enqueue("marketplace.sotuv.instagram.process", queue="short",
+						job_id=f"igx-{name}", deduplicate=True, name=name)
+			frappe.cache.set_value(f"mp_ig_since:{shop}", start, expires_in_sec=24 * 3600)
+		except MetaError as e:
+			if e.code in RATE_CODES:
+				frappe.cache.set_value(f"mp_ig_pause:{shop}", 1, expires_in_sec=15 * 60)
+				_status(shop, _("Instagram so'rovlar limiti; 15 daqiqa kutiladi"))
+			else:
+				_status(shop, _("Izohlarni olib bo'lmadi (kod {0})").format(e.code or "-"))
+				frappe.log_error(title=f"Instagram: {shop}", message=frappe.get_traceback())
+		except Exception:
+			_status(shop, _("Izohlarni olishda xatolik; keyingi daqiqada qayta uriniladi"))
+			frappe.log_error(title=f"Instagram: {shop}", message=frappe.get_traceback())
+		frappe.db.commit()
 
 
 def _post(shop, doc):

@@ -306,6 +306,8 @@ scheduler_events = {
 		"marketplace.sotuv.telefoniya.purge_unknown_calls",
 	],
 	"cron": {
+		# Instagram izohlari: yangilari yig'ilib, AI javobiga navbatga qo'yiladi (sotuv/instagram.py)
+		"* * * * *": ["marketplace.sotuv.instagram.poll"],
 		# Har kuni 09:00 (sayt vaqt zonasi): do'kon egalariga kam qolgan / tugagan tovarlar ro'yxati
 		"0 9 * * *": ["marketplace.inventory.daily_low_stock_digest"],
 		# Qo'ng'iroq yozuvlari: o'tkazib yuborilgan transkripsiyalar (AI) va saqlash muddati o'tgan fayllar
