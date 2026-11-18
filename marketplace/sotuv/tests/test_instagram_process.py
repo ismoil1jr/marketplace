@@ -7,7 +7,7 @@ from marketplace.sotuv import instagram
 from marketplace.sotuv.ig_ai import IgAiError
 from marketplace.sotuv.meta import MetaError
 
-AI_OK = {"javob_kerak": True, "javob": "Salom, narxi 100 000", "til": "uz", "telefon": None,
+AI_OK = {"javob_kerak": True, "javob": "Assalomu alaykum! Narxi 100 000 so'm.", "til": "uz", "telefon": None,
 	"ism": None, "tovar_kodi": None, "model": "m"}
 
 
@@ -75,6 +75,36 @@ class TestInstagramProcess(UnitTestCase):
 			patch.object(instagram.ig_ai, "answer", return_value=_ai()) as ai:
 			instagram.process(doc.name)
 		self.assertEqual(ai.call_args.kwargs["post_matni"], "Atomic Habits")
+
+	def test_process_gate_no_greeting_keeps_draft(self):
+		doc = self._doc()
+		res, g, sl = self._run(doc, ai=_ai(javob="Narxi 100 000", telefon="998901234567"))
+		self.assertEqual((res, doc.holat), ("Qoralama", "Qoralama"))
+		self.assertIn("salomlashuv", doc.xato)
+		self.assertEqual(doc.ai_javob, "Narxi 100 000")
+		g.assert_not_called()
+		sl.assert_called_once()  # lid baribir yoziladi
+
+	def test_process_gate_url_in_comment_keeps_draft(self):
+		doc = self._doc()
+		res, g, _ = self._run(doc, ai=_ai(javob="Assalomu alaykum! Batafsil: https://t.me/x"))
+		self.assertEqual((res, doc.holat), ("Qoralama", "Qoralama"))
+		self.assertIn("havola", doc.xato)
+		g.assert_not_called()
+
+	def test_process_gate_not_applied_in_sinov(self):
+		doc = self._doc()
+		res, g, _ = self._run(doc, "Sinov", ai=_ai(javob="Narxi 100 000"))
+		self.assertEqual((res, doc.holat, doc.xato), ("Qoralama", "Qoralama", ""))
+
+	def test_send_manual_bypasses_gate(self):
+		doc = self._doc(holat="Qoralama", ai_javob="Narxi 100 000", xato="Javob salomlashuv bilan boshlanmagan")
+		with patch.object(instagram, "_page_token", return_value="tok"), \
+			patch.object(instagram, "_graph", return_value={"id": "R7"}) as g:
+			instagram.send(doc.name)
+		doc.reload()
+		self.assertEqual(doc.holat, "Yuborildi")
+		g.assert_called_once()
 
 	def test_process_not_yangi_is_noop(self):
 		doc = self._doc(holat="Yuborildi")

@@ -3,10 +3,11 @@ import json
 import re
 import time
 from datetime import datetime, timezone
+from urllib.parse import urlparse
 
 import frappe
 from frappe import _
-from frappe.utils import add_to_date, convert_utc_to_system_timezone, now_datetime, today
+from frappe.utils import add_to_date, convert_utc_to_system_timezone, get_url, now_datetime, today
 
 from marketplace.sotuv import ig_ai, instagram_dm
 from marketplace.sotuv.meta import MetaError, _graph, _ig_status, _page_token
@@ -313,6 +314,12 @@ def _run(doc, rejim, draft_only=False):
 	if draft_only or rejim == "Sinov":
 		_lead(doc, info)
 		doc.db_set({**vals, "holat": "Qoralama"})
+		return "Qoralama"
+	# Haqiqiy post oldidan: salomlashuv, uzunlik, havolalar. O'tmasa — qoralama (operator «Yuborish» bilan yubora oladi)
+	reason = ig_ai.check_reply(vals["ai_javob"], doc.turi, urlparse(get_url()).hostname or "")
+	if reason:
+		_lead(doc, info)
+		doc.db_set({**vals, "holat": "Qoralama", "xato": reason})
 		return "Qoralama"
 	if _hourly_count(doc) >= MAX_PER_HOUR:
 		_lead(doc, info)
