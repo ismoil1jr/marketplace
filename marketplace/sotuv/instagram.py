@@ -182,24 +182,34 @@ def _run(doc, rejim, draft_only=False):
 		info = ig_ai.answer(doc.shop, doc.matn, doc.turi, **kw)
 	except (ig_ai.IgAiError, MetaError) as e:
 		return _fail(doc, e)
-	_lead(doc, info)
 	if not info.get("javob_kerak") and not draft_only:
+		_lead(doc, info)
 		doc.db_set({"holat": "Javobsiz", "ai_javob": "", "til": info.get("til"), "xato": ""})
 		return "Javobsiz"
 	vals = {"ai_javob": info.get("javob") or "", "til": info.get("til"), "xato": ""}
+	if not draft_only and not vals["ai_javob"].strip():
+		_lead(doc, info)
+		doc.db_set({**vals, "holat": "Xato", "xato": "AI bo'sh javob qaytardi"})
+		return "Xato"
 	if draft_only or rejim == "Sinov":
+		_lead(doc, info)
 		doc.db_set({**vals, "holat": "Qoralama"})
 		return "Qoralama"
 	if _hourly_count(doc) >= MAX_PER_HOUR:
+		_lead(doc, info)
 		doc.db_set({**vals, "holat": "Qoralama", "xato": "Mijoz uchun soatlik limit"})
 		return "Qoralama"
 	doc.ai_javob = vals["ai_javob"]
 	try:
 		reply_id = _deliver(doc.shop, doc)
 	except (MetaError, frappe.ValidationError) as e:
+		_lead(doc, info)
 		doc.db_set({**vals, "holat": "Xato", "xato": str(e)[:500]})
 		return "Xato"
+	# Post chiqdi: yozuvni darhol saqlaymiz, keyingi xato uni qaytarib yubormasin (qayta post bo'lmasin)
 	doc.db_set({**vals, "holat": "Yuborildi", "javob_id": reply_id})
+	frappe.db.commit()
+	_lead(doc, info)
 	return "Yuborildi"
 
 
@@ -210,6 +220,10 @@ def process(name: str) -> str:
 	rejim = _shop(doc.shop, "ig_ai_rejim")
 	if rejim not in ("Sinov", "Yoqilgan"):
 		return doc.holat
+	# Qatorni qulflaymiz: ikkinchi worker kutadi va yangi holatni ko'radi
+	if frappe.db.get_value("Instagram Xabar", name, "holat", for_update=True) != "Yangi":
+		return frappe.db.get_value("Instagram Xabar", name, "holat")
+	doc.reload()
 	return _run(doc, rejim)
 
 
@@ -222,15 +236,19 @@ def _writable(name):
 
 @frappe.whitelist(methods=["POST"])
 def send(name: str):
-	doc = _writable(name)
+	_writable(name)
+	frappe.db.get_value("Instagram Xabar", name, "holat", for_update=True)
+	doc = frappe.get_doc("Instagram Xabar", name)
 	if doc.holat not in ("Qoralama", "Xato") or not (doc.ai_javob or "").strip():
 		frappe.throw(_("Faqat tayyor javobli qoralamani yuborish mumkin"))
 	try:
 		reply_id = _deliver(doc.shop, doc)
 	except MetaError as e:
 		doc.db_set({"holat": "Xato", "xato": str(e)[:500]})
+		frappe.db.commit()  # throw so'rovni qaytaradi; xato holati saqlansin
 		frappe.throw(_("Yuborib bo'lmadi: {0}").format(e))
 	doc.db_set({"holat": "Yuborildi", "javob_id": reply_id, "xato": ""})
+	frappe.db.commit()
 	return "Yuborildi"
 
 

@@ -5,6 +5,7 @@ from frappe.tests import UnitTestCase
 
 from marketplace.sotuv import instagram
 from marketplace.sotuv.ig_ai import IgAiError
+from marketplace.sotuv.meta import MetaError
 
 AI_OK = {"javob_kerak": True, "javob": "Salom, narxi 100 000", "til": "uz", "telefon": None,
 	"ism": None, "tovar_kodi": None, "model": "m"}
@@ -20,6 +21,10 @@ class TestInstagramProcess(UnitTestCase):
 		if not self.shop:
 			self.skipTest("Shop yo'q")
 		self.n = 0
+		# commit'ni o'chiramiz: tearDown rollback dev bazani toza qoldiradi
+		p = patch.object(frappe.db, "commit")
+		p.start()
+		self.addCleanup(p.stop)
 
 	def tearDown(self):
 		frappe.db.rollback()
@@ -133,3 +138,28 @@ class TestInstagramProcess(UnitTestCase):
 		doc.reload()
 		self.assertEqual((doc.holat, doc.ai_javob), ("Qoralama", "Yangi"))
 		g.assert_not_called()
+
+	def test_send_meta_error_keeps_xato(self):
+		doc = self._doc(holat="Qoralama", ai_javob="Salom")
+		with patch.object(instagram, "_page_token", return_value="tok"), \
+			patch.object(instagram, "_graph", side_effect=MetaError("rad", 100)):
+			with self.assertRaises(frappe.ValidationError):
+				instagram.send(doc.name)
+		doc.reload()
+		self.assertEqual(doc.holat, "Xato")
+		self.assertTrue(doc.xato)
+
+	def test_process_blank_reply_is_xato(self):
+		doc = self._doc()
+		res, g, _ = self._run(doc, ai=_ai(javob="  "))
+		self.assertEqual((res, doc.holat), ("Xato", "Xato"))
+		self.assertEqual(doc.xato, "AI bo'sh javob qaytardi")
+		g.assert_not_called()
+
+	def test_commit_follows_post_before_lead(self):
+		doc = self._doc()
+		order = []
+		with patch.object(instagram, "_lead", side_effect=lambda *a: order.append("lead")), \
+			patch.object(frappe.db, "commit", side_effect=lambda: order.append("commit")):
+			self._run(doc, ai=_ai(telefon="998901234567"))
+		self.assertEqual(order, ["commit", "lead"])
