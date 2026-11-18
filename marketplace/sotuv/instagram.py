@@ -14,6 +14,7 @@ from marketplace.sotuv.murojaat import save_lead
 LOOKBACK = 15 * 60
 RATE_CODES = {4, 17, 32, 613}
 MAX_PER_HOUR = 10
+POLL_BUDGET = 50
 
 _COMMENT_FIELDS = "id,text,timestamp,username,from{id,username}"
 
@@ -128,25 +129,55 @@ def store(shop: str, c: dict, turi: str = "Izoh") -> str | None:
 	return doc.name
 
 
+def _enqueue(name):
+	frappe.enqueue("marketplace.sotuv.instagram.process", queue="short",
+		job_id=f"igx-{name}", deduplicate=True, name=name)
+
+
+def _sweep(shop):
+	"""Saqlangan, lekin navbatga qo'yilmay qolgan («Yangi») izohlarni qayta navbatga qo'yadi."""
+	now = now_datetime()
+	for name in frappe.get_all("Instagram Xabar", filters={
+		"shop": shop, "holat": "Yangi",
+		"creation": ["<", add_to_date(now, minutes=-2)], "vaqt": [">", add_to_date(now, minutes=-60)],
+	}, pluck="name", limit=50):
+		_enqueue(name)
+
+
 def poll() -> None:
 	"""Har daqiqada: yoqilgan do'konlarning yangi izohlarini yig'ib, AI qayta ishlashga qo'yadi."""
 	if frappe.cache.get_value("mp_ig_ai_pause"):
 		return
+	lock = frappe.cache.make_key("mp_ig_poll_lock")
+	if not frappe.cache.set(lock, 1, ex=300, nx=True):
+		return
+	try:
+		_poll()
+	finally:
+		frappe.cache.delete(lock)
+
+
+def _poll():
+	t0 = time.time()
 	shops = frappe.get_all("Shop", filters={
 		"meta_page_id": ["is", "set"], "ig_user_id": ["is", "set"], "ig_ai_rejim": ["!=", "O'chiq"],
 	}, pluck="name")
 	for shop in shops:
+		if time.time() - t0 > POLL_BUDGET:
+			break
 		if frappe.cache.get_value(f"mp_ig_pause:{shop}"):
 			continue
-		start = int(time.time())
-		since = max(int(frappe.cache.get_value(f"mp_ig_since:{shop}") or 0), start - LOOKBACK)
+		start = int(t0)
+		key = f"mp_ig_since:{shop}"
+		old = int(frappe.cache.get_value(key) or 0)
+		since = max(old, start - LOOKBACK)
 		try:
 			for c in fetch_comments(shop, since):
 				name = store(shop, c)
 				if name:
-					frappe.enqueue("marketplace.sotuv.instagram.process", queue="short",
-						job_id=f"igx-{name}", deduplicate=True, name=name)
-			frappe.cache.set_value(f"mp_ig_since:{shop}", start, expires_in_sec=24 * 3600)
+					_enqueue(name)
+			_sweep(shop)
+			frappe.cache.set_value(key, max(old, start), expires_in_sec=24 * 3600)
 		except MetaError as e:
 			if e.code in RATE_CODES:
 				frappe.cache.set_value(f"mp_ig_pause:{shop}", 1, expires_in_sec=15 * 60)
