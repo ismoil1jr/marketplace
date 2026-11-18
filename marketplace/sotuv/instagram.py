@@ -1,5 +1,6 @@
 """Instagram izohlarini yig'ish (post, reel, faol reklama) va saqlash. AI ham, javob yuborish ham bu yerda emas."""
 import json
+import re
 import time
 from datetime import datetime, timezone
 
@@ -8,15 +9,32 @@ from frappe import _
 from frappe.utils import add_to_date, convert_utc_to_system_timezone, now_datetime, today
 
 from marketplace.sotuv import ig_ai, instagram_dm
-from marketplace.sotuv.meta import MetaError, _graph, _page_token, _status
+from marketplace.sotuv.meta import MetaError, _graph, _ig_status, _page_token
 from marketplace.sotuv.murojaat import save_lead
 
 LOOKBACK = 15 * 60
+SINCE_OVERLAP = 120
 RATE_CODES = {4, 17, 32, 613}
 MAX_PER_HOUR = 10
 POLL_BUDGET = 50
 
 _COMMENT_FIELDS = "id,text,timestamp,username,from{id,username}"
+_SECRET_RE = re.compile(r"(access_token|appsecret_proof|client_secret|fb_exchange_token)=[^&\s'\"]+")
+
+
+def is_rate_limit(code) -> bool:
+	"""Meta so'rovlar limiti: eski kodlar (4, 17, 32, 613) va Business Use Case kodlari 80000–80099
+	(sahifa tokeni bilan: IG 80002, Pages 80001, Messenger 80006, Ads 80004 ...)."""
+	try:
+		code = int(code)
+	except (TypeError, ValueError):
+		return False
+	return code in RATE_CODES or 80000 <= code < 80100
+
+
+def _scrub(text):
+	"""Error Log'ga yoziladigan matndan token/imzolarni o'chiradi (ehtiyot uchun)."""
+	return _SECRET_RE.sub(r"\1=***", text or "")
 
 
 def _shop(shop, field):
@@ -57,7 +75,7 @@ def media_list(shop: str, token: str | None = None) -> list[dict]:
 				cr = a.get("creative") or {}
 				add(cr.get("effective_instagram_media_id"), cr.get("instagram_permalink_url"))
 		except MetaError as e:
-			_status(shop, _("Reklamalarni olib bo'lmadi (kod {0}); postlar tekshirilmoqda").format(e.code or "-"))
+			_ig_status(shop, _("Reklamalarni olib bo'lmadi (kod {0}); postlar tekshirilmoqda").format(e.code or "-"))
 	return out
 
 
@@ -85,9 +103,9 @@ def fetch_comments(shop: str, since_ts: int) -> list[dict]:
 		try:
 			data = _graph("GET", f"{media['id']}/comments", token, fields=fields, limit=50).get("data", [])
 		except MetaError as e:
-			if e.code in RATE_CODES:
+			if is_rate_limit(e.code):
 				raise
-			_status(shop, _("Post izohlarini olib bo'lmadi (kod {0}); keyingisiga o'tildi").format(e.code or "-"))
+			_ig_status(shop, _("Post izohlarini olib bo'lmadi (kod {0}); keyingisiga o'tildi").format(e.code or "-"))
 			continue
 		for c in data:
 			items = [_flat(c, None, media)]
@@ -130,7 +148,8 @@ def store(shop: str, c: dict, turi: str = "Izoh") -> str | None:
 
 
 def _enqueue(name):
-	frappe.enqueue("marketplace.sotuv.instagram.process", queue="short",
+	# commit'dan keyin: worker qatorni ko'rmasdan process'ni boshlamasin (DoesNotExistError)
+	frappe.enqueue("marketplace.sotuv.instagram.process", queue="short", enqueue_after_commit=True,
 		job_id=f"igx-{name}", deduplicate=True, name=name)
 
 
@@ -200,21 +219,21 @@ def _poll():
 				for _ts, name in newest.values():
 					_enqueue(name)
 			except MetaError as e:
-				if e.code in RATE_CODES:
+				if is_rate_limit(e.code):
 					raise
-				_status(shop, _("Direct xabarlarini olib bo'lmadi (kod {0})").format(e.code or "-"))
+				_ig_status(shop, _("Direct xabarlarini olib bo'lmadi (kod {0})").format(e.code or "-"))
 			_sweep(shop)
 			frappe.cache.set_value(key, max(old, start), expires_in_sec=24 * 3600)
 		except MetaError as e:
-			if e.code in RATE_CODES:
+			# Traceback emas, faqat matn: MetaError'ning matnida token yo'q (meta._graph `from None`)
+			if is_rate_limit(e.code):
 				frappe.cache.set_value(f"mp_ig_pause:{shop}", 1, expires_in_sec=15 * 60)
-				_status(shop, _("Instagram so'rovlar limiti; 15 daqiqa kutiladi"))
-			else:
-				_status(shop, _("Izohlarni olib bo'lmadi (kod {0})").format(e.code or "-"))
-				frappe.log_error(title=f"Instagram: {shop}", message=frappe.get_traceback())
-		except Exception:
-			_status(shop, _("Izohlarni olishda xatolik; keyingi daqiqada qayta uriniladi"))
-			frappe.log_error(title=f"Instagram: {shop}", message=frappe.get_traceback())
+				_ig_status(shop, _("Instagram so'rovlar limiti (kod {0}); 15 daqiqa kutiladi").format(e.code))
+			elif _ig_status(shop, _("Izohlarni olib bo'lmadi (kod {0})").format(e.code or "-")):
+				frappe.log_error(title=f"Instagram: {shop}", message=_scrub(f"{e} (kod {e.code or '-'})"))
+		except Exception as e:
+			if _ig_status(shop, _("Izohlarni olishda xatolik ({0}); keyingi daqiqada qayta uriniladi").format(type(e).__name__)):
+				frappe.log_error(title=f"Instagram: {shop}", message=_scrub(frappe.get_traceback()))
 		frappe.db.commit()
 
 

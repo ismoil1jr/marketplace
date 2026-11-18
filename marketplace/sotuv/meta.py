@@ -64,7 +64,8 @@ def _graph(method, path, token=None, **params):
 		r = requests.request(method, url, params=params if method == "GET" else None,
 		                     data=None if method == "GET" else params, timeout=25)
 	except requests.RequestException as e:
-		raise MetaError(_("Meta bilan aloqa yo'q ({0})").format(type(e).__name__))
+		# from None: zanjirdagi urllib3 xatosi to'liq URL'ni (access_token, appsecret_proof) saqlaydi — traceback'ga tushmasin
+		raise MetaError(_("Meta bilan aloqa yo'q ({0})").format(type(e).__name__)) from None
 	try:
 		body = r.json()
 	except ValueError:
@@ -87,6 +88,26 @@ def _status(shop, text):
 	"""Shop → «Oxirgi holat»: Meta'dan nima keldi / qanday xato — do'kon formasida ko'rinadi."""
 	line = f"{format_datetime(now_datetime(), 'dd.MM.yyyy HH:mm')} — {text}"
 	frappe.db.set_value("Shop", shop, "meta_holat", line[:1000], update_modified=False)
+
+
+IG_STATUS_TTL = 3600
+
+
+def _ig_status(shop, text):
+	"""Shop → «Instagram AI holati» (lead-formaning «Oxirgi holat»iga tegmaydi). Har daqiqalik tekshiruv bir xil matnni
+	qayta-qayta yozmasin: so'nggi bir soatda yozilgan matn takrorlansa — o'tkazib yuboriladi. Qaytaradi: yozildimi
+	(chaqiruvchi Error Log'ni ham faqat shunda yozadi)."""
+	key = f"mp_ig_last_err:{shop}"
+	now = time.time()
+	seen = frappe.cache.get_value(key)
+	seen = {t: ts for t, ts in (seen if isinstance(seen, dict) else {}).items() if now - ts < IG_STATUS_TTL}
+	if text in seen:
+		return False
+	seen[text] = now
+	frappe.cache.set_value(key, seen, expires_in_sec=IG_STATUS_TTL)
+	line = f"{format_datetime(now_datetime(), 'dd.MM.yyyy HH:mm')} — {text}"
+	frappe.db.set_value("Shop", shop, "ig_holat", line[:1000], update_modified=False)
+	return True
 
 
 def _check(shop, owner_ok=False):

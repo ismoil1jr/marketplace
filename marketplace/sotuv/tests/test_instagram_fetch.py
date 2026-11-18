@@ -26,7 +26,7 @@ class TestMediaList(UnitTestCase):
 	def _run(self, graph, **shop):
 		with patch.object(instagram, "_page_token", return_value="tok"), \
 			patch.object(instagram.frappe.db, "get_value", side_effect=_shop_vals(**shop)), \
-			patch.object(instagram, "_status") as st, \
+			patch.object(instagram, "_ig_status") as st, \
 			patch.object(instagram, "_graph", side_effect=graph):
 			return instagram.media_list(SHOP), st
 
@@ -59,7 +59,7 @@ class TestFetch(UnitTestCase):
 			return {"data": comments}
 		with patch.object(instagram, "_page_token", return_value="tok"), \
 			patch.object(instagram.frappe.db, "get_value", side_effect=_shop_vals()), \
-			patch.object(instagram, "_status"), \
+			patch.object(instagram, "_ig_status"), \
 			patch.object(instagram, "_graph", side_effect=graph):
 			return instagram.fetch_comments(SHOP, since)
 
@@ -94,7 +94,7 @@ class TestFetchErrors(UnitTestCase):
 			return {"data": [{"id": "c2", "text": "a", "timestamp": _iso(10), "username": "x", "from": {"id": "9"}}]}
 		with patch.object(instagram, "_page_token", return_value="tok"), \
 			patch.object(instagram.frappe.db, "get_value", side_effect=_shop_vals()), \
-			patch.object(instagram, "_status"), \
+			patch.object(instagram, "_ig_status"), \
 			patch.object(instagram, "_graph", side_effect=graph):
 			return instagram.fetch_comments(SHOP, int(time.time()) - 900)
 
@@ -104,6 +104,10 @@ class TestFetchErrors(UnitTestCase):
 	def test_rate_limit_raises(self):
 		with self.assertRaises(MetaError):
 			self._run(4)
+
+	def test_buc_rate_limit_raises(self):
+		with self.assertRaises(MetaError):
+			self._run(80002)
 
 
 class TestStore(UnitTestCase):

@@ -6,7 +6,7 @@ import frappe
 from frappe import _
 from frappe.utils import add_to_date, now_datetime
 
-from marketplace.sotuv.meta import _graph, _page_token, _status
+from marketplace.sotuv.meta import _graph, _ig_status, _page_token
 
 HUMAN_PAUSE = 24 * 3600
 _FIELDS = "id,updated_time,messages.limit(10){id,message,created_time,from{id,username}}"
@@ -44,7 +44,7 @@ def fetch_messages(shop: str, since_ts: int) -> list[dict]:
 	page = _shop(shop, "meta_page_id")
 	ig = _shop(shop, "ig_user_id")
 	if not ig:
-		_status(shop, _("Instagram akkaunt ID yo'q — Direct tekshirilmadi"))
+		_ig_status(shop, _("Instagram akkaunt ID yo'q — Direct tekshirilmadi"))
 		return []
 	token = _page_token(shop)
 	data = _graph("GET", f"{page}/conversations", token, platform="instagram", fields=_FIELDS, limit=25).get("data", [])

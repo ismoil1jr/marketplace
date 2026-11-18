@@ -145,7 +145,7 @@ class TestInstagramDm(UnitTestCase):
 			patch.object(instagram, "fetch_comments", return_value=[{"id": "c"}]), \
 			patch.object(instagram_dm, "fetch_messages", side_effect=MetaError("x", code=10)), \
 			patch.object(instagram, "store", side_effect=lambda s, c, turi="Izoh": c["id"]), \
-			patch.object(instagram, "_status") as stat, \
+			patch.object(instagram, "_ig_status") as stat, \
 			patch.object(instagram.frappe, "enqueue") as enq, \
 			patch.object(instagram.frappe.db, "commit"):
 			instagram.poll()
@@ -157,7 +157,7 @@ class TestInstagramDm(UnitTestCase):
 		fake = {"meta_page_id": "PG", "ig_user_id": ""}
 		with patch.object(instagram, "_shop", side_effect=lambda s, f: fake.get(f, "")), \
 			patch.object(instagram_dm, "_page_token", return_value="tok"), \
-			patch.object(instagram_dm, "_status") as stat, \
+			patch.object(instagram_dm, "_ig_status") as stat, \
 			patch.object(instagram_dm, "_graph") as g:
 			res = instagram_dm.fetch_messages(self.shop, SINCE)
 		self.assertEqual(res, [])

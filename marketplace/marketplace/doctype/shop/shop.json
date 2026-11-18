@@ -71,6 +71,7 @@
   "ig_user_id",
   "ig_username",
   "meta_ad_account",
+  "ig_holat",
   "sb_team",
   "warehouse",
   "members"
@@ -497,6 +498,14 @@
    "label": "Reklama kabineti (act_…)"
   },
   {
+   "fieldname": "ig_holat",
+   "fieldtype": "Small Text",
+   "label": "Instagram AI holati",
+   "read_only": 1,
+   "no_copy": 1,
+   "description": "Instagram izoh va Direct tekshiruvidagi oxirgi xato yoki ogohlantirish"
+  },
+  {
    "fieldname": "sb_team",
    "fieldtype": "Section Break",
    "label": "Ombor va a'zolar",
@@ -523,7 +532,7 @@
  "image_field": "logo",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-11-05 12:00:00.000000",
+ "modified": "2026-11-18 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Marketplace",
  "name": "Shop",

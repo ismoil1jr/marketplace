@@ -1,5 +1,8 @@
+import traceback
 from unittest.mock import patch
 
+import frappe
+import requests
 from frappe.tests import UnitTestCase
 
 from marketplace.sotuv import meta
@@ -67,3 +70,21 @@ class TestLinkInstagram(UnitTestCase):
 			warning = meta._link_instagram(SHOP, PAGE, None)
 		self.assertTrue(warning)
 		self.assertNotIn("me/adaccounts", [c.args[1] for c in g.call_args_list])
+
+
+class TestGraphNoLeak(UnitTestCase):
+	def test_network_error_does_not_chain_url_with_token(self):
+		secret = "EAAGsecretPAGEtoken123"
+		err = requests.ConnectionError(
+			f"Max retries exceeded with url: /v23.0/me?access_token={secret}&appsecret_proof=abc123")
+		conf = frappe._dict(app_id="a", secret="s", verify="", ver="v23.0")
+		with patch.object(meta, "_conf", return_value=conf), \
+			patch.object(meta.requests, "request", side_effect=err):
+			with self.assertRaises(MetaError) as cm:
+				meta._graph("GET", "me", secret)
+		e = cm.exception
+		self.assertIsNone(e.__cause__)
+		self.assertTrue(e.__suppress_context__)
+		text = "".join(traceback.format_exception(e))
+		self.assertNotIn(secret, text)
+		self.assertNotIn("access_token", text)
