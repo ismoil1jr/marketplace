@@ -18,6 +18,10 @@ SINCE_OVERLAP = 120
 RATE_CODES = {4, 17, 32, 613}
 MAX_PER_HOUR = 10
 SHOP_MAX_PER_HOUR = 60  # do'kon bo'yicha soatiga avtomatik izoh-javoblar (anti-spam)
+DIRECT_MAX_PER_HOUR = 30  # «+» izohlariga Direct (private reply) — soatiga (konkurs postlarida bot deb o'ylanmasin)
+DIRECT_MAX_LEN = 40  # Direct faqat qisqa / «+» kabi ma'lumot so'roviga; uzun savolga — ochiq javob
+_DIRECT_ASK = re.compile(r"^\s*\++\s*$|\b(info|batafsil|ma[ʼ'`’]?lumot|malumot|podrobn|подробн|инфо)", re.I)
+_PROMISED = re.compile(r"(direct|директ|дирек)", re.I)
 POLL_BUDGET = 50
 
 _COMMENT_FIELDS = "id,text,timestamp,username,from{id,username}"
@@ -289,8 +293,26 @@ def _send_direct(doc):
 	except MetaError as e:
 		return _("Direct yuborilmadi: {0}").format(e)
 	doc.db_set("direct_id", mid or "-")
-	frappe.db.commit()  # Direct ketdi — keyingi xato uni qayta yubormasin
+	frappe.db.commit()  # Direct ketdi — keyingi xato uni qayta yubormasin (commit qulfni bo'shatadi — _still bilan qayta olinadi)
 	return None
+
+
+def _still(name, allowed):
+	"""Commit'dan keyin qatorni qayta qulflaymiz: shu orada boshqa so'rov javobni yozib bo'lgan bo'lsa — False."""
+	return frappe.db.get_value("Instagram Xabar", name, "holat", for_update=True) in allowed
+
+
+def _wants_direct(doc):
+	"""Direct faqat yuqori darajadagi izohga va «+» / info / batafsil kabi qisqa ma'lumot so'roviga."""
+	text = (doc.matn or "").strip()
+	return not doc.ota_id and (len(text) <= DIRECT_MAX_LEN or bool(_DIRECT_ASK.search(text)))
+
+
+def _direct_hourly_count(shop):
+	return frappe.db.count("Instagram Xabar", {
+		"shop": shop, "turi": "Izoh", "direct_id": ["is", "set"],
+		"modified": (">", add_to_date(now_datetime(), hours=-1)),
+	})
 
 
 def _customer(doc):
@@ -357,8 +379,9 @@ def _run(doc, rejim, draft_only=False):
 		_lead(doc, info)
 		doc.db_set({"holat": "Javobsiz", "ai_javob": "", "til": info.get("til"), "xato": ""})
 		return "Javobsiz"
-	vals = {"ai_javob": info.get("javob") or "", "til": info.get("til"), "xato": "",
-		"direct_javob": (info.get("direct") or "") if doc.turi == "Izoh" else ""}
+	vals = {"ai_javob": info.get("javob") or "", "til": info.get("til"), "xato": ""}
+	if not doc.direct_id:  # yuborilgan Direct matni almashtirilmaydi
+		vals["direct_javob"] = (info.get("direct") or "") if doc.turi == "Izoh" and _wants_direct(doc) else ""
 	if not draft_only and not vals["ai_javob"].strip():
 		_lead(doc, info)
 		doc.db_set({**vals, "holat": "Xato", "xato": "AI bo'sh javob qaytardi"})
@@ -371,9 +394,14 @@ def _run(doc, rejim, draft_only=False):
 	own_text = " ".join(filter(None, frappe.db.get_value("Shop", doc.shop, ["ig_ai_malumot", "phone"]) or []))
 	host = urlparse(get_url()).hostname or ""
 	reason = ig_ai.check_reply(vals["ai_javob"], doc.turi, host, own_text)
-	if not reason and vals["direct_javob"].strip():
-		direct_reason = ig_ai.check_reply(vals["direct_javob"], "DM", host, own_text)
+	direct = (vals.get("direct_javob", doc.direct_javob) or "").strip()
+	if not reason and direct and not doc.direct_id:
+		direct_reason = ig_ai.check_reply(direct, "DM", host, own_text)
 		reason = direct_reason and _("Direct: {0}").format(direct_reason)
+	if not reason and doc.turi == "Izoh" and not direct and not doc.direct_id and _PROMISED.search(vals["ai_javob"]):
+		reason = _("Direct: izohda «Direct'ga yubordik» deyilgan, lekin Direct matni yo'q")
+	if not reason and direct and not doc.direct_id and _direct_hourly_count(doc.shop) >= DIRECT_MAX_PER_HOUR:
+		reason = _("Direct soatlik limiti")
 	if reason:
 		_lead(doc, info)
 		doc.db_set({**vals, "holat": "Qoralama", "xato": reason})
@@ -387,12 +415,16 @@ def _run(doc, rejim, draft_only=False):
 		doc.db_set({**vals, "holat": "Qoralama", "xato": "do'kon soatlik limiti"})
 		return "Qoralama"
 	doc.ai_javob = vals["ai_javob"]
-	doc.direct_javob = vals["direct_javob"]
+	if "direct_javob" in vals:
+		doc.direct_javob = vals["direct_javob"]
+	had_direct = bool(doc.direct_id)
 	direct_error = _send_direct(doc)
 	if direct_error:
 		_lead(doc, info)
 		doc.db_set({**vals, "holat": "Xato", "xato": direct_error[:500]})
 		return "Xato"
+	if doc.direct_id and not had_direct and not _still(doc.name, ("Yangi",)):
+		return frappe.db.get_value("Instagram Xabar", doc.name, "holat")
 	try:
 		reply_id = _deliver(doc.shop, doc)
 	except (MetaError, frappe.ValidationError) as e:
@@ -436,11 +468,14 @@ def send(name: str):
 	if row.holat not in ("Qoralama", "Xato") or not (row.ai_javob or "").strip():
 		frappe.throw(_("Faqat tayyor javobli qoralamani yuborish mumkin"))
 	doc = _writable(name)
+	had_direct = bool(doc.direct_id)
 	direct_error = _send_direct(doc)
 	if direct_error:
 		doc.db_set({"holat": "Xato", "xato": direct_error[:500]})
 		frappe.db.commit()
 		frappe.throw(direct_error)
+	if doc.direct_id and not had_direct and not _still(name, ("Qoralama", "Xato")):
+		return "Yuborildi"  # Direct ketgan paytda ikkinchi bosuvchi ochiq javobni yozib bo'ldi
 	try:
 		reply_id = _deliver(doc.shop, doc)
 	except MetaError as e:

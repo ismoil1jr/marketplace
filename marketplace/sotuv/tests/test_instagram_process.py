@@ -364,3 +364,58 @@ class TestInstagramPlusToDirect(UnitTestCase):
 		doc = self._doc(matn="90 123 45 67", username="ali_77")
 		_res, _g, sl = self._run(doc, ai=_ai(telefon="998901234567"))
 		self.assertEqual(sl.call_args.args[1]["ism"], "@ali_77")
+
+
+class TestPlusDirectSafety(UnitTestCase):
+	setUp = TestInstagramProcess.setUp
+	tearDown = TestInstagramProcess.tearDown
+	_doc = TestInstagramProcess._doc
+	_run = TestInstagramProcess._run
+
+	PUBLIC = "Assalomu alaykum! Batafsil ma'lumotni Direct'ga yubordik 📩"
+
+	def test_promised_direct_without_text_is_draft(self):
+		doc = self._doc(matn="+")
+		res, g, _ = self._run(doc, ai=_ai(javob=self.PUBLIC, direct=None))
+		self.assertEqual((res, doc.holat), ("Qoralama", "Qoralama"))
+		self.assertIn("Direct", doc.xato)
+		g.assert_not_called()
+
+	def test_reply_comment_gets_no_direct(self):
+		doc = self._doc(matn="+", ota_id="P1")
+		res, g, _ = self._run(doc, ai=_ai(javob=self.PUBLIC, direct=DIRECT))
+		self.assertEqual(res, "Qoralama")  # «yubordik» va'dasi bor, lekin javob ostidagi izohga Direct yo'q
+		g.assert_not_called()
+
+	def test_long_ordinary_question_gets_no_direct(self):
+		doc = self._doc(matn="Assalomu alaykum, kitoblar necha yoshdagi bolalarga mos va ruchka zaryadi qancha vaqt ishlaydi?")
+		res, g, _ = self._run(doc, ai=_ai(direct=DIRECT))
+		self.assertEqual((res, doc.holat), ("Yuborildi", "Yuborildi"))
+		g.assert_called_once()  # faqat ochiq javob
+		self.assertFalse(doc.direct_javob)
+
+	def test_direct_hourly_cap(self):
+		for i in range(instagram.DIRECT_MAX_PER_HOUR):
+			self._doc(matn="+", holat="Yuborildi", direct_id=f"D{i}", mijoz_id=f"c{i}")
+		doc = self._doc(matn="+", mijoz_id="new")
+		res, g, _ = self._run(doc, ai=_ai(javob=self.PUBLIC, direct=DIRECT))
+		self.assertEqual(res, "Qoralama")
+		self.assertIn("Direct", doc.xato)
+		g.assert_not_called()
+
+	def test_send_stops_if_other_click_finished_after_direct(self):
+		doc = self._doc(matn="+", holat="Qoralama", ai_javob=self.PUBLIC, direct_javob=DIRECT)
+		with patch.object(instagram, "_shop", return_value="Yoqilgan"), \
+			patch.object(instagram, "_page_token", return_value="tok"), \
+			patch.object(instagram, "_still", return_value=False), \
+			patch.object(instagram, "_graph", return_value={"id": "R1", "message_id": "M1"}) as g:
+			instagram.send(doc.name)
+		self.assertEqual(g.call_count, 1)  # Direct ketdi, ochiq javobni ikkinchi bosuvchi allaqachon yozgan
+
+	def test_rerun_keeps_sent_direct_text(self):
+		doc = self._doc(matn="+", holat="Qoralama", ai_javob=self.PUBLIC, direct_javob=DIRECT, direct_id="M1")
+		with patch.object(instagram, "_shop", return_value="Sinov"), \
+			patch.object(instagram.ig_ai, "answer", return_value=_ai(javob=self.PUBLIC, direct="Boshqa matn")):
+			instagram.regenerate(doc.name)
+		doc.reload()
+		self.assertEqual(doc.direct_javob, DIRECT)

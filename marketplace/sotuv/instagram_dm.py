@@ -109,7 +109,8 @@ def history(doc) -> list[dict]:
 	if doc.username:
 		for r in reversed(frappe.get_all("Instagram Xabar", filters={
 			"shop": doc.shop, "turi": "Izoh", "username": doc.username, "direct_id": ["is", "set"],
-		}, fields=["matn", "direct_javob"], order_by="vaqt desc", limit=2)):
+			"creation": (">", add_to_date(now_datetime(), days=-7)),
+		}, fields=["matn", "direct_javob"], order_by="creation desc", limit=2)):
 			out.append({"kim": "Mijoz", "matn": f"(izoh) {r.matn}"})
 			out.append({"kim": "Do'kon", "matn": r.direct_javob})
 	for r in reversed(rows):
