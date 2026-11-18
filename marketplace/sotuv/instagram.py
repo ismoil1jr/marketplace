@@ -157,6 +157,12 @@ def poll() -> None:
 		frappe.cache.delete(lock)
 
 
+def _skip_dm(name):
+	"""Ketma-ket xabarlarda faqat eng yangisiga javob beriladi; eskilari «Javobsiz» (sweep olmaydi)."""
+	frappe.db.set_value("Instagram Xabar", name,
+		{"holat": "Javobsiz", "xato": "Keyingi xabar bilan birga javob beriladi"})
+
+
 def _poll():
 	t0 = time.time()
 	shops = frappe.get_all("Shop", filters={
@@ -177,10 +183,22 @@ def _poll():
 				if name:
 					_enqueue(name)
 			try:
+				newest = {}
 				for m in instagram_dm.fetch_messages(shop, since):
 					name = store(shop, m, turi="DM")
-					if name:
-						_enqueue(name)
+					if not name:
+						continue
+					cust = m.get("from_id")
+					prev = newest.get(cust)
+					if prev is None:
+						newest[cust] = (m.get("timestamp") or 0, name)
+					elif (m.get("timestamp") or 0) >= prev[0]:
+						_skip_dm(prev[1])
+						newest[cust] = (m.get("timestamp") or 0, name)
+					else:
+						_skip_dm(name)
+				for _ts, name in newest.values():
+					_enqueue(name)
 			except MetaError as e:
 				if e.code in RATE_CODES:
 					raise

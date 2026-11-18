@@ -152,3 +152,55 @@ class TestInstagramDm(UnitTestCase):
 		enq.assert_called_once()
 		stat.assert_called_once()
 		self.assertTrue(int(frappe.cache.get_value("mp_ig_since:Test Shop Dm")) > 0)
+
+	def test_dm_no_ig_user_id_returns_nothing(self):
+		fake = {"meta_page_id": "PG", "ig_user_id": ""}
+		with patch.object(instagram, "_shop", side_effect=lambda s, f: fake.get(f, "")), \
+			patch.object(instagram_dm, "_page_token", return_value="tok"), \
+			patch.object(instagram_dm, "_status") as stat, \
+			patch.object(instagram_dm, "_graph") as g:
+			res = instagram_dm.fetch_messages(self.shop, SINCE)
+		self.assertEqual(res, [])
+		g.assert_not_called()
+		stat.assert_called_once()
+
+	def test_dm_own_text_match_is_whitespace_normalized(self):
+		self._doc(holat="Yuborildi", ai_javob="Assalomu alaykum!  Ha, bor.\n", javob_id="X")
+		self._fetch(_conv(_msg("cid", IG, "Assalomu alaykum! Ha, bor."), _msg("m1", CUST)))
+		self.assertFalse(instagram_dm.is_human_paused(self.shop, CUST))
+
+	def test_dm_different_text_arms_pause(self):
+		self._doc(holat="Yuborildi", ai_javob="Assalomu alaykum! Ha, bor.", javob_id="X")
+		self._fetch(_conv(_msg("cid", IG, "Assalomu alaykum! Yo'q, tugadi."), _msg("m1", CUST)))
+		self.assertTrue(instagram_dm.is_human_paused(self.shop, CUST))
+
+	def test_poll_coalesces_burst_per_customer(self):
+		lock = frappe.cache.make_key("mp_ig_poll_lock")
+		keys = ["mp_ig_pause:Test Shop Dm", "mp_ig_since:Test Shop Dm", "mp_ig_ai_pause"]
+		for k in keys:
+			frappe.cache.delete_value(k)
+		frappe.cache.delete(lock)
+		self.addCleanup(lambda: [frappe.cache.delete_value(k) for k in keys] + [frappe.cache.delete(lock)])
+		msgs = [{"id": f"b{i}", "from_id": CUST, "timestamp": 2000 + i} for i in (1, 3, 2)]
+		msgs.append({"id": "o1", "from_id": "other", "timestamp": 2001})
+		sets = []
+		with patch.object(instagram.frappe, "get_all", side_effect=lambda d, **kw: [] if d == "Instagram Xabar" else ["Test Shop Dm"]), \
+			patch.object(instagram, "fetch_comments", return_value=[]), \
+			patch.object(instagram_dm, "fetch_messages", return_value=msgs), \
+			patch.object(instagram, "store", side_effect=lambda s, c, turi="Izoh": c["id"]), \
+			patch.object(instagram.frappe.db, "set_value", side_effect=lambda dt, n, v: sets.append((n, v))), \
+			patch.object(instagram.frappe, "enqueue") as enq, \
+			patch.object(instagram.frappe.db, "commit"):
+			instagram.poll()
+		self.assertEqual(sorted(c.kwargs["name"] for c in enq.call_args_list), ["b3", "o1"])
+		self.assertEqual(sorted(n for n, _v in sets), ["b1", "b2"])
+		self.assertTrue(all(v["holat"] == "Javobsiz" and v["xato"] == "Keyingi xabar bilan birga javob beriladi" for _n, v in sets))
+
+	def test_dm_history_of_newest_includes_earlier_burst_and_no_later(self):
+		self._doc(matn="bir", holat="Javobsiz", vaqt="2026-11-17 10:00:00")
+		self._doc(matn="ikki", holat="Javobsiz", vaqt="2026-11-17 10:00:10")
+		cur = self._doc(matn="uch", vaqt="2026-11-17 10:00:20")
+		self._doc(matn="keyingi", vaqt="2026-11-17 10:05:00")
+		self.assertEqual(instagram_dm.history(cur), [{"kim": "Mijoz", "matn": "bir"}, {"kim": "Mijoz", "matn": "ikki"}])
+		first = frappe.get_all("Instagram Xabar", filters={"matn": "bir", "shop": self.shop}, pluck="name")[0]
+		self.assertNotIn({"kim": "Mijoz", "matn": "keyingi"}, instagram_dm.history(frappe.get_doc("Instagram Xabar", first)))

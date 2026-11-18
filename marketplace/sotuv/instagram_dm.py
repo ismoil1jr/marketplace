@@ -1,10 +1,12 @@
 """Instagram Direct: yangi mijoz xabarlarini yig'ish, o'sha mijozga javob yuborish, operator yozsa AI'ni to'xtatish."""
 import json
+import re
 
 import frappe
+from frappe import _
 from frappe.utils import add_to_date, now_datetime
 
-from marketplace.sotuv.meta import _graph, _page_token
+from marketplace.sotuv.meta import _graph, _page_token, _status
 
 HUMAN_PAUSE = 24 * 3600
 _FIELDS = "id,updated_time,messages.limit(10){id,message,created_time,from{id,username}}"
@@ -18,14 +20,22 @@ def is_human_paused(shop: str, mijoz_id: str) -> bool:
 	return bool(frappe.cache.get_value(_human_key(shop, mijoz_id)))
 
 
+def _norm(t):
+	return re.sub(r"\s+", " ", t or "").strip()
+
+
 def _is_ours(shop, customer_id, m):
 	"""Do'kon nomidan yozilgan xabar bizning (AI) javobimizmi? id yoki oxirgi 24 soatdagi matn bo'yicha."""
 	if frappe.db.exists("Instagram Xabar", {"shop": shop, "javob_id": m["id"]}):
 		return True
-	return bool(m.get("text") and frappe.db.exists("Instagram Xabar", {
-		"shop": shop, "turi": "DM", "mijoz_id": customer_id, "holat": "Yuborildi", "ai_javob": m["text"],
+	text = _norm(m.get("text"))
+	if not text:
+		return False
+	rows = frappe.get_all("Instagram Xabar", filters={
+		"shop": shop, "turi": "DM", "mijoz_id": customer_id, "holat": "Yuborildi",
 		"modified": (">", add_to_date(now_datetime(), hours=-24)),
-	}))
+	}, pluck="ai_javob", limit=50)
+	return any(_norm(r) == text for r in rows)
 
 
 def fetch_messages(shop: str, since_ts: int) -> list[dict]:
@@ -33,6 +43,9 @@ def fetch_messages(shop: str, since_ts: int) -> list[dict]:
 
 	page = _shop(shop, "meta_page_id")
 	ig = _shop(shop, "ig_user_id")
+	if not ig:
+		_status(shop, _("Instagram akkaunt ID yo'q — Direct tekshirilmadi"))
+		return []
 	token = _page_token(shop)
 	data = _graph("GET", f"{page}/conversations", token, platform="instagram", fields=_FIELDS, limit=25).get("data", [])
 	out = []
@@ -67,9 +80,13 @@ def fetch_messages(shop: str, since_ts: int) -> list[dict]:
 
 
 def history(doc) -> list[dict]:
-	rows = frappe.get_all("Instagram Xabar", filters={
+	filters = {
 		"shop": doc.shop, "turi": "DM", "mijoz_id": doc.mijoz_id, "name": ["!=", doc.name],
-	}, fields=["matn", "ai_javob", "holat"], order_by="vaqt desc", limit=10)
+	}
+	if doc.vaqt:
+		filters["vaqt"] = ["<=", doc.vaqt]
+	rows = frappe.get_all("Instagram Xabar", filters=filters,
+		fields=["matn", "ai_javob", "holat"], order_by="vaqt desc, creation desc", limit=10)
 	out = []
 	for r in reversed(rows):
 		out.append({"kim": "Mijoz", "matn": r.matn})
