@@ -318,6 +318,10 @@ scheduler_events = {
 	},
 }
 
+# frappe.clear_cache() (bench migrate / deploy) bularni o'chirmaydi: operator Direct'da yozgan mijozga AI 24 soat jim
+# turadi (sotuv/instagram_dm.py). Kalit o'chsa ham keyingi tekshiruv Meta'dagi xabar vaqtidan uni qayta tiklaydi.
+persistent_cache_keys = ["mp_ig_human:*"]
+
 # scheduler_events = {
 # 	"all": [
 # 		"marketplace.tasks.all"

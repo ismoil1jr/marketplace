@@ -1,4 +1,6 @@
 import json
+import time
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 import frappe
@@ -8,7 +10,13 @@ from marketplace.sotuv import instagram, instagram_dm
 from marketplace.sotuv.meta import MetaError
 
 IG, CUST, SINCE = "ig1", "cust1", 1000
-CREATED = "2026-11-17T04:19:10+0000"  # > SINCE
+
+
+def _iso(secs_ago):
+	return (datetime.now(timezone.utc) - timedelta(seconds=secs_ago)).strftime("%Y-%m-%dT%H:%M:%S+0000")
+
+
+CREATED = _iso(60)  # > SINCE va oxirgi 24 soat ichida (operator xabari pauzani faqat 24 soat ichida yoqadi)
 AI_OK = {"javob_kerak": True, "javob": "Salom", "til": "uz", "telefon": None,
 	"ism": None, "tovar_kodi": None, "model": "m"}
 
@@ -45,13 +53,16 @@ class TestInstagramDm(UnitTestCase):
 		vals.update(kw)
 		return frappe.get_doc(vals).insert(ignore_permissions=True)
 
-	def _fetch(self, graph_data):
+	def _fetch(self, graph_data, since=SINCE):
 		fake = {"meta_page_id": "PG", "ig_user_id": IG}
 		with patch.object(instagram, "_shop", side_effect=lambda s, f: fake.get(f, "")), \
 			patch.object(instagram_dm, "_page_token", return_value="tok"), \
 			patch.object(instagram_dm, "_graph", return_value=graph_data) as g:
-			res = instagram_dm.fetch_messages(self.shop, SINCE)
+			res = instagram_dm.fetch_messages(self.shop, since)
 		return res, g
+
+	def _ttl(self):
+		return frappe.cache.ttl(frappe.cache.make_key(self.key))
 
 	def test_dm_fetch_customer_messages_only(self):
 		self._doc(javob_id="OURS", holat="Yuborildi", ai_javob="x")
@@ -204,3 +215,32 @@ class TestInstagramDm(UnitTestCase):
 		self.assertEqual(instagram_dm.history(cur), [{"kim": "Mijoz", "matn": "bir"}, {"kim": "Mijoz", "matn": "ikki"}])
 		first = frappe.get_all("Instagram Xabar", filters={"matn": "bir", "shop": self.shop}, pluck="name")[0]
 		self.assertNotIn({"kim": "Mijoz", "matn": "keyingi"}, instagram_dm.history(frappe.get_doc("Instagram Xabar", first)))
+
+	def test_dm_operator_pause_rearmed_from_message_older_than_since(self):
+		# Redis tozalangan (deploy): operator 3 soat oldin yozgan, since — 15 daqiqa oldin
+		since = int(time.time()) - 15 * 60
+		res, _ = self._fetch(_conv(_msg("m1", CUST, "yana savol", _iso(60)), _msg("op", IG, "men yozaman", _iso(3 * 3600)),
+			updated=_iso(60)), since=since)
+		self.assertEqual([m["id"] for m in res], ["m1"])
+		self.assertTrue(instagram_dm.is_human_paused(self.shop, CUST))
+		self.assertTrue(21 * 3600 - 120 <= self._ttl() <= 21 * 3600 + 5, self._ttl())
+
+	def test_dm_operator_message_25h_old_not_armed(self):
+		since = int(time.time()) - 15 * 60
+		self._fetch(_conv(_msg("m1", CUST, "salom", _iso(60)), _msg("op", IG, "eski", _iso(25 * 3600)),
+			updated=_iso(60)), since=since)
+		self.assertFalse(instagram_dm.is_human_paused(self.shop, CUST))
+
+	def test_dm_pause_ttl_from_newest_operator_message(self):
+		since = int(time.time()) - 15 * 60
+		self._fetch(_conv(_msg("m1", CUST, "x", _iso(60)), _msg("op2", IG, "ikkinchi", _iso(3600)),
+			_msg("op1", IG, "birinchi", _iso(10 * 3600)), updated=_iso(60)), since=since)
+		self.assertTrue(23 * 3600 - 120 <= self._ttl() <= 23 * 3600 + 5, self._ttl())
+
+	def test_human_pause_keys_survive_clear_cache(self):
+		self.assertIn("mp_ig_human:*", frappe.get_hooks("persistent_cache_keys"))
+		frappe.cache.set_value(self.key, 1, expires_in_sec=60)
+		kept = set()
+		for pattern in frappe.get_hooks("persistent_cache_keys"):
+			kept.update(frappe.cache.get_keys(pattern))
+		self.assertIn(frappe.cache.make_key(self.key), kept)

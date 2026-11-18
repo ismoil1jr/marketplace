@@ -1,6 +1,7 @@
 """Instagram Direct: yangi mijoz xabarlarini yig'ish, o'sha mijozga javob yuborish, operator yozsa AI'ni to'xtatish."""
 import json
 import re
+import time
 
 import frappe
 from frappe import _
@@ -49,6 +50,7 @@ def fetch_messages(shop: str, since_ts: int) -> list[dict]:
 	token = _page_token(shop)
 	data = _graph("GET", f"{page}/conversations", token, platform="instagram", fields=_FIELDS, limit=25).get("data", [])
 	out = []
+	now = time.time()
 	for conv in data:
 		if conv.get("updated_time") and int(_utc(conv["updated_time"]).timestamp()) < since_ts:
 			continue
@@ -64,18 +66,27 @@ def fetch_messages(shop: str, since_ts: int) -> list[dict]:
 		customer = next((m["from_id"] for m in msgs if m["from_id"] and m["from_id"] != ig), None)
 		if not customer:
 			continue
+		operator_ts = None  # oxirgi 24 soatdagi eng yangi operator (bizniki bo'lmagan) xabari
 		for m in msgs:
+			if m["from_id"] == ig:
+				# since'dan eski bo'lsa ham: kesh tozalansa (deploy) pauza Meta'dagi vaqtdan qayta tiklanadi
+				if now - m["timestamp"] < HUMAN_PAUSE and (operator_ts is None or m["timestamp"] > operator_ts) \
+						and not _is_ours(shop, customer, m):
+					operator_ts = m["timestamp"]
+				continue
 			if m["timestamp"] <= since_ts:
 				continue
-			if m["from_id"] == ig:
-				if not _is_ours(shop, customer, m):
-					frappe.cache.set_value(_human_key(shop, customer), 1, expires_in_sec=HUMAN_PAUSE)
-			elif m["from_id"] == customer and m["text"].strip():
+			if m["from_id"] == customer and m["text"].strip():
 				out.append({
 					"id": m["id"], "parent_id": None, "text": m["text"], "username": m["username"],
 					"from_id": customer, "timestamp": m["timestamp"], "media_id": None, "havola": None,
 					"suhbat_id": conv.get("id"),
 				})
+		if operator_ts is not None:
+			# TTL = 24 soat − xabar yoshi: har tekshiruvda qayta yozilsa ham muddat surilmaydi
+			ttl = int(min(HUMAN_PAUSE, HUMAN_PAUSE - (now - operator_ts)))
+			if ttl > 0:
+				frappe.cache.set_value(_human_key(shop, customer), 1, expires_in_sec=ttl)
 	return out
 
 
