@@ -149,6 +149,12 @@ def save_lead(shop, data, asked=None):
 	)
 	if dup:
 		return dup, True
+	# Shu raqamning ochiq murojaati bor (o'sha tovar yoki tovarsiz) — takror yozuv emas: mijoz yana qiziqdi,
+	# menejer uni «Bugun qayta qo'ng'iroq»da ko'radi. «Olmaydi» / «Buyurtma berdi» bo'lsa — yangi murojaat ochiladi
+	same = _open_lead(shop, normal, tovar)
+	if same:
+		_repeat(same, tovar, tovar_nomi, lead_id)
+		return same, True
 
 	ism, familiya = _pick(data, "ism"), _pick(data, "familiya")
 	full = _pick(data, "to'liq")
@@ -180,6 +186,53 @@ def save_lead(shop, data, asked=None):
 	link_unknown_calls(shop, normal, murojaat=doc.name, mijoz_ismi=doc.mijoz_ismi)
 	_notify(doc)
 	return doc.name, False
+
+
+OPEN = ("Yangi", "Oladi", "Keyinroq", "Javob bermadi")
+
+
+def _same_item(a, b):
+	"""Ikki murojaat bitta qiziqishmi: tovar bir xil yoki ulardan birida tovar yo'q."""
+	return not a or not b or a == b
+
+
+def _open_lead(shop, normal, tovar, exclude=None):
+	"""Shu raqamning hali yakunlanmagan eng yangi murojaati (o'sha tovar yoki tovarsiz)."""
+	filters = {"shop": shop, "normal_telefon": normal, "holat": ["in", OPEN]}
+	if exclude:
+		filters["name"] = ["!=", exclude]
+	for r in frappe.get_all("Murojaat", filters=filters, fields=["name", "tovar"], order_by="creation desc"):
+		if _same_item(tovar, r.tovar):
+			return r.name
+	return None
+
+
+def _repeat(name, tovar, tovar_nomi, lead_id):
+	"""Ochiq murojaati bor mijoz yana yozdi: qayta qo'ng'iroq sanasi bugunga, bo'sh tovar / tashqi ID to'ldiriladi."""
+	row = frappe.db.get_value("Murojaat", name, ["holat", "keyingi_qongiroq", "tovar", "tashqi_id"], as_dict=True)
+	values = {}
+	if row.holat != "Yangi" and (not row.keyingi_qongiroq or getdate(row.keyingi_qongiroq) > getdate(today())):
+		values["keyingi_qongiroq"] = today()
+	if tovar and not row.tovar:
+		values.update(tovar=tovar, tovar_nomi=tovar_nomi)
+	if lead_id and not row.tashqi_id:
+		values["tashqi_id"] = lead_id
+	if values:
+		frappe.db.set_value("Murojaat", name, values, update_modified=False)
+
+
+def _sync_duplicates(doc):
+	"""Menejer natijasi shu raqamning boshqa ochiq takroriy murojaatlariga ham — ro'yxatda holat bir xil turadi."""
+	if not doc.normal_telefon:
+		return
+	fresh = frappe.db.get_value("Murojaat", doc.name, ["holat", "keyingi_qongiroq", "menejer", "aloqa_vaqt"], as_dict=True)
+	others = frappe.get_all(
+		"Murojaat", filters={"shop": doc.shop, "normal_telefon": doc.normal_telefon, "holat": ["in", OPEN], "name": ["!=", doc.name]},
+		fields=["name", "tovar"],
+	)
+	for r in others:
+		if _same_item(doc.tovar, r.tovar):
+			frappe.db.set_value("Murojaat", r.name, dict(fresh), update_modified=False)
 
 
 def _answer(name, duplicate, asked):
@@ -654,6 +707,7 @@ def save_lead_result(name: str, kanal: str, natija: str, izoh: str | None = None
 		 "menejer": frappe.session.user, "aloqa_vaqt": now_datetime(), "buyurtma": order.name if order else doc.buyurtma},
 		update_modified=False,
 	)
+	_sync_duplicates(doc)
 	return {"name": log.name, "order": order and order.name, "total": order and order.grand_total}
 
 
