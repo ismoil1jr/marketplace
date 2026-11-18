@@ -688,26 +688,15 @@ def notify_new_lead(name):
 	«Murojaatni ochish» tugmasi (Sotuv paneli shu murojaat bilan ochiladi)."""
 	if not token():
 		return
-	lead = frappe.db.get_value("Murojaat", name, ["shop", "mijoz_ismi", "telefon", "tovar_nomi", "manba", "izoh"], as_dict=True)
+	lead = frappe.db.get_value("Murojaat", name, ["shop", "mijoz_ismi", "telefon"], as_dict=True)
 	if not lead:
 		return
 	shop = frappe.db.get_value("Shop", lead.shop, ["shop_name", "murojaat_telegram_ids"], as_dict=True) or frappe._dict()
 	ids = _ids(shop.murojaat_telegram_ids)
 	if not ids:
 		return
-	esc = html.escape
-	lines = [f"📣 <b>Yangi murojaat</b> · {esc(shop.shop_name or lead.shop)}", ""]
-	lines.append(f"👤 {esc(lead.mijoz_ismi or '')}")
-	if lead.telefon:
-		lines.append(f"📞 {esc(lead.telefon)}")
-	if lead.tovar_nomi:
-		lines.append(f"📚 {esc(lead.tovar_nomi)}")
-	if lead.manba:
-		lines.append(f"📍 {esc(lead.manba)}")
-	if lead.izoh:
-		lines.append("")
-		lines.append(f"💬 {esc(lead.izoh[:300])}")
-	text = "\n".join(lines)
+	# Qisqa: kim murojaat qildi + ostida tugma (CEO/menejer so'rovi: faqat ism va havola)
+	text = f"📣 Murojaat keldi: <b>{html.escape(lead.mijoz_ismi or lead.telefon or name)}</b>"
 	url = f"{site_url()}/desk/sotuv/sotuv-paneli?murojaat={name}"
 	button = {"inline_keyboard": [[{"text": "📋 Murojaatni ochish", "url": url}]]}
 	for chat_id in dict.fromkeys(ids):

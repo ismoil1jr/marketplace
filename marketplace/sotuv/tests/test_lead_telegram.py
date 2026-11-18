@@ -33,8 +33,7 @@ class TestLeadTelegram(UnitTestCase):
 			telegram_bot.notify_new_lead(lead.name)
 		self.assertEqual([c.args[0] for c in send.call_args_list], ["111", "222"])
 		text = send.call_args.args[1]
-		for part in ("Yangi murojaat", "Ali Valiyev", "+998 97 777 00 11", "Panda books", "Instagram", "@ali_77"):
-			self.assertIn(part, text)
+		self.assertEqual(text, "📣 Murojaat keldi: <b>Ali Valiyev</b>")
 		url = send.call_args.kwargs["reply_markup"]["inline_keyboard"][0][0]["url"]
 		self.assertIn(f"sotuv-paneli?murojaat={lead.name}", url)
 
