@@ -118,7 +118,7 @@ POST_LIMIT = 1500
 
 def build_prompt(shop_name, malumot, items, matn, turi, tarix=None, post_matni=None):
 	dm = turi == "DM"
-	data = json.dumps({"AI uchun ma'lumot": malumot or "", "tovarlar": items}, ensure_ascii=False, indent=1)
+	data = json.dumps({"AI uchun ma'lumot": malumot or "", "tovarlar": items}, ensure_ascii=False, separators=(",", ":"))
 	lines = ""
 	if tarix:
 		turns = "\n".join(f"{t.get('kim')}: {t.get('matn')}" for t in tarix[-HISTORY_LIMIT:])
@@ -148,8 +148,23 @@ def build_prompt(shop_name, malumot, items, matn, turi, tarix=None, post_matni=N
 			"Post konkurs yoki o'yin bo'lsa («+» — qatnashish belgisi) yoki izoh boshqa izohga javob bo'lsa — \"direct\" null. "
 			"Boshqa izohlarda ham \"direct\" — null."),
 		data=data,
-		mijoz=json.dumps(mijoz, ensure_ascii=False, indent=1),
+		mijoz=json.dumps(mijoz, ensure_ascii=False, separators=(",", ":")),
 	)
+
+
+_THANKS = {"rahmat", "raxmat", "rahmat!", "katta rahmat", "spasibo", "спасибо", "спс", "ok", "ок", "okay", "zo'r", "super", "супер",
+	"класс", "zor", "good", "nice", "wow", "вау"}
+
+
+def trivial(text):
+	"""Javob kerak bo'lmagan izoh — AI'ni chaqirmaymiz (token tejash): faqat emoji / tinish belgisi yoki oddiy rahmat.
+	«+» bunga kirmaydi (ma'lumot so'rovi)."""
+	t = (text or "").strip()
+	if not t or "+" in t:
+		return not t
+	if not re.search(r"[\w]", t):  # harf ham, raqam ham yo'q — emoji / belgi
+		return True
+	return re.sub(r"[!.)\s]+$", "", t.lower()) in _THANKS
 
 
 GREETINGS = ("assalomu alaykum", "ассалому алайкум", "здравствуйте")
@@ -271,23 +286,35 @@ def _customer_phone(ai_phone, matn, tarix):
 	return next((p for p in map(extract_phone, texts) if p), None)
 
 
+MAX_OUTPUT_TOKENS = 800  # javob JSON'i qisqa; «o'ylash» (thinking) o'chiq — token tejaladi
+
+
+def _error_message(r):
+	try:
+		message = r.json().get("error", {}).get("message") or r.text
+	except ValueError:
+		message = r.text
+	return (message or "")[:300]
+
+
 def _call(model, prompt):
 	from marketplace.telegram_bot import http  # faqat IPv4
 
-	body = {
-		"contents": [{"parts": [{"text": prompt}]}],
-		"generationConfig": {"temperature": 0.3, "responseMimeType": "application/json"},
-	}
+	config = {"temperature": 0.3, "responseMimeType": "application/json",
+		"thinkingConfig": {"thinkingBudget": 0}, "maxOutputTokens": MAX_OUTPUT_TOKENS}
+	body = {"contents": [{"parts": [{"text": prompt}]}], "generationConfig": config}
 	try:
 		r = http.post(stt.API.format(model=model), headers={"x-goog-api-key": stt.api_key()}, json=body, timeout=30)
+		if r.status_code == 400:
+			# Model o'ylashni o'chirish / chiqish chegarasini qabul qilmadi (har model har xil xabar beradi) — bir marta
+			# oddiy so'rov bilan qayta (chiqish chegarasisiz: o'ylash uni yeb qo'ymasin). Boshqa 400 bo'lsa — o'sha xato qaytadi
+			config.pop("thinkingConfig")
+			config.pop("maxOutputTokens")
+			r = http.post(stt.API.format(model=model), headers={"x-goog-api-key": stt.api_key()}, json=body, timeout=30)
 	except requests.RequestException as e:
 		raise IgAiError(_("Gemini'ga ulanib bo'lmadi: {0}").format(e.__class__.__name__), retry=True) from e
 	if r.status_code != 200:
-		try:
-			message = r.json().get("error", {}).get("message") or r.text
-		except ValueError:
-			message = r.text
-		message = (message or "")[:300]
+		message = _error_message(r)
 		if r.status_code == 429:
 			raise IgAiError(_("Gemini kvotasi tugadi (429): {0}").format(message), pause=True)
 		if r.status_code in (500, 502, 503, 504):

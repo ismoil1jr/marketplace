@@ -431,3 +431,20 @@ class TestPromisedRegex(UnitTestCase):
 			self.assertTrue(instagram._PROMISED.search(t), t)
 		for t in no:
 			self.assertFalse(instagram._PROMISED.search(t), t)
+
+
+class TestTrivialSkipsAi(UnitTestCase):
+	setUp = TestInstagramProcess.setUp
+	tearDown = TestInstagramProcess.tearDown
+	_doc = TestInstagramProcess._doc
+
+	def test_emoji_comment_no_ai_call(self):
+		doc = self._doc(matn="😍😍")
+		with patch.object(instagram, "_shop", return_value="Yoqilgan"), \
+			patch.object(instagram.ig_ai, "answer") as ai, \
+			patch.object(instagram, "_graph") as g:
+			res = instagram.process(doc.name)
+		doc.reload()
+		self.assertEqual((res, doc.holat), ("Javobsiz", "Javobsiz"))
+		ai.assert_not_called()
+		g.assert_not_called()

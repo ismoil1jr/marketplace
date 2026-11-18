@@ -374,6 +374,9 @@ def _run(doc, rejim, draft_only=False):
 			doc.db_set({"holat": "Qoralama", "xato": "Operator suhbatda"})
 			return "Qoralama"
 		kw["tarix"] = instagram_dm.history(doc)
+	if not draft_only and ig_ai.trivial(doc.matn):
+		doc.db_set({"holat": "Javobsiz", "ai_javob": "", "xato": ""})  # emoji / rahmat — AI chaqirilmaydi
+		return "Javobsiz"
 	try:
 		info = ig_ai.answer(doc.shop, doc.matn, doc.turi, **kw)
 	except (ig_ai.IgAiError, MetaError) as e:

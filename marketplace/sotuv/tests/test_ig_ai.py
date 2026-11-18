@@ -201,7 +201,7 @@ class TestIgAi(UnitTestCase):
 		out, _ = self._catalog_with(self._rows(1), prices={"IT-0": 99000.0})
 		self.assertEqual(out[0]["narx"], 99000)
 		self.assertIsInstance(out[0]["narx"], int)
-		self.assertIn('"narx": 99000,', ig_ai.build_prompt("S", "", out, "Narxi?", "Izoh"))
+		self.assertIn('"narx":99000,', ig_ai.build_prompt("S", "", out, "Narxi?", "Izoh"))
 
 	def test_prompt_has_post_text_and_no_guess_rule(self):
 		p = ig_ai.build_prompt("Shop", "", self._items(), "Narxi?", "Izoh", post_matni="Atomic Habits — yangi nashr")
@@ -341,3 +341,44 @@ class TestIgAiDirect(UnitTestCase):
 		p = ig_ai.build_prompt("Pandoo", "", [], "+", "Izoh")
 		self.assertIn("«+»", p)
 		self.assertIn('"direct"', p)
+
+
+class TestIgAiTokens(UnitTestCase):
+	def test_call_disables_thinking_and_caps_output(self):
+		with patch.object(ig_ai.stt, "api_key", return_value="k"), \
+			patch("marketplace.telegram_bot.http.post", return_value=_resp(200)) as post:
+			ig_ai._call("m1", "prompt")
+		cfg = post.call_args.kwargs["json"]["generationConfig"]
+		self.assertEqual(cfg["thinkingConfig"], {"thinkingBudget": 0})
+		self.assertLessEqual(cfg["maxOutputTokens"], 1024)
+
+	def test_call_retries_without_thinking_when_model_refuses(self):
+		bad = _resp(400)
+		bad.json.return_value = {"error": {"message": "Thinking budget 0 is invalid for this model"}}
+		with patch.object(ig_ai.stt, "api_key", return_value="k"), \
+			patch("marketplace.telegram_bot.http.post", side_effect=[bad, _resp(200)]) as post:
+			ig_ai._call("m1", "prompt")
+		self.assertNotIn("thinkingConfig", post.call_args_list[1].kwargs["json"]["generationConfig"])
+		self.assertNotIn("maxOutputTokens", post.call_args_list[1].kwargs["json"]["generationConfig"])
+
+	def test_trivial_comments_skip_ai(self):
+		for t in ("😍😍", "🔥", "...", "rahmat", "Raxmat!", "Спасибо", "ok", "👍👍"):
+			self.assertTrue(ig_ai.trivial(t), t)
+		for t in ("+", "++", "Narxi?", "bormi", "info", "rahmat, narxi qancha?"):
+			self.assertFalse(ig_ai.trivial(t), t)
+
+	def test_prompt_json_is_compact(self):
+		p = ig_ai.build_prompt("Pandoo", "malumot", [{"kod": "A", "nom": "Kitob", "narx": 1, "holat": "bor", "havola": "h"}], "+", "Izoh")
+		self.assertNotIn('\n "tovarlar"', p)
+		self.assertIn('"tovarlar":[', p)
+
+
+class TestIgAiThinkingFallback(UnitTestCase):
+	def test_any_400_retries_once_without_thinking(self):
+		bad = _resp(400)
+		bad.json.return_value = {"error": {"message": "Request contains an invalid argument."}}
+		with patch.object(ig_ai.stt, "api_key", return_value="k"), \
+			patch("marketplace.telegram_bot.http.post", side_effect=[bad, _resp(200)]) as post:
+			ig_ai._call("m1", "prompt")
+		self.assertEqual(post.call_count, 2)
+		self.assertNotIn("thinkingConfig", post.call_args_list[1].kwargs["json"]["generationConfig"])
