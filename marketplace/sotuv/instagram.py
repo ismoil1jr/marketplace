@@ -4,12 +4,15 @@ from datetime import datetime, timezone
 
 import frappe
 from frappe import _
-from frappe.utils import convert_utc_to_system_timezone
+from frappe.utils import add_to_date, convert_utc_to_system_timezone, now_datetime, today
 
+from marketplace.sotuv import ig_ai
 from marketplace.sotuv.meta import MetaError, _graph, _page_token, _status
+from marketplace.sotuv.murojaat import save_lead
 
 LOOKBACK = 15 * 60
 RATE_CODES = {4, 17, 32, 613}
+MAX_PER_HOUR = 10
 
 _COMMENT_FIELDS = "id,text,timestamp,username,from{id,username}"
 
@@ -122,3 +125,118 @@ def store(shop: str, c: dict, turi: str = "Izoh") -> str | None:
 	except (frappe.UniqueValidationError, frappe.DuplicateEntryError):
 		return None
 	return doc.name
+
+
+def _post(shop, doc):
+	"""Izoh ostiga (yoki javob ostiga) shop nomidan javob yozadi; javob id'sini qaytaradi."""
+	text = doc.ai_javob
+	if doc.ota_id:
+		text = f"@{doc.username} {text}"
+	res = _graph("POST", f"{doc.ota_id or doc.tashqi_id}/replies", _page_token(shop), message=text)
+	return res.get("id")
+
+
+def _deliver(shop, doc):
+	if doc.turi == "Izoh":
+		return _post(shop, doc)
+	frappe.throw(_("Bu turdagi xabarni yuborib bo'lmaydi"))
+
+
+def _hourly_count(doc):
+	return frappe.db.count("Instagram Xabar", {
+		"shop": doc.shop, "mijoz_id": doc.mijoz_id, "holat": "Yuborildi",
+		"modified": (">", add_to_date(now_datetime(), hours=-1)),
+	})
+
+
+def _lead(doc, info):
+	"""Telefon bor bo'lsa murojaat yaratadi (yoki mavjudiga ulaydi); yomon raqamda lidsiz davom etadi."""
+	if not info.get("telefon") or doc.murojaat:
+		return
+	izoh = ("Direct: " if doc.turi == "DM" else "Izoh: ") + (doc.matn or "")
+	try:
+		name, _dup = save_lead(doc.shop, {
+			"telefon": info["telefon"], "ism": info.get("ism") or doc.username or "",
+			"manba": "Instagram", "izoh": izoh, "lead_id": f"ig:{doc.mijoz_id}:{today()}",
+		}, info.get("tovar_kodi"))
+	except frappe.ValidationError:
+		frappe.clear_messages()
+		return
+	doc.db_set("murojaat", name)
+
+
+def _fail(doc, e):
+	if isinstance(e, ig_ai.IgAiError) and e.pause:
+		frappe.cache.set_value("mp_ig_ai_pause", 1, expires_in_sec=3600)
+	doc.db_set({"holat": "Xato", "xato": str(e)[:500]})
+	return "Xato"
+
+
+def _run(doc, rejim, draft_only=False):
+	kw = {}
+	if doc.turi == "DM":
+		from marketplace.sotuv import instagram_dm
+
+		kw["tarix"] = instagram_dm.history(doc)
+	try:
+		info = ig_ai.answer(doc.shop, doc.matn, doc.turi, **kw)
+	except (ig_ai.IgAiError, MetaError) as e:
+		return _fail(doc, e)
+	_lead(doc, info)
+	if not info.get("javob_kerak") and not draft_only:
+		doc.db_set({"holat": "Javobsiz", "ai_javob": "", "til": info.get("til"), "xato": ""})
+		return "Javobsiz"
+	vals = {"ai_javob": info.get("javob") or "", "til": info.get("til"), "xato": ""}
+	if draft_only or rejim == "Sinov":
+		doc.db_set({**vals, "holat": "Qoralama"})
+		return "Qoralama"
+	if _hourly_count(doc) >= MAX_PER_HOUR:
+		doc.db_set({**vals, "holat": "Qoralama", "xato": "Mijoz uchun soatlik limit"})
+		return "Qoralama"
+	doc.ai_javob = vals["ai_javob"]
+	try:
+		reply_id = _deliver(doc.shop, doc)
+	except (MetaError, frappe.ValidationError) as e:
+		doc.db_set({**vals, "holat": "Xato", "xato": str(e)[:500]})
+		return "Xato"
+	doc.db_set({**vals, "holat": "Yuborildi", "javob_id": reply_id})
+	return "Yuborildi"
+
+
+def process(name: str) -> str:
+	doc = frappe.get_doc("Instagram Xabar", name)
+	if doc.holat != "Yangi":
+		return doc.holat
+	rejim = _shop(doc.shop, "ig_ai_rejim")
+	if rejim not in ("Sinov", "Yoqilgan"):
+		return doc.holat
+	return _run(doc, rejim)
+
+
+def _writable(name):
+	doc = frappe.get_doc("Instagram Xabar", name)
+	if not frappe.has_permission("Instagram Xabar", "write", doc):
+		frappe.throw(_("Ruxsat yo'q"), frappe.PermissionError)
+	return doc
+
+
+@frappe.whitelist(methods=["POST"])
+def send(name: str):
+	doc = _writable(name)
+	if doc.holat not in ("Qoralama", "Xato") or not (doc.ai_javob or "").strip():
+		frappe.throw(_("Faqat tayyor javobli qoralamani yuborish mumkin"))
+	try:
+		reply_id = _deliver(doc.shop, doc)
+	except MetaError as e:
+		doc.db_set({"holat": "Xato", "xato": str(e)[:500]})
+		frappe.throw(_("Yuborib bo'lmadi: {0}").format(e))
+	doc.db_set({"holat": "Yuborildi", "javob_id": reply_id, "xato": ""})
+	return "Yuborildi"
+
+
+@frappe.whitelist(methods=["POST"])
+def regenerate(name: str):
+	doc = _writable(name)
+	if doc.holat == "Yuborildi":
+		frappe.throw(_("Yuborilgan javobni qayta yozib bo'lmaydi"))
+	return _run(doc, "Sinov", draft_only=True)
