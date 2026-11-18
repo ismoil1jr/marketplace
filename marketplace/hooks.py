@@ -194,6 +194,7 @@ permission_query_conditions = {
 	"Telefon Qongiroq": "marketplace.permissions.telefon_qongiroq_query",
 	"Menejer Xulosasi": "marketplace.permissions.menejer_xulosasi_query",
 	"Murojaat": "marketplace.permissions.murojaat_query",
+	"Instagram Xabar": "marketplace.permissions.instagram_xabar_query",
 	"Majburiy Tasdiq": "marketplace.permissions.majburiy_tasdiq_query",
 	"Rang": "marketplace.permissions.rang_query",
 	"Warehouse": "marketplace.permissions.warehouse_query",

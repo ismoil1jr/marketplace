@@ -169,6 +169,10 @@ def murojaat_query(user=None):
 	return shop_query(user, "Murojaat")
 
 
+def instagram_xabar_query(user=None):
+	return shop_query(user, "Instagram Xabar")
+
+
 def majburiy_tasdiq_query(user=None):
 	return shop_query(user, "Majburiy Tasdiq")
 

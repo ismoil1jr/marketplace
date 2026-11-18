@@ -65,6 +65,12 @@
   "cb_meta",
   "meta_holat",
   "meta_page_token",
+  "sb_ig_ai",
+  "ig_ai_rejim",
+  "ig_ai_malumot",
+  "ig_user_id",
+  "ig_username",
+  "meta_ad_account",
   "sb_team",
   "warehouse",
   "members"
@@ -454,6 +460,41 @@
    "permlevel": 2,
    "read_only": 1,
    "no_copy": 1
+  },
+  {
+   "fieldname": "sb_ig_ai",
+   "fieldtype": "Section Break",
+   "label": "Instagram AI"
+  },
+  {
+   "fieldname": "ig_ai_rejim",
+   "fieldtype": "Select",
+   "label": "AI rejimi",
+   "options": "O'chiq\nSinov\nYoqilgan",
+   "default": "O'chiq"
+  },
+  {
+   "fieldname": "ig_ai_malumot",
+   "fieldtype": "Small Text",
+   "label": "AI uchun ma'lumot",
+   "description": "Yetkazib berish, to'lov, ish vaqti, buyurtma qanday beriladi"
+  },
+  {
+   "fieldname": "ig_user_id",
+   "fieldtype": "Data",
+   "label": "Instagram ID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ig_username",
+   "fieldtype": "Data",
+   "label": "Instagram username",
+   "read_only": 1
+  },
+  {
+   "fieldname": "meta_ad_account",
+   "fieldtype": "Data",
+   "label": "Reklama kabineti (act_…)"
   },
   {
    "fieldname": "sb_team",
