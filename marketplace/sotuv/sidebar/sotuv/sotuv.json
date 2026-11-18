@@ -5,7 +5,7 @@
  "doctype": "Sidebar",
  "header_icon": "phone",
  "idx": 0,
- "modified": "2026-11-10 07:40:00.000000",
+ "modified": "2026-11-18 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "Sotuv",
  "name": "Sotuv",
@@ -50,11 +50,25 @@
    "parentfield": "items",
    "parenttype": "Sidebar",
    "type": "Link",
+   "label": "Instagram izohlar",
+   "link_type": "DocType",
+   "link_to": "Instagram Xabar",
+   "icon": "instagram",
+   "idx": 3
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
+   "doctype": "Sidebar Item",
+   "parent": "Sotuv",
+   "parentfield": "items",
+   "parenttype": "Sidebar",
+   "type": "Link",
    "label": "Qo'ng'iroqlar",
    "link_type": "DocType",
    "link_to": "Telefon Qongiroq",
    "icon": "phone-call",
-   "idx": 3
+   "idx": 4
   },
   {
    "child": 0,
@@ -68,7 +82,7 @@
    "link_type": "DocType",
    "link_to": "Menejer Xulosasi",
    "icon": "message-square",
-   "idx": 4
+   "idx": 5
   },
   {
    "child": 0,
@@ -82,7 +96,7 @@
    "link_type": "DocType",
    "link_to": "Telefoniya Sozlamalari",
    "icon": "settings",
-   "idx": 5
+   "idx": 6
   }
  ]
 }
