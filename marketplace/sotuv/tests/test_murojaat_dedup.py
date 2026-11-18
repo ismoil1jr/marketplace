@@ -29,6 +29,59 @@ class TestMurojaatDedup(UnitTestCase):
 
 	def tearDown(self):
 		frappe.db.rollback()
+		frappe.cache.delete_keys("mp_lead_seen:")
+
+	def test_repeat_bumps_date_once_per_lead(self):
+		first = _lead(self.shop, holat="Keyinroq", keyingi_qongiroq=add_days(today(), 5), tashqi_id="A")
+		data = {"telefon": "+998 33 074 04 90", "lead_id": "l:B"}
+		m.save_lead(self.shop, data)
+		self.assertEqual(getdate(frappe.db.get_value("Murojaat", first, "keyingi_qongiroq")), getdate(today()))
+		# menejer qayta qo'ng'iroqni yana 5 kunga qo'ydi — Meta o'sha lidni 10 daqiqadan keyin qayta yuboradi
+		frappe.db.set_value("Murojaat", first, "keyingi_qongiroq", add_days(today(), 5), update_modified=False)
+		m.save_lead(self.shop, data)
+		self.assertEqual(getdate(frappe.db.get_value("Murojaat", first, "keyingi_qongiroq")), getdate(add_days(today(), 5)))
+		self.assertEqual(frappe.db.get_value("Murojaat", first, "tashqi_id"), "A")
+
+	def test_sync_skips_buyurtma_berdi(self):
+		a = _lead(self.shop, holat="Yangi", ago_min=120)
+		b = _lead(self.shop, holat="Yangi", ago_min=60)
+		frappe.db.set_value("Murojaat", a, "holat", "Buyurtma berdi", update_modified=False)
+		m._sync_duplicates(frappe.get_doc("Murojaat", a))
+		self.assertEqual(frappe.db.get_value("Murojaat", b, "holat"), "Yangi")
+
+	def test_sync_requires_same_tovar(self):
+		items = frappe.get_all("Item", filters={"shop": self.shop, "disabled": 0}, pluck="name", limit=1)
+		if not items:
+			self.skipTest("Do'konda tovar yo'q")
+		a = _lead(self.shop, holat="Yangi", ago_min=120)
+		b = _lead(self.shop, holat="Yangi", tovar=items[0], ago_min=60)
+		frappe.db.set_value("Murojaat", a, "holat", "Olmaydi", update_modified=False)
+		m._sync_duplicates(frappe.get_doc("Murojaat", a))
+		self.assertEqual(frappe.db.get_value("Murojaat", b, "holat"), "Yangi")
+
+	def test_patch_skips_olmaydi(self):
+		from marketplace.patches import murojaat_takror_holat
+
+		first = _lead(self.shop, holat="Olmaydi", ago_min=120)
+		frappe.get_doc({
+			"doctype": "Menejer Xulosasi", "murojaat": first, "telefon": "+998 33 074 04 90", "shop": self.shop,
+			"kanal": "Qo‘ng‘iroq", "natija": "Olmaydi", "menejer": "Administrator",
+		}).insert(ignore_permissions=True)
+		new = _lead(self.shop, holat="Yangi", ago_min=60)
+		murojaat_takror_holat.execute()
+		self.assertEqual(frappe.db.get_value("Murojaat", new, "holat"), "Yangi")
+
+	def test_patch_ignores_later_leads(self):
+		from marketplace.patches import murojaat_takror_holat
+
+		row = _lead(self.shop, holat="Yangi", ago_min=120)
+		later = _lead(self.shop, holat="Keyinroq", ago_min=60)
+		frappe.get_doc({
+			"doctype": "Menejer Xulosasi", "murojaat": later, "telefon": "+998 33 074 04 90", "shop": self.shop,
+			"kanal": "Qo‘ng‘iroq", "natija": "Keyinroq", "menejer": "Administrator",
+		}).insert(ignore_permissions=True)
+		murojaat_takror_holat.execute()
+		self.assertEqual(frappe.db.get_value("Murojaat", row, "holat"), "Yangi")
 
 	def _count(self):
 		return frappe.db.count("Murojaat", {"shop": self.shop, "normal_telefon": PHONE})

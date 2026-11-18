@@ -207,11 +207,23 @@ def _open_lead(shop, normal, tovar, exclude=None):
 	return None
 
 
+def _first_time(name, lead_id):
+	"""Shu kelgan lid (yoki ID'siz bo'lsa — shu kuni) birinchi marta ko'rilyaptimi. Meta har 10 daqiqada oxirgi 2 kunlik
+	lidlarni qayta yuboradi — menejer qo'ygan sana har safar bugunga qaytmasin."""
+	key = f"mp_lead_seen:{name}:{lead_id or today()}"
+	if frappe.cache.get_value(key):
+		return False
+	frappe.cache.set_value(key, 1, expires_in_sec=3 * 86400)
+	return True
+
+
 def _repeat(name, tovar, tovar_nomi, lead_id):
-	"""Ochiq murojaati bor mijoz yana yozdi: qayta qo'ng'iroq sanasi bugunga, bo'sh tovar / tashqi ID to'ldiriladi."""
+	"""Ochiq murojaati bor mijoz yana yozdi: qayta qo'ng'iroq sanasi bugunga (shu lid uchun bir marta),
+	bo'sh tovar / tashqi ID to'ldiriladi."""
 	row = frappe.db.get_value("Murojaat", name, ["holat", "keyingi_qongiroq", "tovar", "tashqi_id"], as_dict=True)
 	values = {}
-	if row.holat != "Yangi" and (not row.keyingi_qongiroq or getdate(row.keyingi_qongiroq) > getdate(today())):
+	if (row.holat != "Yangi" and (not row.keyingi_qongiroq or getdate(row.keyingi_qongiroq) > getdate(today()))
+	        and _first_time(name, lead_id)):
 		values["keyingi_qongiroq"] = today()
 	if tovar and not row.tovar:
 		values.update(tovar=tovar, tovar_nomi=tovar_nomi)
@@ -222,16 +234,20 @@ def _repeat(name, tovar, tovar_nomi, lead_id):
 
 
 def _sync_duplicates(doc):
-	"""Menejer natijasi shu raqamning boshqa ochiq takroriy murojaatlariga ham — ro'yxatda holat bir xil turadi."""
+	"""Menejer natijasi shu raqamning boshqa ochiq takroriy murojaatlariga ham (aynan o'sha tovar yoki ikkalasi ham
+	tovarsiz) — ro'yxatda holat bir xil turadi. «Buyurtma berdi» ko'chirilmaydi: buyurtma bitta, hisobot ikki marta
+	sanamasin."""
 	if not doc.normal_telefon:
 		return
 	fresh = frappe.db.get_value("Murojaat", doc.name, ["holat", "keyingi_qongiroq", "menejer", "aloqa_vaqt"], as_dict=True)
+	if fresh.holat not in OPEN and fresh.holat != "Olmaydi":
+		return
 	others = frappe.get_all(
 		"Murojaat", filters={"shop": doc.shop, "normal_telefon": doc.normal_telefon, "holat": ["in", OPEN], "name": ["!=", doc.name]},
 		fields=["name", "tovar"],
 	)
 	for r in others:
-		if _same_item(doc.tovar, r.tovar):
+		if (r.tovar or None) == (doc.tovar or None):
 			frappe.db.set_value("Murojaat", r.name, dict(fresh), update_modified=False)
 
 
