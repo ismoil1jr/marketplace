@@ -7,7 +7,7 @@ import frappe
 from frappe import _
 from frappe.utils import add_to_date, convert_utc_to_system_timezone, now_datetime, today
 
-from marketplace.sotuv import ig_ai
+from marketplace.sotuv import ig_ai, instagram_dm
 from marketplace.sotuv.meta import MetaError, _graph, _page_token, _status
 from marketplace.sotuv.murojaat import save_lead
 
@@ -176,6 +176,15 @@ def _poll():
 				name = store(shop, c)
 				if name:
 					_enqueue(name)
+			try:
+				for m in instagram_dm.fetch_messages(shop, since):
+					name = store(shop, m, turi="DM")
+					if name:
+						_enqueue(name)
+			except MetaError as e:
+				if e.code in RATE_CODES:
+					raise
+				_status(shop, _("Direct xabarlarini olib bo'lmadi (kod {0})").format(e.code or "-"))
 			_sweep(shop)
 			frappe.cache.set_value(key, max(old, start), expires_in_sec=24 * 3600)
 		except MetaError as e:
@@ -203,6 +212,8 @@ def _post(shop, doc):
 def _deliver(shop, doc):
 	if doc.turi == "Izoh":
 		return _post(shop, doc)
+	if doc.turi == "DM":
+		return instagram_dm.send_dm(shop, doc)
 	frappe.throw(_("Bu turdagi xabarni yuborib bo'lmaydi"))
 
 
@@ -239,8 +250,9 @@ def _fail(doc, e):
 def _run(doc, rejim, draft_only=False):
 	kw = {}
 	if doc.turi == "DM":
-		from marketplace.sotuv import instagram_dm
-
+		if not draft_only and instagram_dm.is_human_paused(doc.shop, doc.mijoz_id):
+			doc.db_set({"holat": "Qoralama", "xato": "Operator suhbatda"})
+			return "Qoralama"
 		kw["tarix"] = instagram_dm.history(doc)
 	try:
 		info = ig_ai.answer(doc.shop, doc.matn, doc.turi, **kw)

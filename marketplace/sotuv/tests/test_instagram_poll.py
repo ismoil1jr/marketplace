@@ -3,7 +3,7 @@ from unittest.mock import patch
 import frappe
 from frappe.tests import UnitTestCase
 
-from marketplace.sotuv import instagram
+from marketplace.sotuv import instagram, instagram_dm
 from marketplace.sotuv.meta import MetaError
 
 SHOP = "Test Shop Poll"
@@ -29,6 +29,7 @@ class TestInstagramPoll(UnitTestCase):
 
 		with patch.object(instagram.frappe, "get_all", side_effect=get_all) as ga, \
 			patch.object(instagram, "fetch_comments", side_effect=fetch) as f, \
+			patch.object(instagram_dm, "fetch_messages", return_value=[]), \
 			patch.object(instagram, "store", side_effect=store or (lambda s, c: c["id"])) as st, \
 			patch.object(instagram, "_status") as stat, \
 			patch.object(instagram.frappe, "log_error") as le, \
