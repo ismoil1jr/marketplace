@@ -158,9 +158,33 @@ def _host(url):
 	return host.lower().removeprefix("www.")
 
 
-def check_reply(text: str, turi: str, shop_host: str) -> str | None:
+_HANDLE_RE = re.compile(r"(?<![\w.@])@([A-Za-z0-9._]{2,30})")
+# Telefonga o'xshash: kamida 9 raqam (ajratgichlar bilan); keyin «so'm / сум» kelsa — bu narx
+_PHONE_RE = re.compile(r"\+?\d[\d\s\-().]{7,}\d(?!\d)")
+_PRICE_TAIL = re.compile(r"^\s*(so[‘'ʻ`’]?m|sum|сум|uzs)", re.I)
+
+
+def _foreign(text, own_text):
+	"""Javobdagi boshqa akkaunt (@...) yoki begona telefon — «AI uchun ma'lumot»da bo'lmasa. Sababi yoki None."""
+	own = (own_text or "").lower()
+	own_handles = {h.lower() for h in _HANDLE_RE.findall(own_text or "")}
+	for handle in _HANDLE_RE.findall(text):
+		if handle.lower() not in own_handles:
+			return _("Javobda boshqa akkaunt bor: @{0}").format(handle)
+	own_phones = {normalize_phone(m.group()) for m in _PHONE_RE.finditer(own)}
+	for m in _PHONE_RE.finditer(text):
+		digits = re.sub(r"\D", "", m.group())
+		if len(digits) < 9 or _PRICE_TAIL.match(text[m.end():]):
+			continue
+		if normalize_phone(m.group()) not in own_phones:
+			return _("Javobda begona telefon raqami bor")
+	return None
+
+
+def check_reply(text: str, turi: str, shop_host: str, own_text: str = "") -> str | None:
 	"""Haqiqiy post oldidan tekshiruv (qoralamaga emas). Muammo bo'lsa — sababi (o'zbekcha), aks holda None.
-	Salomlashuv bilan boshlanadi; uzunlik: izoh ≤300, DM ≤600; izohda havola umuman yo'q; DM'da faqat o'z saytimiz."""
+	Salomlashuv bilan boshlanadi; uzunlik: izoh ≤300, DM ≤600; izohda havola umuman yo'q; DM'da faqat o'z saytimiz;
+	boshqa akkaunt (@...) va begona telefon yo'q — `own_text` («AI uchun ma'lumot») dagilari mumkin."""
 	t = (text or "").strip()
 	if not _fold(t.lstrip(_LEAD)).startswith(GREETINGS):
 		return _("Javob salomlashuv bilan boshlanmagan")
@@ -174,7 +198,7 @@ def check_reply(text: str, turi: str, shop_host: str) -> str | None:
 	for url in urls:
 		if not own or _host(url) != own:
 			return _("Javobda begona havola bor: {0}").format(_host(url) or url)
-	return None
+	return _foreign(t, own_text)
 
 
 def parse_reply(raw):

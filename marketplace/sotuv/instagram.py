@@ -346,7 +346,8 @@ def _run(doc, rejim, draft_only=False):
 		doc.db_set({**vals, "holat": "Qoralama"})
 		return "Qoralama"
 	# Haqiqiy post oldidan: salomlashuv, uzunlik, havolalar. O'tmasa — qoralama (operator «Yuborish» bilan yubora oladi)
-	reason = ig_ai.check_reply(vals["ai_javob"], doc.turi, urlparse(get_url()).hostname or "")
+	own_text = " ".join(filter(None, frappe.db.get_value("Shop", doc.shop, ["ig_ai_malumot", "phone"]) or []))
+	reason = ig_ai.check_reply(vals["ai_javob"], doc.turi, urlparse(get_url()).hostname or "", own_text)
 	if reason:
 		_lead(doc, info)
 		doc.db_set({**vals, "holat": "Qoralama", "xato": reason})

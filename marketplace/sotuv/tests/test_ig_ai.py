@@ -269,6 +269,29 @@ class TestIgAi(UnitTestCase):
 				"Assalomu alaykum! https://magazinlar.uz.evil.com/x"):
 			self.assertIn("havola", ig_ai.check_reply(text, "DM", host), text)
 
+	def test_check_reply_rejects_other_accounts(self):
+		host = "magazinlar.uz"
+		for turi in ("Izoh", "DM"):
+			reason = ig_ai.check_reply("Assalomu alaykum! Arzonrog'i @raqib_shop sahifasida.", turi, host)
+			self.assertIn("akkaunt", reason, turi)
+		# do'konning o'z akkaunti «AI uchun ma'lumot»da bo'lsa — mumkin
+		self.assertIsNone(ig_ai.check_reply("Assalomu alaykum! Yangiliklar @pandoo_books sahifamizda.", "DM", host,
+			own_text="Instagram: @pandoo_books"))
+		# email '@' — akkaunt emas
+		self.assertIsNone(ig_ai.check_reply("Assalomu alaykum! Ha, bor.", "Izoh", host))
+
+	def test_check_reply_rejects_foreign_phone(self):
+		host = "magazinlar.uz"
+		for text in ("Assalomu alaykum! Qo'ng'iroq qiling: +998 90 123 45 67", "Assalomu alaykum! 901234567 ga yozing"):
+			self.assertIn("telefon", ig_ai.check_reply(text, "Izoh", host), text)
+			self.assertIn("telefon", ig_ai.check_reply(text, "DM", host), text)
+		# do'konning o'z raqami — mumkin
+		self.assertIsNone(ig_ai.check_reply("Assalomu alaykum! Qo'ng'iroq qiling: +998 50 781 86 76", "DM", host,
+			own_text="Aloqa: +998 (50) 781-86-76"))
+		# narxlar telefon emas
+		for text in ("Assalomu alaykum! Narxi 1 490 000 so'm.", "Assalomu alaykum! Narxi 490 000 so'm, yetkazish 30 000 so'm."):
+			self.assertIsNone(ig_ai.check_reply(text, "Izoh", host), text)
+
 	def _answer(self, matn, telefon=None, tarix=None):
 		reply = json.dumps({"javob_kerak": True, "javob": "Assalomu alaykum!", "til": "uz", "telefon": telefon,
 			"ism": None, "tovar_kodi": None})
