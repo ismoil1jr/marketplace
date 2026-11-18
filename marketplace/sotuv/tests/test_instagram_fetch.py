@@ -64,6 +64,15 @@ class TestMediaList(UnitTestCase):
 		self.assertIn("body", calls["act_1/ads"])
 		self.assertIn("title", calls["act_1/ads"])
 
+	def test_media_list_ad_account_gets_act_prefix(self):
+		paths = []
+
+		def graph(method, path, token=None, **p):
+			paths.append(path)
+			return {"data": []}
+		self._run(graph, meta_ad_account=" 123 ")
+		self.assertIn("act_123/ads", paths)
+
 	def test_media_list_ads_error_keeps_posts(self):
 		def graph(method, path, token=None, **p):
 			if path.endswith("/media"):
@@ -96,6 +105,15 @@ class TestFetch(UnitTestCase):
 	def test_fetch_ignores_old_comments(self):
 		c = [{"id": "c1", "text": "a", "timestamp": _iso(20 * 60), "username": "x", "from": {"id": "9"}}]
 		self.assertEqual(self._fetch(c, int(time.time()) - 900), [])
+
+	def test_fetch_skips_comment_without_id_or_timestamp(self):
+		c = [{"id": "c1", "text": "a", "username": "x", "from": {"id": "9"},
+				"replies": {"data": [{"id": "r1", "text": "b", "timestamp": _iso(5), "username": "y", "from": {"id": "8"}}]}},
+			{"text": "id yo'q", "timestamp": _iso(5), "username": "z", "from": {"id": "7"}},
+			{"id": "c3", "text": "yomon vaqt", "timestamp": "kecha", "username": "z", "from": {"id": "7"}},
+			{"id": "c4", "text": "ok", "timestamp": _iso(5), "username": "w", "from": {"id": "6"}}]
+		out = self._fetch(c, int(time.time()) - 900)
+		self.assertEqual(sorted(x["id"] for x in out), ["c4", "r1"])
 
 	def test_fetch_flattens_replies(self):
 		c = [{"id": "c1", "text": "a", "timestamp": _iso(10), "username": "x", "from": {"id": "9"},

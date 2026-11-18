@@ -10,13 +10,14 @@ from frappe import _
 from frappe.utils import add_to_date, convert_utc_to_system_timezone, get_url, now_datetime, today
 
 from marketplace.sotuv import ig_ai, instagram_dm
-from marketplace.sotuv.meta import MetaError, _graph, _ig_status, _page_token
+from marketplace.sotuv.meta import MetaError, _graph, _ig_status, _page_token, ad_account
 from marketplace.sotuv.murojaat import save_lead
 
 LOOKBACK = 15 * 60
 SINCE_OVERLAP = 120
 RATE_CODES = {4, 17, 32, 613}
 MAX_PER_HOUR = 10
+SHOP_MAX_PER_HOUR = 60  # do'kon bo'yicha soatiga avtomatik izoh-javoblar (anti-spam)
 POLL_BUDGET = 50
 
 _COMMENT_FIELDS = "id,text,timestamp,username,from{id,username}"
@@ -69,7 +70,7 @@ def media_list(shop: str, token: str | None = None) -> list[dict]:
 	for m in _graph("GET", f"{ig}/media", token, fields="id,permalink,caption", limit=25).get("data", []):
 		add(m.get("id"), m.get("permalink"), m.get("caption"))
 
-	act = _shop(shop, "meta_ad_account")
+	act = ad_account(_shop(shop, "meta_ad_account"))
 	if act:
 		try:
 			ads = _graph("GET", f"{act}/ads", token,
@@ -85,6 +86,13 @@ def media_list(shop: str, token: str | None = None) -> list[dict]:
 
 
 def _flat(c, parent_id, media):
+	"""Graph izohi → tekis dict. id yoki vaqti yo'q (buzuq) izoh — None: bitta yomon izoh do'konni to'xtatmasin."""
+	if not c.get("id") or not c.get("timestamp"):
+		return None
+	try:
+		ts = int(_utc(c["timestamp"]).timestamp())
+	except (ValueError, TypeError):
+		return None
 	frm = c.get("from") or {}
 	return {
 		"id": c.get("id"),
@@ -92,7 +100,7 @@ def _flat(c, parent_id, media):
 		"text": c.get("text") or "",
 		"username": c.get("username") or frm.get("username") or "",
 		"from_id": frm.get("id") or "",
-		"timestamp": int(_utc(c["timestamp"]).timestamp()),
+		"timestamp": ts,
 		"media_id": media["id"],
 		"havola": media["havola"],
 		"post_matni": media.get("post_matni") or "",
@@ -114,9 +122,11 @@ def fetch_comments(shop: str, since_ts: int) -> list[dict]:
 			_ig_status(shop, _("Post izohlarini olib bo'lmadi (kod {0}); keyingisiga o'tildi").format(e.code or "-"))
 			continue
 		for c in data:
+			if not c.get("id"):
+				continue  # ota izohsiz javoblarni qayerga yozishni bilmaymiz
 			items = [_flat(c, None, media)]
 			items += [_flat(r, c.get("id"), media) for r in (c.get("replies") or {}).get("data", [])]
-			for x in items:
+			for x in filter(None, items):
 				if x["timestamp"] < since_ts:
 					continue
 				if (ig and x["from_id"] == ig) or (uname and x["username"] == uname):
@@ -202,7 +212,8 @@ def _poll():
 		start = int(t0)
 		key = f"mp_ig_since:{shop}"
 		old = int(frappe.cache.get_value(key) or 0)
-		since = max(old, start - LOOKBACK)
+		# 2 daqiqa ustma-ust: Graph'da kechikib ko'ringan izoh ham tushadi (takrori tashqi_id bo'yicha saqlanmaydi)
+		since = max(old - SINCE_OVERLAP, start - LOOKBACK)
 		try:
 			for c in fetch_comments(shop, since):
 				name = store(shop, c)
@@ -247,7 +258,7 @@ def _poll():
 def _post(shop, doc):
 	"""Izoh ostiga (yoki javob ostiga) shop nomidan javob yozadi; javob id'sini qaytaradi."""
 	text = doc.ai_javob
-	if doc.ota_id:
+	if doc.ota_id and doc.username:
 		text = f"@{doc.username} {text}"
 	res = _graph("POST", f"{doc.ota_id or doc.tashqi_id}/replies", _page_token(shop), message=text)
 	return res.get("id")
@@ -261,9 +272,28 @@ def _deliver(shop, doc):
 	frappe.throw(_("Bu turdagi xabarni yuborib bo'lmaydi"))
 
 
+def _customer(doc):
+	"""Mijoz kaliti: IG ID, bo'lmasa username; ikkalasi ham bo'lmasa — None (har bir yozuv alohida mijoz)."""
+	if doc.mijoz_id:
+		return {"mijoz_id": doc.mijoz_id}
+	if doc.username:
+		return {"username": doc.username}
+	return None
+
+
 def _hourly_count(doc):
+	key = _customer(doc)
+	if not key:
+		return 0
 	return frappe.db.count("Instagram Xabar", {
-		"shop": doc.shop, "mijoz_id": doc.mijoz_id, "holat": "Yuborildi",
+		"shop": doc.shop, **key, "holat": "Yuborildi",
+		"modified": (">", add_to_date(now_datetime(), hours=-1)),
+	})
+
+
+def _shop_hourly_count(shop):
+	return frappe.db.count("Instagram Xabar", {
+		"shop": shop, "turi": "Izoh", "holat": "Yuborildi",
 		"modified": (">", add_to_date(now_datetime(), hours=-1)),
 	})
 
@@ -276,7 +306,7 @@ def _lead(doc, info):
 	try:
 		name, _dup = save_lead(doc.shop, {
 			"telefon": info["telefon"], "ism": info.get("ism") or doc.username or "",
-			"manba": "Instagram", "izoh": izoh, "lead_id": f"ig:{doc.mijoz_id}:{today()}",
+			"manba": "Instagram", "izoh": izoh, "lead_id": f"ig:{doc.mijoz_id or doc.username or doc.name}:{today()}",
 		}, info.get("tovar_kodi"))
 	except frappe.ValidationError:
 		frappe.clear_messages()
@@ -324,6 +354,10 @@ def _run(doc, rejim, draft_only=False):
 	if _hourly_count(doc) >= MAX_PER_HOUR:
 		_lead(doc, info)
 		doc.db_set({**vals, "holat": "Qoralama", "xato": "Mijoz uchun soatlik limit"})
+		return "Qoralama"
+	if doc.turi == "Izoh" and _shop_hourly_count(doc.shop) >= SHOP_MAX_PER_HOUR:
+		_lead(doc, info)
+		doc.db_set({**vals, "holat": "Qoralama", "xato": "do'kon soatlik limiti"})
 		return "Qoralama"
 	doc.ai_javob = vals["ai_javob"]
 	try:
@@ -383,6 +417,8 @@ def send(name: str):
 @frappe.whitelist(methods=["POST"])
 def regenerate(name: str):
 	doc = _writable(name)
-	if doc.holat == "Yuborildi":
+	# Qulflangan o'qish: shu payt «Yuborish» ishlayotgan bo'lsa — kutamiz va yangi holatni ko'ramiz
+	if frappe.db.get_value("Instagram Xabar", name, "holat", for_update=True) == "Yuborildi":
 		frappe.throw(_("Yuborilgan javobni qayta yozib bo'lmaydi"))
+	doc.reload()
 	return _run(doc, "Sinov", draft_only=True)

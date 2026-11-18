@@ -268,3 +268,40 @@ class TestIgAi(UnitTestCase):
 		for text in ("Assalomu alaykum! https://evil.com/pay", "Assalomu alaykum! t.me/scam",
 				"Assalomu alaykum! https://magazinlar.uz.evil.com/x"):
 			self.assertIn("havola", ig_ai.check_reply(text, "DM", host), text)
+
+	def _answer(self, matn, telefon=None, tarix=None):
+		reply = json.dumps({"javob_kerak": True, "javob": "Assalomu alaykum!", "til": "uz", "telefon": telefon,
+			"ism": None, "tovar_kodi": None})
+		with (
+			patch.object(ig_ai, "catalog", return_value=[]),
+			patch.object(ig_ai.stt, "settings", return_value=self._cfg()),
+			patch.object(ig_ai.stt, "api_key", return_value="k"),
+			patch("frappe.db.get_value", return_value=frappe._dict(shop_name="Nom", ig_ai_malumot="Tel: 71 200 00 00")),
+			patch("marketplace.telegram_bot.http.post", return_value=_resp(200, reply)) as post,
+		):
+			out = ig_ai.answer("Shop", matn, "DM" if tarix else "Izoh", tarix=tarix)
+		return out, post
+
+	def test_extract_phone_only_uzbek_numbers(self):
+		self.assertEqual(ig_ai.extract_phone("8 90 123 45 67"), "998901234567")
+		self.assertIsNone(ig_ai.extract_phone("narxi 100 000 000 so'm"))
+		self.assertIsNone(ig_ai.extract_phone("+7 912 345 67 89"))
+		self.assertIsNone(ig_ai.extract_phone("buyurtma 1234567890123"))
+		self.assertEqual(ig_ai.extract_phone("narxi 100 000 000, nomer 93 291 93 03"), "998932919303")
+
+	def test_ai_phone_must_appear_in_customer_text(self):
+		out, _ = self._answer("Qachon yetkazasiz?", telefon="+998712000000")
+		self.assertIsNone(out["telefon"])
+		out, _ = self._answer("Nomerim +998 (90) 123-45-67", telefon="998901234567")
+		self.assertEqual(out["telefon"], "998901234567")
+
+	def test_phone_from_earlier_customer_turns(self):
+		tarix = [{"kim": "Mijoz", "matn": "Nomerim 90 123 45 67"}, {"kim": "Do'kon", "matn": "Raqamimiz 93 000 00 00"}]
+		out, _ = self._answer("Kitob bormi?", tarix=tarix)
+		self.assertEqual(out["telefon"], "998901234567")
+		out, _ = self._answer("Kitob bormi?", telefon="998930000000", tarix=tarix[1:])
+		self.assertIsNone(out["telefon"])
+
+	def test_gemini_timeout_30s(self):
+		_, post = self._answer("Narxi?")
+		self.assertEqual(post.call_args.kwargs["timeout"], 30)

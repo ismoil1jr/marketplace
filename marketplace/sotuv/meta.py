@@ -77,6 +77,12 @@ def _graph(method, path, token=None, **params):
 	return body
 
 
+def ad_account(value):
+	"""Reklama kabineti ID'si doim «act_» bilan (qo'lda «123» deb yozilgan bo'lsa ham)."""
+	value = (value or "").strip()
+	return value if not value or value.startswith("act_") else f"act_{value}"
+
+
 def _page_token(shop):
 	token = get_decrypted_password("Shop", shop, "meta_page_token", raise_exception=False)
 	if not token:
@@ -407,9 +413,9 @@ def _attach(shop, page, user_token=None):
 	if ig_warning:
 		warning = (warning + " " if warning else "") + ig_warning
 	_status(shop, _("ulandi: {0}").format(page.get("name")))
-	ig_username, ad_account = frappe.db.get_value("Shop", shop, ["ig_username", "meta_ad_account"]) or (None, None)
+	ig_username, act = frappe.db.get_value("Shop", shop, ["ig_username", "meta_ad_account"]) or (None, None)
 	return {"page": page.get("name"), "forms": len(forms), "warning": warning,
-	        "ig_username": ig_username or "", "meta_ad_account": ad_account or ""}
+	        "ig_username": ig_username or "", "meta_ad_account": ad_account(act)}
 
 
 def _link_instagram(shop, page, user_token):

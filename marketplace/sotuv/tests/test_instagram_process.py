@@ -106,6 +106,76 @@ class TestInstagramProcess(UnitTestCase):
 		self.assertEqual(doc.holat, "Yuborildi")
 		g.assert_called_once()
 
+	def test_regenerate_refuses_when_locked_read_says_sent(self):
+		doc = self._doc(holat="Qoralama", ai_javob="x")
+		real = frappe.db.get_value
+
+		def gv(*a, **kw):
+			if kw.get("for_update"):
+				return "Yuborildi"
+			return real(*a, **kw)
+
+		with patch.object(frappe.db, "get_value", side_effect=gv) as gvm, \
+			patch.object(instagram.ig_ai, "answer") as ai:
+			with self.assertRaises(frappe.ValidationError):
+				instagram.regenerate(doc.name)
+		ai.assert_not_called()
+		self.assertTrue(any(c.kwargs.get("for_update") for c in gvm.call_args_list))
+
+	def test_hourly_limit_falls_back_to_username(self):
+		for _ in range(instagram.MAX_PER_HOUR):
+			self._doc(holat="Yuborildi", mijoz_id="", username="vali")
+		doc = self._doc(mijoz_id="", username="vali")
+		res, g, _ = self._run(doc)
+		self.assertEqual((res, doc.holat), ("Qoralama", "Qoralama"))
+		self.assertIn("soatlik limit", doc.xato)
+		g.assert_not_called()
+
+	def test_hourly_limit_no_id_no_username_is_unique(self):
+		for _ in range(instagram.MAX_PER_HOUR):
+			self._doc(holat="Yuborildi", mijoz_id="", username="")
+		doc = self._doc(mijoz_id="", username="")
+		res, g, _ = self._run(doc)
+		self.assertEqual(res, "Yuborildi")
+		g.assert_called_once()
+
+	def test_lead_id_falls_back_to_username_then_name(self):
+		doc = self._doc(mijoz_id="", username="vali")
+		_, _, sl = self._run(doc, "Sinov", ai=_ai(telefon="998901234567"))
+		self.assertTrue(sl.call_args.args[1]["lead_id"].startswith("ig:vali:"))
+		doc2 = self._doc(mijoz_id="", username="")
+		_, _, sl2 = self._run(doc2, "Sinov", ai=_ai(telefon="998901234567"))
+		self.assertTrue(sl2.call_args.args[1]["lead_id"].startswith(f"ig:{doc2.name}:"))
+
+	def test_reply_to_reply_without_username_has_no_at(self):
+		doc = self._doc(ota_id="P1", username="")
+		_, g, _ = self._run(doc)
+		self.assertEqual(g.call_args.kwargs["message"], AI_OK["javob"])
+
+	def test_shop_hourly_cap_keeps_draft(self):
+		doc = self._doc()
+		with patch.object(instagram, "_shop_hourly_count", return_value=instagram.SHOP_MAX_PER_HOUR):
+			res, g, _ = self._run(doc)
+		self.assertEqual((res, doc.holat, doc.xato), ("Qoralama", "Qoralama", "do'kon soatlik limiti"))
+		g.assert_not_called()
+
+	def test_shop_hourly_cap_counts_sent_comments(self):
+		with patch.object(instagram.frappe.db, "count", return_value=3) as cnt:
+			self.assertEqual(instagram._shop_hourly_count(self.shop), 3)
+		f = cnt.call_args.args[1]
+		self.assertEqual((f["shop"], f["turi"], f["holat"]), (self.shop, "Izoh", "Yuborildi"))
+		self.assertEqual(f["modified"][0], ">")
+
+	def test_shop_hourly_cap_not_for_dm(self):
+		doc = self._doc(turi="DM")
+		with patch.object(instagram, "_shop_hourly_count", return_value=10**6), \
+			patch.object(instagram.instagram_dm, "is_human_paused", return_value=False), \
+			patch.object(instagram.instagram_dm, "history", return_value=[]), \
+			patch.object(instagram.instagram_dm, "send_dm", return_value="MID") as sd:
+			res, _, _ = self._run(doc)
+		self.assertEqual(res, "Yuborildi")
+		sd.assert_called_once()
+
 	def test_process_not_yangi_is_noop(self):
 		doc = self._doc(holat="Yuborildi")
 		res, g, _ = self._run(doc)

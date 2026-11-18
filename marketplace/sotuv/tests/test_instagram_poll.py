@@ -114,6 +114,19 @@ class TestInstagramPoll(UnitTestCase):
 		self._run(lambda *a: [])
 		self.assertEqual(int(frappe.cache.get_value(f"mp_ig_since:{SHOP}")), future)
 
+	def test_poll_since_overlaps_two_minutes(self):
+		old = int(__import__("time").time()) - 60
+		frappe.cache.set_value(f"mp_ig_since:{SHOP}", old)
+		with patch.object(instagram_dm, "fetch_messages", return_value=[]) as fm:
+			_, f, *_ = self._run(lambda *a: [])
+		self.assertEqual(f.call_args.args[1], old - instagram.SINCE_OVERLAP)
+		self.assertEqual(instagram.SINCE_OVERLAP, 120)
+
+	def test_poll_since_overlap_bounded_by_lookback(self):
+		frappe.cache.set_value(f"mp_ig_since:{SHOP}", 5)
+		_, f, *_ = self._run(lambda *a: [])
+		self.assertGreater(f.call_args.args[1], int(__import__("time").time()) - instagram.LOOKBACK - 5)
+
 	def test_enqueue_after_commit(self):
 		_, _, _, _, _, enq = self._run(lambda *a: [{"id": "a"}])
 		self.assertIs(enq.call_args.kwargs["enqueue_after_commit"], True)

@@ -206,12 +206,34 @@ def parse_reply(raw):
 	return out
 
 
+_UZ_PHONE = re.compile(r"998[2-9]\d{8}")
+
+
+def _uz_phone(raw):
+	"""Faqat O'zbekiston raqami: 998 + 9 raqam (kod 0/1 bilan boshlanmaydi) — aks holda None."""
+	phone = normalize_phone(raw)
+	return phone if phone and _UZ_PHONE.fullmatch(phone) else None
+
+
 def extract_phone(text):
-	"""Matndagi birinchi 9 va undan ko'p raqamli qator (bo'shliq, tire, qavs bilan ham) — 998... ko'rinishida."""
+	"""Matndagi birinchi O'zbekiston raqami (bo'shliq, tire, qavs bilan ham) — 998... ko'rinishida.
+	Narx (100 000 000), chet el yoki buyurtma raqami olinmaydi."""
 	for m in re.finditer(r"\+?\d[\d\s().\-]{7,}\d", text or ""):
 		if len(re.sub(r"\D", "", m.group())) >= 9:
-			return normalize_phone(m.group())
+			phone = _uz_phone(m.group())
+			if phone:
+				return phone
 	return None
+
+
+def _customer_phone(ai_phone, matn, tarix):
+	"""Telefon faqat mijozning o'z matnidan: AI bergan raqam mijoz yozganida bo'lsa — o'sha (do'konning «AI uchun
+	ma'lumot»dagi raqami emas); bo'lmasa — yangi xabar, keyin oldingi mijoz xabarlari (yangisi birinchi) ichidan."""
+	texts = [matn or ""] + [t.get("matn") or "" for t in reversed(tarix or []) if t.get("kim") == "Mijoz"]
+	phone = _uz_phone(ai_phone) if ai_phone else None
+	if phone and any(phone[-9:] in re.sub(r"\D", "", t) for t in texts):
+		return phone
+	return next((p for p in map(extract_phone, texts) if p), None)
 
 
 def _call(model, prompt):
@@ -222,7 +244,7 @@ def _call(model, prompt):
 		"generationConfig": {"temperature": 0.3, "responseMimeType": "application/json"},
 	}
 	try:
-		r = http.post(stt.API.format(model=model), headers={"x-goog-api-key": stt.api_key()}, json=body, timeout=60)
+		r = http.post(stt.API.format(model=model), headers={"x-goog-api-key": stt.api_key()}, json=body, timeout=30)
 	except requests.RequestException as e:
 		raise IgAiError(_("Gemini'ga ulanib bo'lmadi: {0}").format(e.__class__.__name__), retry=True) from e
 	if r.status_code != 200:
@@ -279,6 +301,6 @@ def answer(shop, matn, turi="Izoh", tarix=None, post_matni=None):
 		tarix, post_matni)
 	raw, model = _ask(prompt)
 	out = parse_reply(raw)
-	out["telefon"] = normalize_phone(out["telefon"]) if out["telefon"] else extract_phone(matn)
+	out["telefon"] = _customer_phone(out["telefon"], matn, tarix)
 	out["model"] = model
 	return out

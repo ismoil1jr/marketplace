@@ -88,3 +88,11 @@ class TestGraphNoLeak(UnitTestCase):
 		text = "".join(traceback.format_exception(e))
 		self.assertNotIn(secret, text)
 		self.assertNotIn("access_token", text)
+
+
+class TestAdAccount(UnitTestCase):
+	def test_act_prefix(self):
+		self.assertEqual(meta.ad_account("123"), "act_123")
+		self.assertEqual(meta.ad_account(" act_123 "), "act_123")
+		self.assertEqual(meta.ad_account(""), "")
+		self.assertEqual(meta.ad_account(None), "")

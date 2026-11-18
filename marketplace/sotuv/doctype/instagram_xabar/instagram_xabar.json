@@ -8,7 +8,7 @@
  "name": "Instagram Xabar",
  "owner": "Administrator",
  "modified_by": "Administrator",
- "modified": "2026-11-18 12:00:00.000000",
+ "modified": "2026-11-18 13:00:00.000000",
  "links": [],
  "states": [],
  "row_format": "Dynamic",
@@ -54,37 +54,44 @@
    "options": "Shop",
    "reqd": 1,
    "in_list_view": 1,
-   "in_standard_filter": 1
+   "in_standard_filter": 1,
+   "read_only": 1,
+   "search_index": 1
   },
   {
    "fieldname": "turi",
    "fieldtype": "Select",
    "label": "Turi",
    "options": "Izoh\nDM",
-   "default": "Izoh"
+   "default": "Izoh",
+   "read_only": 1
   },
   {
    "fieldname": "tashqi_id",
    "fieldtype": "Data",
    "label": "Tashqi ID",
    "reqd": 1,
-   "unique": 1
+   "unique": 1,
+   "read_only": 1
   },
   {
    "fieldname": "ota_id",
    "fieldtype": "Data",
-   "label": "Ota izoh ID"
+   "label": "Ota izoh ID",
+   "read_only": 1
   },
   {
    "fieldname": "media_id",
    "fieldtype": "Data",
-   "label": "Media ID"
+   "label": "Media ID",
+   "read_only": 1
   },
   {
    "fieldname": "media_havola",
    "fieldtype": "Data",
    "label": "Media havolasi",
-   "options": "URL"
+   "options": "URL",
+   "read_only": 1
   },
   {
    "fieldname": "post_matni",
@@ -96,19 +103,23 @@
   {
    "fieldname": "mijoz_id",
    "fieldtype": "Data",
-   "label": "Mijoz ID"
+   "label": "Mijoz ID",
+   "read_only": 1,
+   "search_index": 1
   },
   {
    "fieldname": "username",
    "fieldtype": "Data",
    "label": "Username",
-   "in_list_view": 1
+   "in_list_view": 1,
+   "read_only": 1
   },
   {
    "fieldname": "matn",
    "fieldtype": "Small Text",
    "label": "Matn",
-   "in_list_view": 1
+   "in_list_view": 1,
+   "read_only": 1
   },
   {
    "fieldname": "ai_javob",
@@ -118,7 +129,8 @@
   {
    "fieldname": "til",
    "fieldtype": "Data",
-   "label": "Til"
+   "label": "Til",
+   "read_only": 1
   },
   {
    "fieldname": "holat",
@@ -127,7 +139,9 @@
    "options": "Yangi\nQoralama\nYuborildi\nJavobsiz\nXato",
    "default": "Yangi",
    "in_list_view": 1,
-   "in_standard_filter": 1
+   "in_standard_filter": 1,
+   "read_only": 1,
+   "search_index": 1
   },
   {
    "fieldname": "xato",
@@ -137,12 +151,16 @@
   {
    "fieldname": "vaqt",
    "fieldtype": "Datetime",
-   "label": "Vaqt"
+   "label": "Vaqt",
+   "read_only": 1,
+   "search_index": 1
   },
   {
    "fieldname": "javob_id",
    "fieldtype": "Data",
-   "label": "Javob ID"
+   "label": "Javob ID",
+   "read_only": 1,
+   "search_index": 1
   },
   {
    "fieldname": "murojaat",
