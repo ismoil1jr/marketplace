@@ -419,3 +419,15 @@ class TestPlusDirectSafety(UnitTestCase):
 			instagram.regenerate(doc.name)
 		doc.reload()
 		self.assertEqual(doc.direct_javob, DIRECT)
+
+
+class TestPromisedRegex(UnitTestCase):
+	def test_only_sent_promise_matches(self):
+		yes = ("Assalomu alaykum! Batafsil ma'lumotni Direct'ga yubordik 📩", "Assalomu alaykum! Direct'ga yubordim.",
+			"Здравствуйте! Подробности отправили в Direct.", "Здравствуйте! Отправили вам в директ.")
+		no = ("Assalomu alaykum! Narxini menejerimiz Direct'da aniqlab beradi.", "Assalomu alaykum! Direct'ga yozing.",
+			"Assalomu alaykum! Ism va raqamingizni Direct'ga yuboring.", "Assalomu alaykum! Ha, bor.")
+		for t in yes:
+			self.assertTrue(instagram._PROMISED.search(t), t)
+		for t in no:
+			self.assertFalse(instagram._PROMISED.search(t), t)

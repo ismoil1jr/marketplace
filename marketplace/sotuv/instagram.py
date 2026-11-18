@@ -21,7 +21,10 @@ SHOP_MAX_PER_HOUR = 60  # do'kon bo'yicha soatiga avtomatik izoh-javoblar (anti-
 DIRECT_MAX_PER_HOUR = 30  # «+» izohlariga Direct (private reply) — soatiga (konkurs postlarida bot deb o'ylanmasin)
 DIRECT_MAX_LEN = 40  # Direct faqat qisqa / «+» kabi ma'lumot so'roviga; uzun savolga — ochiq javob
 _DIRECT_ASK = re.compile(r"^\s*\++\s*$|\b(info|batafsil|ma[ʼ'`’]?lumot|malumot|podrobn|подробн|инфо)", re.I)
-_PROMISED = re.compile(r"(direct|директ|дирек)", re.I)
+# «Direct'ga yubordik» / «отправили в Direct» — yuborilgani haqidagi va'da (oddiy «Direct'da aniqlab beradi» emas)
+_SENT = r"(?:yubord\w*|yuborild\w*|отправ(?:ил|или|лено)\w*)"
+_DM = r"(?:direct|директ|дирек)\w*"
+_PROMISED = re.compile(rf"{_DM}\S*\s+(?:\S+\s+){{0,2}}?{_SENT}|{_SENT}\s+(?:\S+\s+){{0,2}}?{_DM}", re.I)
 POLL_BUDGET = 50
 
 _COMMENT_FIELDS = "id,text,timestamp,username,from{id,username}"
@@ -446,9 +449,11 @@ def process(name: str) -> str:
 	if rejim not in ("Sinov", "Yoqilgan"):
 		return doc.holat
 	# Qatorni qulflaymiz: ikkinchi worker kutadi va yangi holatni ko'radi
-	if frappe.db.get_value("Instagram Xabar", name, "holat", for_update=True) != "Yangi":
-		return frappe.db.get_value("Instagram Xabar", name, "holat")
+	locked = frappe.db.get_value("Instagram Xabar", name, ["holat", "direct_id"], as_dict=True, for_update=True)
+	if locked.holat != "Yangi":
+		return locked.holat
 	doc.reload()
+	doc.direct_id = locked.direct_id  # qulflangan o'qish — eski snapshot emas
 	return _run(doc, rejim)
 
 
@@ -462,12 +467,13 @@ def _writable(name):
 @frappe.whitelist(methods=["POST"])
 def send(name: str):
 	# Avval qulf: holatni qulflangan o'qishdan olamiz (ikkinchi bosuvchi birinchisi tugaguncha kutadi)
-	row = frappe.db.get_value("Instagram Xabar", name, ["holat", "ai_javob"], as_dict=True, for_update=True)
+	row = frappe.db.get_value("Instagram Xabar", name, ["holat", "ai_javob", "direct_id"], as_dict=True, for_update=True)
 	if not row:
 		frappe.throw(_("Xabar topilmadi"), frappe.DoesNotExistError)
 	if row.holat not in ("Qoralama", "Xato") or not (row.ai_javob or "").strip():
 		frappe.throw(_("Faqat tayyor javobli qoralamani yuborish mumkin"))
 	doc = _writable(name)
+	doc.direct_id = row.direct_id  # qulflangan o'qish — eski snapshot emas
 	had_direct = bool(doc.direct_id)
 	direct_error = _send_direct(doc)
 	if direct_error:
