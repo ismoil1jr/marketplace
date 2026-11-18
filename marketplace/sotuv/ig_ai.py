@@ -60,23 +60,31 @@ def catalog(shop):
 	rows = frappe.get_all(
 		"Item",
 		filters={"shop": shop, "is_published": 1, "disabled": 0, "variant_of": ["is", "not set"]},
-		fields=["name", "item_name", "variant_of"],
+		fields=["name", "item_name", "is_stock_item", "has_variants", "mp_tez_kunda"],
 		order_by="modified desc",
 		limit_page_length=CATALOG_LIMIT,
 	)
 	codes = [r.name for r in rows]
 	if not codes:
 		return []
-	from marketplace.storefront import _get_prices, _get_stock
+	from marketplace.storefront import _get_prices, _get_stock, _get_variant_stock
 
 	prices = _get_prices(codes)
-	stock = _get_stock(codes, frappe.db.get_value("Shop", shop, "warehouse"))
+	warehouse = frappe.db.get_value("Shop", shop, "warehouse")
+	stock = _get_stock(codes, warehouse)
+	stock.update(_get_variant_stock([r.name for r in rows if r.has_variants], warehouse))
+
+	def in_stock(r):  # storefront._build_catalog bilan bir xil qoida
+		if r.mp_tez_kunda:
+			return False
+		return (stock.get(r.name, 0) > 0) if (r.is_stock_item or r.has_variants) else True
+
 	return [
 		{
 			"kod": r.name,
 			"nom": r.item_name,
 			"narx": float(prices[r.name]) if prices.get(r.name) else None,
-			"holat": "bor" if (stock.get(r.name) or 0) > 0 else "tugagan",
+			"holat": "bor" if in_stock(r) else "tugagan",
 			"havola": get_url(f"/s/{shop}/p/{r.name}"),
 		}
 		for r in rows
@@ -163,9 +171,11 @@ def _call(model, prompt):
 		if r.status_code in (401, 403) or "API key" in message:
 			raise IgAiError(_("Gemini API kalit noto'g'ri yoki ruxsati yo'q: {0}").format(message))
 		raise IgAiError(_("Gemini xatosi ({0}): {1}").format(r.status_code, message))
-	data = r.json()
-	parts = ((data.get("candidates") or [{}])[0].get("content") or {}).get("parts") or []
-	return "".join(p.get("text", "") for p in parts)
+	try:
+		parts = ((r.json().get("candidates") or [{}])[0].get("content") or {}).get("parts") or []
+		return "".join(p.get("text", "") for p in parts)
+	except (ValueError, AttributeError, TypeError, IndexError, KeyError) as e:
+		raise IgAiError(_("Gemini javobi tushunarsiz ({0})").format(e.__class__.__name__), retry=True) from e
 
 
 def _ask(prompt):
