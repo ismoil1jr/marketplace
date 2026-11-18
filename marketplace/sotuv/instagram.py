@@ -279,10 +279,25 @@ def _deliver(shop, doc):
 	frappe.throw(_("Bu turdagi xabarni yuborib bo'lmaydi"))
 
 
+_URL_TAIL = re.compile(r"(https?://[^\s]*?[^\s.,!?;:)»\"'])[.,!?;:)»\"']*(?=\s|$)\s*")
+
+
+def _clean_links(text):
+	"""Havoladan keyin kelgan nuqta / vergul havolaga yopishib qolmasin (Instagram uni havola qismi deb ochadi):
+	havola o'z qatorida, oxirida tinish belgisisiz."""
+	return _URL_TAIL.sub(lambda m: m.group(1) + "\n", text or "").strip()
+
+
+def _already_replied(e):
+	"""Meta: bu izohga Direct (private reply) allaqachon yuborilgan — demak Direct yetib borgan."""
+	text = str(e).lower()
+	return getattr(e, "code", None) == 10900 or "already" in text and "repl" in text or "уже имеет ответ" in text
+
+
 def _private_reply(shop, doc):
 	"""Izoh egasining Direct'iga bitta xabar (Instagram «private reply»: bitta izohga bitta, 7 kun ichida)."""
 	res = _graph("POST", f"{_shop(shop, 'meta_page_id')}/messages", _page_token(shop),
-		recipient=json.dumps({"comment_id": doc.tashqi_id}), message=json.dumps({"text": doc.direct_javob}))
+		recipient=json.dumps({"comment_id": doc.tashqi_id}), message=json.dumps({"text": _clean_links(doc.direct_javob)}))
 	return res.get("message_id") or res.get("id")
 
 
@@ -294,7 +309,9 @@ def _send_direct(doc):
 	try:
 		mid = _private_reply(doc.shop, doc)
 	except MetaError as e:
-		return _("Direct yuborilmadi: {0}").format(e)
+		if not _already_replied(e):
+			return _("Direct yuborilmadi: {0}").format(e)
+		mid = "-"  # Meta: allaqachon yuborilgan (oldingi urinish yetib borgan) — ochiq javobga o'tamiz
 	doc.db_set("direct_id", mid or "-")
 	frappe.db.commit()  # Direct ketdi — keyingi xato uni qayta yubormasin (commit qulfni bo'shatadi — _still bilan qayta olinadi)
 	return None

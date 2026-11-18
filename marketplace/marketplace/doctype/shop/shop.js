@@ -136,7 +136,7 @@ function marketplace_meta_connect(frm) {
 				options: `<ol style="padding-left:18px;line-height:1.7;margin-bottom:12px">
 					<li>${__("Oching")}: <a href="${explorer}" target="_blank" rel="noopener">Graph API Explorer</a></li>
 					<li>${__("Meta App — bizning ilova; User or Page — «Get User Access Token»")}</li>
-					<li>${__("Ruxsatlar")}: <code>pages_show_list</code>, <code>pages_read_engagement</code>, <code>pages_manage_metadata</code>, <code>pages_manage_ads</code>, <code>leads_retrieval</code>, <code>business_management</code>, <code>instagram_basic</code>, <code>instagram_manage_comments</code>, <code>instagram_manage_messages</code>, <code>ads_read</code></li>
+					<li>${__("Ruxsatlar")}: <code>pages_show_list</code>, <code>pages_read_engagement</code>, <code>pages_manage_metadata</code>, <code>pages_manage_ads</code>, <code>leads_retrieval</code>, <code>business_management</code>, <code>instagram_basic</code>, <code>instagram_manage_comments</code>, <code>instagram_manage_messages</code>, <code>pages_messaging</code>, <code>ads_read</code></li>
 					<li>${__("Facebook oynasida do'konning Instagram akkaunti va reklama kabinetini ham belgilang")}</li>
 					<li>${__("«Generate Access Token» → sahifani tanlang → tokenni nusxalab pastga qo'ying")}</li>
 				</ol>

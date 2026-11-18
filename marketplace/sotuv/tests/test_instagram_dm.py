@@ -280,3 +280,22 @@ class TestDirectFromComment(UnitTestCase):
 		h = instagram_dm.history(dm)
 		self.assertEqual(h[0], {"kim": "Mijoz", "matn": "(izoh) +"})
 		self.assertEqual(h[1]["kim"], "Do'kon")
+
+
+class TestOursAfterLinkCleanup(UnitTestCase):
+	def setUp(self):
+		self.shop = frappe.db.get_value("Shop", {}, "name")
+		if not self.shop:
+			self.skipTest("Shop yo'q")
+
+	def tearDown(self):
+		frappe.db.rollback()
+
+	def test_cleaned_link_text_is_still_ours(self):
+		from marketplace.sotuv import instagram_dm
+
+		frappe.get_doc({"doctype": "Instagram Xabar", "shop": self.shop, "turi": "DM", "holat": "Yuborildi",
+			"tashqi_id": f"cl-{frappe.generate_hash(length=8)}", "mijoz_id": "c77",
+			"ai_javob": "Assalomu alaykum! Batafsil: https://magazinlar.uz/s/P/p/A. Yozing!"}).insert(ignore_permissions=True)
+		sent = "Assalomu alaykum! Batafsil: https://magazinlar.uz/s/P/p/A\nYozing!"
+		self.assertTrue(instagram_dm._is_ours(self.shop, "c77", {"id": "x", "text": sent}))

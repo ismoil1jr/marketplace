@@ -42,7 +42,10 @@ def _is_ours(shop, customer_id, m):
 		"shop": shop, "turi": "Izoh", "direct_id": ["is", "set"],
 		"modified": (">", add_to_date(now_datetime(), hours=-24)),
 	}, pluck="direct_javob", limit=100)
-	return any(_norm(r) == text for r in rows)
+	from marketplace.sotuv.instagram import _clean_links
+
+	# Yuborishda havola tozalanadi (_clean_links) — solishtirishda ham xuddi shunday
+	return any(_norm(_clean_links(r)) == text or _norm(r) == text for r in rows)
 
 
 def fetch_messages(shop: str, since_ts: int) -> list[dict]:
@@ -121,8 +124,8 @@ def history(doc) -> list[dict]:
 
 
 def send_dm(shop: str, doc) -> str:
-	from marketplace.sotuv.instagram import _shop
+	from marketplace.sotuv.instagram import _clean_links, _shop
 
 	res = _graph("POST", f"{_shop(shop, 'meta_page_id')}/messages", _page_token(shop),
-		recipient=json.dumps({"id": doc.mijoz_id}), message=json.dumps({"text": doc.ai_javob}))
+		recipient=json.dumps({"id": doc.mijoz_id}), message=json.dumps({"text": _clean_links(doc.ai_javob)}))
 	return res.get("message_id")

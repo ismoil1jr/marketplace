@@ -448,3 +448,59 @@ class TestTrivialSkipsAi(UnitTestCase):
 		self.assertEqual((res, doc.holat), ("Javobsiz", "Javobsiz"))
 		ai.assert_not_called()
 		g.assert_not_called()
+
+
+class TestDirectAlreadyAndLinks(UnitTestCase):
+	setUp = TestInstagramProcess.setUp
+	tearDown = TestInstagramProcess.tearDown
+	_doc = TestInstagramProcess._doc
+
+	def test_already_replied_counts_as_sent_and_public_reply_goes(self):
+		doc = self._doc(matn="+", holat="Xato", ai_javob="Assalomu alaykum! Batafsil ma'lumotni Direct'ga yubordik ✅",
+			direct_javob="Assalomu alaykum! Batafsil: narxi 490 000 so'm.")
+		calls = []
+
+		def graph(method, path, token=None, **kw):
+			calls.append(path)
+			if path.endswith("/messages"):
+				raise MetaError("(#-1) Комментарий, на который вы пытаетесь ответить, уже имеет ответ.", -1)
+			return {"id": "R1"}
+
+		with patch.object(instagram, "_shop", return_value="Yoqilgan"), \
+			patch.object(instagram, "_page_token", return_value="tok"), \
+			patch.object(instagram, "_graph", side_effect=graph):
+			instagram.send(doc.name)
+		doc.reload()
+		self.assertEqual(doc.holat, "Yuborildi")
+		self.assertTrue(doc.direct_id)
+		self.assertEqual(len(calls), 2)  # Direct (allaqachon bor) + ochiq javob
+
+	def test_already_replied_english(self):
+		self.assertTrue(instagram._already_replied(MetaError("This comment has already been replied to", 10900)))
+		self.assertTrue(instagram._already_replied(MetaError("(#10900) Activity already replied to", None)))
+		self.assertFalse(instagram._already_replied(MetaError("(#230) Requires pages_messaging permission", 230)))
+
+	def test_links_lose_trailing_punctuation(self):
+		t = instagram._clean_links("Batafsil: https://magazinlar.uz/s/Pandoo/p/Pandoo-panda-books. Buyurtma uchun yozing!")
+		self.assertIn("https://magazinlar.uz/s/Pandoo/p/Pandoo-panda-books\n", t)
+		self.assertNotIn("books.", t)
+		self.assertEqual(instagram._clean_links("Assalomu alaykum! Ha, bor."), "Assalomu alaykum! Ha, bor.")
+		t2 = instagram._clean_links("Ko'ring: https://magazinlar.uz/s/P (saytda)")
+		self.assertIn("https://magazinlar.uz/s/P\n", t2)
+
+	def test_private_reply_sends_clean_link(self):
+		doc = self._doc(matn="+", direct_javob="Batafsil: https://magazinlar.uz/s/P/p/A. Yozing!")
+		with patch.object(instagram, "_shop", return_value="PAGE"), \
+			patch.object(instagram, "_page_token", return_value="tok"), \
+			patch.object(instagram, "_graph", return_value={"message_id": "M"}) as g:
+			instagram._private_reply(self.shop, doc)
+		text = frappe.parse_json(g.call_args.kwargs["message"])["text"]
+		self.assertIn("https://magazinlar.uz/s/P/p/A\n", text)
+
+
+class TestConnectPermissions(UnitTestCase):
+	def test_dialog_lists_pages_messaging(self):
+		import os
+
+		path = os.path.join(frappe.get_app_path("marketplace"), "marketplace", "doctype", "shop", "shop.js")
+		self.assertIn("<code>pages_messaging</code>", open(path).read())

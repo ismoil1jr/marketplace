@@ -141,10 +141,10 @@ def build_prompt(shop_name, malumot, items, matn, turi, tarix=None, post_matni=N
 			else "salomlashib, «Menejerimiz Direct'da aniqlab beradi» deb javob ber"),
 		direct_qoida=("\"direct\" doim null." if dm else
 			"Mijoz «+», «++», «info», «batafsil», «ma'lumot», «подробнее» kabi yozib ma'lumot so'rasa yoki batafsilroq "
-			"bilmoqchi bo'lsa: \"javob\" — qisqa, masalan «Assalomu alaykum! Batafsil ma'lumotni Direct'ga yubordik 📩»; "
+			"bilmoqchi bo'lsa: \"javob\" — qisqa, masalan «Assalomu alaykum! Batafsil ma'lumotni Direct'ga yubordik ✅»; "
 			"\"direct\" — o'sha mijozning Direct'iga yuboriladigan to'liq javob: salomlashuv, post yoki reklamadagi tovar, "
 			f"narxi, yetkazib berish, to'lov va «Buyurtma uchun ism va telefon raqamingizni yozing», 3–5 gap, {MAX_LEN['DM']} "
-			"belgigacha, mos tovarning \"havola\"sini qo'shish mumkin. Ochiq \"javob\" har safar so'zma-so'z bir xil bo'lmasin. "
+			"belgigacha, mos tovarning \"havola\"sini oxirgi qatorda, alohida va oxiriga nuqta qo'ymasdan yoz. Ochiq \"javob\" har safar so'zma-so'z bir xil bo'lmasin. "
 			"Post konkurs yoki o'yin bo'lsa («+» — qatnashish belgisi) yoki izoh boshqa izohga javob bo'lsa — \"direct\" null. "
 			"Boshqa izohlarda ham \"direct\" — null."),
 		data=data,
