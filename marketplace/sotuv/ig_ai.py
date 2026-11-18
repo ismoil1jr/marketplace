@@ -31,8 +31,11 @@ QOIDALAR:
 5. Narx, chegirma, muddat yoki boshqa ma'lumotni o'zingdan to'qima. Faqat quyidagi ro'yxat va «AI uchun ma'lumot»dagini ayt. \
 Narx ro'yxatda yo'q (narx null) bo'lsa: «Menejerimiz Direct'da aniqlab beradi».
 6. Tovar so'ralsa, mos tovarning "havola"sini ber va "tovar_kodi"ga uning "kod"ini yoz. Mos tovar topilmasa — null.
-7. Mijoz telefon raqamini yozgan bo'lsa "telefon"ga, ismini aytgan bo'lsa "ism"ga yoz, aks holda null.
-8. "javob_kerak" ni false qil (javob bo'sh qolsin), agar: spam yoki reklama, faqat emoji yoki belgi, oddiy «rahmat» / «ok», \
+7. «Post matni» (bo'lsa) — mijoz izoh qoldirgan post yoki reklamaning matni: savol odatda shu postdagi tovar haqida. \
+Mijoz qaysi tovarni so'rayotgani aniq bo'lmasa yoki u tovar ro'yxatda bo'lmasa — tovarni ham, narxni ham taxmin qilma: \
+{noaniq}.
+8. Mijoz telefon raqamini yozgan bo'lsa "telefon"ga, ismini aytgan bo'lsa "ism"ga yoz, aks holda null.
+9. "javob_kerak" ni false qil (javob bo'sh qolsin), agar: spam yoki reklama, faqat emoji yoki belgi, oddiy «rahmat» / «ok», \
 haqorat yoki so'kinish, raqobatchi do'kon reklamasi bo'lsa. Aks holda true.
 
 Natija FAQAT bitta JSON obyekt, boshqa hech narsa yozma (izoh, markdown, tushuntirish yo'q). Kalitlar:
@@ -40,7 +43,7 @@ Natija FAQAT bitta JSON obyekt, boshqa hech narsa yozma (izoh, markdown, tushunt
 
 Ma'lumotlar (JSON):
 {data}
-{tarix}
+{post}{tarix}
 Mijozning yangi {turi_nomi}i:
 {matn}"""
 
@@ -55,15 +58,28 @@ class IgAiError(Exception):
 		self.missing = missing  # 404: model nomi eskirgan
 
 
-def catalog(shop):
-	"""Do'konning saytdagi tovarlari (60 tagacha): kod, nom, narx, holat (bor/tugagan), havola. Miqdor berilmaydi."""
-	rows = frappe.get_all(
-		"Item",
-		filters={"shop": shop, "is_published": 1, "disabled": 0, "variant_of": ["is", "not set"]},
-		fields=["name", "item_name", "is_stock_item", "has_variants", "mp_tez_kunda"],
-		order_by="modified desc",
-		limit_page_length=CATALOG_LIMIT,
-	)
+def _fold(text):
+	"""Solishtirish uchun: kichik harf, apostrof turlari (‘ ’ ʻ ʼ `) bitta, bo'shliqlar bitta."""
+	text = re.sub(r"[\u2018\u2019\u02bb\u02bc`\u00b4]", "'", (text or "").lower())
+	return re.sub(r"\s+", " ", text).strip()
+
+
+def catalog(shop, hint=None):
+	"""Do'konning saytdagi tovarlari (60 tagacha): kod, nom, narx, holat (bor/tugagan), havola. Miqdor berilmaydi.
+	hint (post/reklama matni): nomi hint ichida uchragan tovarlar — 60 tadan keyin bo'lsa ham — ro'yxat boshida."""
+	filters = {"shop": shop, "is_published": 1, "disabled": 0, "variant_of": ["is", "not set"]}
+	fields = ["name", "item_name", "is_stock_item", "has_variants", "mp_tez_kunda"]
+	hint = _fold(hint)
+	if hint:
+		rows = frappe.get_all("Item", filters=filters, fields=fields, order_by="modified desc")
+		hit = [r for r in rows if len(_fold(r.item_name)) >= 3 and _fold(r.item_name) in hint]
+		hit.sort(key=lambda r: -len(_fold(r.item_name)))  # eng aniq (uzun) nom birinchi
+		taken = {r.name for r in hit}
+		rows = hit + [r for r in rows if r.name not in taken]
+	else:
+		rows = frappe.get_all("Item", filters=filters, fields=fields, order_by="modified desc",
+			limit_page_length=CATALOG_LIMIT)
+	rows = rows[:CATALOG_LIMIT]
 	codes = [r.name for r in rows]
 	if not codes:
 		return []
@@ -83,7 +99,7 @@ def catalog(shop):
 		{
 			"kod": r.name,
 			"nom": r.item_name,
-			"narx": float(prices[r.name]) if prices.get(r.name) else None,
+			"narx": int(round(float(prices[r.name]))) if prices.get(r.name) else None,
 			"holat": "bor" if in_stock(r) else "tugagan",
 			"havola": get_url(f"/s/{shop}/p/{r.name}"),
 		}
@@ -91,18 +107,27 @@ def catalog(shop):
 	]
 
 
-def build_prompt(shop_name, malumot, items, matn, turi, tarix=None):
+POST_LIMIT = 1500
+
+
+def build_prompt(shop_name, malumot, items, matn, turi, tarix=None, post_matni=None):
 	dm = turi == "DM"
 	data = json.dumps({"AI uchun ma'lumot": malumot or "", "tovarlar": items}, ensure_ascii=False, indent=1)
 	lines = ""
 	if tarix:
 		turns = "\n".join(f"{t.get('kim')}: {t.get('matn')}" for t in tarix[-HISTORY_LIMIT:])
 		lines = f"\nOldingi yozishma (eskisi birinchi):\n{turns}\n"
+	post = ""
+	if post_matni and post_matni.strip():
+		post = f"\nPost matni (JSON):\n{json.dumps(post_matni.strip()[:POST_LIMIT], ensure_ascii=False)}\n"
 	return PROMPT.format(
 		shop=shop_name,
 		turi_nomi="Direct xabar" if dm else "izoh",
 		uzunlik="ko'pi bilan 3 gap" if dm else "ko'pi bilan 2 gap",
+		noaniq=("mijozdan qaysi kitob yoki tovarni nazarda tutayotganini so'ra" if dm
+			else "salomlashib, «Menejerimiz Direct'da aniqlab beradi» deb javob ber"),
 		data=data,
+		post=post,
 		tarix=lines,
 		matn=matn,
 	)
@@ -201,10 +226,13 @@ def _ask(prompt):
 	raise IgAiError("; ".join(errors)[:480], retry=True)
 
 
-def answer(shop, matn, turi="Izoh", tarix=None):
-	"""Mijoz yozuviga javob: parse_reply natijasi + "model". Telefon AI topmasa — matndan olinadi."""
+def answer(shop, matn, turi="Izoh", tarix=None, post_matni=None):
+	"""Mijoz yozuviga javob: parse_reply natijasi + "model". Telefon AI topmasa — matndan olinadi.
+	post_matni — izoh yozilgan post/reklama matni: katalogda shu postdagi tovar birinchi turadi."""
 	info = frappe.db.get_value("Shop", shop, ["shop_name", "ig_ai_malumot"], as_dict=True) or {}
-	prompt = build_prompt(info.get("shop_name") or shop, info.get("ig_ai_malumot"), catalog(shop), matn, turi, tarix)
+	hint = "\n".join(t for t in (post_matni, matn) if t)
+	prompt = build_prompt(info.get("shop_name") or shop, info.get("ig_ai_malumot"), catalog(shop, hint=hint), matn, turi,
+		tarix, post_matni)
 	raw, model = _ask(prompt)
 	out = parse_reply(raw)
 	out["telefon"] = normalize_phone(out["telefon"]) if out["telefon"] else extract_phone(matn)

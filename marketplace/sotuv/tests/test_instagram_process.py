@@ -69,6 +69,13 @@ class TestInstagramProcess(UnitTestCase):
 		self.assertEqual(g.call_args.args[:2], ("POST", f"{doc.tashqi_id}/replies"))
 		self.assertEqual(g.call_args.kwargs["message"], AI_OK["javob"])
 
+	def test_process_passes_post_text_to_ai(self):
+		doc = self._doc(post_matni="Atomic Habits")
+		with patch.object(instagram, "_shop", return_value="Sinov"), \
+			patch.object(instagram.ig_ai, "answer", return_value=_ai()) as ai:
+			instagram.process(doc.name)
+		self.assertEqual(ai.call_args.kwargs["post_matni"], "Atomic Habits")
+
 	def test_process_not_yangi_is_noop(self):
 		doc = self._doc(holat="Yuborildi")
 		res, g, _ = self._run(doc)

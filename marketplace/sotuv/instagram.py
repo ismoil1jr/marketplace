@@ -55,25 +55,29 @@ def _utc(ts):
 def media_list(shop: str, token: str | None = None) -> list[dict]:
 	token = token or _page_token(shop)
 	ig = _shop(shop, "ig_user_id")
-	out, seen = [], set()
+	out, seen = [], {}
 
-	def add(mid, link):
+	def add(mid, link, text):
+		text = (text or "").strip()
 		if mid and mid not in seen:
-			seen.add(mid)
-			out.append({"id": mid, "havola": link or ""})
+			seen[mid] = {"id": mid, "havola": link or "", "post_matni": text}
+			out.append(seen[mid])
+		elif mid and text and not seen[mid]["post_matni"]:
+			seen[mid]["post_matni"] = text
 
-	for m in _graph("GET", f"{ig}/media", token, fields="id,permalink", limit=25).get("data", []):
-		add(m.get("id"), m.get("permalink"))
+	for m in _graph("GET", f"{ig}/media", token, fields="id,permalink,caption", limit=25).get("data", []):
+		add(m.get("id"), m.get("permalink"), m.get("caption"))
 
 	act = _shop(shop, "meta_ad_account")
 	if act:
 		try:
 			ads = _graph("GET", f"{act}/ads", token,
 				effective_status=json.dumps(["ACTIVE"]),
-				fields="creative{effective_instagram_media_id,instagram_permalink_url}", limit=50)
+				fields="creative{effective_instagram_media_id,instagram_permalink_url,body,title}", limit=50)
 			for a in ads.get("data", []):
 				cr = a.get("creative") or {}
-				add(cr.get("effective_instagram_media_id"), cr.get("instagram_permalink_url"))
+				text = "\n".join(t.strip() for t in (cr.get("title"), cr.get("body")) if t and t.strip())
+				add(cr.get("effective_instagram_media_id"), cr.get("instagram_permalink_url"), text)
 		except MetaError as e:
 			_ig_status(shop, _("Reklamalarni olib bo'lmadi (kod {0}); postlar tekshirilmoqda").format(e.code or "-"))
 	return out
@@ -90,6 +94,7 @@ def _flat(c, parent_id, media):
 		"timestamp": int(_utc(c["timestamp"]).timestamp()),
 		"media_id": media["id"],
 		"havola": media["havola"],
+		"post_matni": media.get("post_matni") or "",
 	}
 
 
@@ -138,6 +143,7 @@ def store(shop: str, c: dict, turi: str = "Izoh") -> str | None:
 		"mijoz_id": c.get("from_id"),
 		"username": c.get("username"),
 		"matn": c.get("text"),
+		"post_matni": c.get("post_matni") or None,
 		"vaqt": vaqt,
 	})
 	try:
@@ -285,7 +291,7 @@ def _fail(doc, e):
 
 
 def _run(doc, rejim, draft_only=False):
-	kw = {}
+	kw = {"post_matni": doc.post_matni or None}
 	if doc.turi == "DM":
 		if not draft_only and instagram_dm.is_human_paused(doc.shop, doc.mijoz_id):
 			doc.db_set({"holat": "Qoralama", "xato": "Operator suhbatda"})

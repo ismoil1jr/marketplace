@@ -41,6 +41,29 @@ class TestMediaList(UnitTestCase):
 		out, _ = self._run(graph, meta_ad_account="act_1")
 		self.assertEqual(sorted(m["id"] for m in out), ["m1", "m2", "m3"])
 
+	def test_media_list_carries_caption_and_ad_text(self):
+		calls = {}
+
+		def graph(method, path, token=None, **p):
+			calls[path] = p.get("fields")
+			if path.endswith("/media"):
+				return {"data": [{"id": "m1", "permalink": "l1", "caption": "Atomic Habits — 99 000"},
+					{"id": "m2", "permalink": "l2"}]}
+			return {"data": [
+				{"creative": {"effective_instagram_media_id": "m2", "instagram_permalink_url": "l2",
+					"title": "Chegirma", "body": "O'tgan kunlar"}},
+				{"creative": {"effective_instagram_media_id": "m3", "instagram_permalink_url": "l3", "body": "Faqat matn"}},
+			]}
+		out, _ = self._run(graph, meta_ad_account="act_1")
+		by = {m["id"]: m for m in out}
+		self.assertEqual(by["m1"]["post_matni"], "Atomic Habits — 99 000")
+		self.assertIn("O'tgan kunlar", by["m2"]["post_matni"])
+		self.assertIn("Chegirma", by["m2"]["post_matni"])
+		self.assertEqual(by["m3"]["post_matni"], "Faqat matn")
+		self.assertIn("caption", calls["111/media"])
+		self.assertIn("body", calls["act_1/ads"])
+		self.assertIn("title", calls["act_1/ads"])
+
 	def test_media_list_ads_error_keeps_posts(self):
 		def graph(method, path, token=None, **p):
 			if path.endswith("/media"):
@@ -55,7 +78,7 @@ class TestFetch(UnitTestCase):
 	def _fetch(self, comments, since):
 		def graph(method, path, token=None, **p):
 			if path.endswith("/media"):
-				return {"data": [{"id": "m1", "permalink": "l1"}]}
+				return {"data": [{"id": "m1", "permalink": "l1", "caption": "Post haqida"}]}
 			return {"data": comments}
 		with patch.object(instagram, "_page_token", return_value="tok"), \
 			patch.object(instagram.frappe.db, "get_value", side_effect=_shop_vals()), \
@@ -82,6 +105,8 @@ class TestFetch(UnitTestCase):
 		self.assertEqual(out["r1"]["parent_id"], "c1")
 		self.assertEqual(out["r1"]["media_id"], "m1")
 		self.assertIsInstance(out["r1"]["timestamp"], int)
+		self.assertEqual(out["c1"]["post_matni"], "Post haqida")
+		self.assertEqual(out["r1"]["post_matni"], "Post haqida")
 
 
 class TestFetchErrors(UnitTestCase):
@@ -119,6 +144,9 @@ class TestStore(UnitTestCase):
 		if not shop:
 			self.skipTest("Shop yo'q")
 		c = {"id": "test_dedup_1", "parent_id": None, "text": "salom", "username": "u", "from_id": "5",
-			"timestamp": int(time.time()), "media_id": "m1", "havola": "https://instagram.com/p/abc/"}
-		self.assertTrue(instagram.store(shop, c))
+			"timestamp": int(time.time()), "media_id": "m1", "havola": "https://instagram.com/p/abc/",
+			"post_matni": "Atomic Habits"}
+		name = instagram.store(shop, c)
+		self.assertTrue(name)
 		self.assertIsNone(instagram.store(shop, c))
+		self.assertEqual(frappe.db.get_value("Instagram Xabar", name, "post_matni"), "Atomic Habits")

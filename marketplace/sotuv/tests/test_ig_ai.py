@@ -161,3 +161,66 @@ class TestIgAi(UnitTestCase):
 		):
 			out = ig_ai.answer("Shop", "Nomerim 90 123 45 67")
 		self.assertEqual(out["telefon"], "998901234567")
+
+	def _rows(self, n):
+		return [frappe._dict(name=f"IT-{i}", item_name=f"Kitob {i:03d}", is_stock_item=0, has_variants=0, mp_tez_kunda=0)
+			for i in range(n)]
+
+	def _catalog_with(self, rows, hint=None, prices=None):
+		with (
+			patch("frappe.get_all", return_value=rows) as ga,
+			patch("marketplace.storefront._get_prices", return_value=prices or {}),
+			patch("marketplace.storefront._get_stock", return_value={}),
+			patch("marketplace.storefront._get_variant_stock", return_value={}),
+			patch("frappe.db.get_value", return_value="WH"),
+		):
+			return ig_ai.catalog("Shop", hint=hint), ga
+
+	def test_catalog_hint_puts_advertised_item_first_beyond_limit(self):
+		rows = self._rows(70)
+		rows[65].item_name = "Atomic Habits"
+		out, ga = self._catalog_with(rows, hint="Yangi kitob: ATOMIC  habits — 20% chegirma!")
+		self.assertEqual(len(out), ig_ai.CATALOG_LIMIT)
+		self.assertEqual(out[0]["kod"], "IT-65")
+		self.assertEqual(out[1]["kod"], "IT-0")
+		self.assertNotIn("limit_page_length", ga.call_args.kwargs)  # hint bo'lsa — hamma tovar ichidan qidiriladi
+
+	def test_catalog_without_hint_keeps_limit(self):
+		out, ga = self._catalog_with(self._rows(70))
+		self.assertEqual(len(out), ig_ai.CATALOG_LIMIT)
+		self.assertEqual(ga.call_args.kwargs["limit_page_length"], ig_ai.CATALOG_LIMIT)
+		self.assertEqual(out[0]["kod"], "IT-0")
+
+	def test_catalog_hint_apostrophe_variants(self):
+		rows = self._rows(3)
+		rows[2].item_name = "O'tgan kunlar"
+		out, _ = self._catalog_with(rows, hint="«Oʻtgan kunlar» romani")
+		self.assertEqual(out[0]["kod"], "IT-2")
+
+	def test_catalog_price_is_int(self):
+		out, _ = self._catalog_with(self._rows(1), prices={"IT-0": 99000.0})
+		self.assertEqual(out[0]["narx"], 99000)
+		self.assertIsInstance(out[0]["narx"], int)
+		self.assertIn('"narx": 99000,', ig_ai.build_prompt("S", "", out, "Narxi?", "Izoh"))
+
+	def test_prompt_has_post_text_and_no_guess_rule(self):
+		p = ig_ai.build_prompt("Shop", "", self._items(), "Narxi?", "Izoh", post_matni="Atomic Habits — yangi nashr")
+		self.assertIn("Post matni", p)
+		self.assertIn("Atomic Habits — yangi nashr", p)
+		self.assertIn("taxmin qilma", p)
+		self.assertIn("Menejerimiz Direct'da aniqlab beradi", p)
+		d = ig_ai.build_prompt("Shop", "", self._items(), "Narxi?", "DM")
+		self.assertIn("taxmin qilma", d)
+		self.assertIn("qaysi kitob", d)
+
+	def test_answer_uses_post_text_as_catalog_hint(self):
+		with (
+			patch.object(ig_ai, "catalog", return_value=[]) as cat,
+			patch.object(ig_ai.stt, "settings", return_value=self._cfg()),
+			patch.object(ig_ai.stt, "api_key", return_value="k"),
+			patch("frappe.db.get_value", return_value=frappe._dict(shop_name="Nom", ig_ai_malumot="")),
+			patch("marketplace.telegram_bot.http.post", return_value=_resp(200)) as post,
+		):
+			ig_ai.answer("Shop", "Narxi?", post_matni="Atomic Habits")
+		self.assertIn("Atomic Habits", cat.call_args.kwargs["hint"])
+		self.assertIn("Atomic Habits", post.call_args.kwargs["json"]["contents"][0]["parts"][0]["text"])

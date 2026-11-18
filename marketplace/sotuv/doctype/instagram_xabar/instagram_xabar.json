@@ -8,7 +8,7 @@
  "name": "Instagram Xabar",
  "owner": "Administrator",
  "modified_by": "Administrator",
- "modified": "2026-11-17 10:00:00.000000",
+ "modified": "2026-11-18 12:00:00.000000",
  "links": [],
  "states": [],
  "row_format": "Dynamic",
@@ -85,6 +85,13 @@
    "fieldtype": "Data",
    "label": "Media havolasi",
    "options": "URL"
+  },
+  {
+   "fieldname": "post_matni",
+   "fieldtype": "Small Text",
+   "label": "Post matni",
+   "read_only": 1,
+   "description": "Izoh yozilgan post yoki reklama matni (AI shu bo'yicha tovarni topadi)"
   },
   {
    "fieldname": "mijoz_id",
