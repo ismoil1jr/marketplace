@@ -29,8 +29,8 @@ def _utc(ts):
 	return dt.astimezone(timezone.utc)
 
 
-def media_list(shop: str) -> list[dict]:
-	token = _page_token(shop)
+def media_list(shop: str, token: str | None = None) -> list[dict]:
+	token = token or _page_token(shop)
 	ig = _shop(shop, "ig_user_id")
 	out, seen = [], set()
 
@@ -76,8 +76,14 @@ def fetch_comments(shop: str, since_ts: int) -> list[dict]:
 	uname = _shop(shop, "ig_username")
 	fields = f"{_COMMENT_FIELDS},replies{{{_COMMENT_FIELDS}}}"
 	out = []
-	for media in media_list(shop):
-		data = _graph("GET", f"{media['id']}/comments", token, fields=fields, limit=50).get("data", [])
+	for media in media_list(shop, token):
+		try:
+			data = _graph("GET", f"{media['id']}/comments", token, fields=fields, limit=50).get("data", [])
+		except MetaError as e:
+			if e.code in RATE_CODES:
+				raise
+			_status(shop, _("Post izohlarini olib bo'lmadi (kod {0}); keyingisiga o'tildi").format(e.code or "-"))
+			continue
 		for c in data:
 			items = [_flat(c, None, media)]
 			items += [_flat(r, c.get("id"), media) for r in (c.get("replies") or {}).get("data", [])]

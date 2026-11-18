@@ -84,6 +84,28 @@ class TestFetch(UnitTestCase):
 		self.assertIsInstance(out["r1"]["timestamp"], int)
 
 
+class TestFetchErrors(UnitTestCase):
+	def _run(self, bad_code):
+		def graph(method, path, token=None, **p):
+			if path.endswith("/media"):
+				return {"data": [{"id": "m1", "permalink": "l1"}, {"id": "m2", "permalink": "l2"}]}
+			if path.startswith("m1/"):
+				raise MetaError("x", bad_code)
+			return {"data": [{"id": "c2", "text": "a", "timestamp": _iso(10), "username": "x", "from": {"id": "9"}}]}
+		with patch.object(instagram, "_page_token", return_value="tok"), \
+			patch.object(instagram.frappe.db, "get_value", side_effect=_shop_vals()), \
+			patch.object(instagram, "_status"), \
+			patch.object(instagram, "_graph", side_effect=graph):
+			return instagram.fetch_comments(SHOP, int(time.time()) - 900)
+
+	def test_bad_media_skipped(self):
+		self.assertEqual([x["id"] for x in self._run(100)], ["c2"])
+
+	def test_rate_limit_raises(self):
+		with self.assertRaises(MetaError):
+			self._run(4)
+
+
 class TestStore(UnitTestCase):
 	def tearDown(self):
 		frappe.db.rollback()
