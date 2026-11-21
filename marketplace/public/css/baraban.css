@@ -1,122 +1,274 @@
-/* Chegirma barabani (baraban.js): yopib bo'lmaydigan oyna, aylanadigan baraban, sahifa tepasida taymer */
+/* Chegirma barabani (baraban.js): iOS "shisha" uslubi — xira rangli fon, shisha karta, oltin hoshiyali baraban,
+   yutganda konfetti, sahifa tepasida shisha taymer. Ranglar do'kon brendidan (--bb-brand*, JS hisoblaydi). */
 
 .bb-lock { overflow: hidden; }
 
+/* ---------- Fon ---------- */
 .bb-overlay {
+	--bb-brand: #1F5C4A; --bb-brand-light: #6f9688; --bb-brand-dark: #143b30; --bb-brand-pale: #e4ece9; --bb-brand-rgb: 31,92,74;
 	position: fixed; inset: 0; z-index: 2000;
 	display: flex; align-items: center; justify-content: center;
 	padding: 16px;
-	background: rgb(10 10 10 / .62);
-	backdrop-filter: blur(3px);
-	-webkit-backdrop-filter: blur(3px);
+	overflow: hidden;
+	background: rgb(8 8 14 / .58);
+	backdrop-filter: blur(16px) saturate(150%);
+	-webkit-backdrop-filter: blur(16px) saturate(150%);
+	animation: bb-fade .35s ease both;
 }
+.bb-overlay.is-leaving { animation: bb-fade-out .26s ease both; }
+.bb-orb {
+	position: absolute; border-radius: 50%; filter: blur(60px); opacity: .75; pointer-events: none;
+	animation: bb-float 9s ease-in-out infinite alternate;
+}
+.bb-orb--1 { width: 60vmax; height: 60vmax; left: -22vmax; top: -24vmax; background: rgba(var(--bb-brand-rgb), .85); }
+.bb-orb--2 { width: 46vmax; height: 46vmax; right: -18vmax; bottom: -20vmax; background: rgb(255 170 40 / .55); animation-delay: -3s; }
+.bb-orb--3 { width: 30vmax; height: 30vmax; right: 8vmax; top: 6vmax; background: rgb(255 77 109 / .35); animation-delay: -6s; }
+
+/* ---------- Shisha karta ---------- */
 .bb-card {
-	width: min(100%, 380px);
+	position: relative;
+	width: min(100%, 390px);
 	max-height: calc(100dvh - 32px);
 	overflow: auto;
 	padding: 22px 20px 20px;
-	border-radius: 22px;
-	background: #fff;
-	color: #1b1b1b;
+	border-radius: 34px;
+	background: linear-gradient(165deg, rgb(255 255 255 / .26), rgb(255 255 255 / .08) 55%, rgb(255 255 255 / .14));
+	border: 1px solid rgb(255 255 255 / .38);
+	box-shadow:
+		inset 0 1px 0 rgb(255 255 255 / .65),
+		inset 0 -1px 0 rgb(255 255 255 / .12),
+		0 30px 80px rgb(0 0 0 / .45);
+	backdrop-filter: blur(30px) saturate(190%);
+	-webkit-backdrop-filter: blur(30px) saturate(190%);
+	color: #fff;
 	text-align: center;
-	box-shadow: 0 24px 60px rgb(0 0 0 / .35);
+	scrollbar-width: none;
+	animation: bb-pop .55s cubic-bezier(.2,.9,.25,1.15) both;
 }
-.bb-title { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -.01em; }
-.bb-sub { margin: 6px 0 18px; font-size: 14px; color: #5c5c5c; }
+.bb-card::-webkit-scrollbar { display: none; }
+.bb-eyebrow {
+	display: inline-block; margin: 0 0 8px; padding: 5px 12px;
+	border-radius: 999px;
+	background: rgb(255 255 255 / .18);
+	border: 1px solid rgb(255 255 255 / .3);
+	font-size: 12px; font-weight: 600; letter-spacing: .02em;
+}
+.bb-title { margin: 0; font-size: 27px; line-height: 1.15; font-weight: 800; letter-spacing: -.02em; text-shadow: 0 2px 14px rgb(0 0 0 / .25); }
+.bb-sub { margin: 8px 0 16px; font-size: 14px; line-height: 1.4; color: rgb(255 255 255 / .82); }
 
+/* ---------- Baraban ---------- */
 .bb-wheel-wrap {
 	position: relative;
-	width: min(78vw, 300px);
+	width: min(80vw, 316px);
 	aspect-ratio: 1;
 	margin: 0 auto;
+	transition: height .5s cubic-bezier(.4,0,.2,1), opacity .35s ease, transform .5s cubic-bezier(.4,0,.2,1), margin .5s ease;
 }
-.bb-wheel { display: block; width: 100%; height: 100%; filter: drop-shadow(0 8px 18px rgb(0 0 0 / .18)); }
-.bb-seg--a { fill: var(--brand, #1F5C4A); }
-.bb-seg--b { fill: #fff4e6; }
-.bb-seg-line { stroke: #fff; stroke-width: 2; }
-.bb-rim { fill: none; stroke: var(--brand, #1F5C4A); stroke-width: 8; }
-.bb-label { font-family: inherit; font-size: 15px; font-weight: 700; text-anchor: middle; dominant-baseline: middle; }
-.bb-label--a { fill: #fff; }
-.bb-label--b { fill: #2a2a2a; }
+.bb-wheel-wrap.is-done { height: 0 !important; opacity: 0; transform: scale(.6); margin-top: -8px; pointer-events: none; }
+.bb-wheel { display: block; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 18px 30px rgb(0 0 0 / .35)); }
+.bb-halo { fill: none; stroke: rgb(255 214 90 / .35); stroke-width: 10; filter: blur(4px); }
+.bb-seg { stroke: rgb(255 255 255 / .85); stroke-width: 1.5; }
+.bb-inner-ring { stroke: rgb(0 0 0 / .18); stroke-width: 3; }
+.bb-label { font-family: inherit; text-anchor: middle; }
+.bb-label__num { font-size: 30px; font-weight: 800; }
+.bb-label__unit { font-size: 12px; font-weight: 700; letter-spacing: .04em; }
+.bb-label--a { fill: #fff; paint-order: stroke; stroke: rgb(0 0 0 / .12); stroke-width: 2px; }
+.bb-label--b { fill: var(--bb-brand-dark); }
+.bb-label--c { fill: #5a2d00; }
+.bb-gloss { pointer-events: none; }
+
+/* Lampochkalar: navbatma-navbat yonadi; aylanayotganda tezlashadi, yutganda hammasi yonib-o'chadi */
+.bb-bulb { fill: #fff7d1; filter: drop-shadow(0 0 3px #ffe27a); animation: bb-bulb 1.1s steps(1, end) infinite; }
+.bb-bulb--odd { animation-delay: -.55s; }
+.is-spinning .bb-bulb { animation-duration: .28s; }
+.is-spinning .bb-bulb--odd { animation-delay: -.14s; }
+.is-won .bb-bulb { animation: bb-bulb-win .32s ease-in-out infinite alternate; }
 
 .bb-pointer {
-	position: absolute; z-index: 2; top: -4px; left: 50%;
-	width: 0; height: 0;
+	position: absolute; z-index: 2; top: -14px; left: 50%;
+	width: 40px; height: 52px;
 	transform: translateX(-50%);
-	border-left: 14px solid transparent;
-	border-right: 14px solid transparent;
-	border-top: 26px solid #161616;
-	filter: drop-shadow(0 2px 2px rgb(0 0 0 / .3));
+	transform-origin: 50% 36%;
+	filter: drop-shadow(0 4px 6px rgb(0 0 0 / .35));
 }
+.is-spinning .bb-pointer { animation: bb-tick .13s ease-in-out infinite alternate; }
+
 .bb-spin {
 	position: absolute; z-index: 3; top: 50%; left: 50%;
-	width: 31%; aspect-ratio: 1;
+	width: 30%; aspect-ratio: 1;
 	transform: translate(-50%, -50%);
-	border: 5px solid var(--brand, #1F5C4A);
+	display: grid; place-items: center;
+	padding: 0;
+	border: 4px solid #f7c948;
 	border-radius: 50%;
-	background: #fff;
-	color: var(--brand, #1F5C4A);
-	font-family: inherit; font-size: 14px; font-weight: 700; line-height: 1.15;
+	background: radial-gradient(circle at 35% 30%, #fff 0%, #f6f6f6 45%, #dcdcdc 100%);
+	color: var(--bb-brand-dark);
+	font-family: inherit; font-size: 13px; font-weight: 800; line-height: 1.1;
 	cursor: pointer;
-	box-shadow: 0 4px 14px rgb(0 0 0 / .25);
+	box-shadow: 0 6px 16px rgb(0 0 0 / .35), inset 0 2px 0 #fff, inset 0 -3px 6px rgb(0 0 0 / .12);
 	transition: transform .15s ease;
 }
-.bb-spin:hover:not(:disabled) { transform: translate(-50%, -50%) scale(1.04); }
-.bb-spin:disabled { cursor: default; }
-.bb-spin:focus-visible, .bb-go:focus-visible, .bb-later:focus-visible { outline: 3px solid #161616; outline-offset: 3px; }
-
-.bb-result[hidden] { display: none; }
-.bb-result { margin-top: 2px; }
-.bb-win { margin: 0; font-size: 24px; font-weight: 700; }
-.bb-win-sub { margin: 6px 0 14px; font-size: 16px; }
-.bb-win-sub b { color: var(--brand, #1F5C4A); }
-.bb-product {
-	display: flex; align-items: center; gap: 12px;
-	padding: 10px; margin-bottom: 16px;
-	border-radius: 14px;
-	background: #f6f5f1;
-	text-align: left;
+.bb-spin::before {
+	content: ""; position: absolute; inset: -10px; border-radius: 50%;
+	border: 2px solid rgb(255 255 255 / .7);
+	animation: bb-ring 1.6s ease-out infinite;
 }
-.bb-product img { width: 64px; height: 64px; flex: none; border-radius: 10px; object-fit: cover; background: #fff; }
-.bb-product__name { font-size: 15px; font-weight: 600; }
-.bb-product__price { margin-top: 4px; font-size: 17px; font-weight: 700; color: var(--brand, #1F5C4A); }
-.bb-product__price s { display: block; font-size: 13px; font-weight: 500; color: #8a8a8a; }
+.bb-spin:hover:not(:disabled) { transform: translate(-50%, -50%) scale(1.05); }
+.bb-spin:active:not(:disabled) { transform: translate(-50%, -50%) scale(.96); }
+.bb-spin:disabled { cursor: default; }
+.bb-spin:disabled::before { animation: none; opacity: 0; }
+
+.bb-spin:focus-visible, .bb-go:focus-visible, .bb-later:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+
+/* ---------- Natija ---------- */
+.bb-result[hidden] { display: none; }
+.bb-result:focus { outline: none; }
+.bb-result { animation: bb-rise .55s cubic-bezier(.2,.9,.25,1.1) both; }
+.bb-prize {
+	display: inline-flex; align-items: center; gap: 10px;
+	margin: 16px 0 14px; padding: 8px 16px 8px 8px;
+	border-radius: 999px;
+	background: linear-gradient(135deg, #ffe58a, #ffb627 55%, #ff8a00);
+	color: #4a2400;
+	box-shadow: 0 10px 24px rgb(255 150 0 / .35), inset 0 1px 0 rgb(255 255 255 / .7);
+}
+.bb-prize__num {
+	display: grid; place-items: center;
+	width: 40px; height: 40px; border-radius: 50%;
+	background: #fff; color: #d35400;
+	font-size: 22px; font-weight: 800;
+}
+.bb-prize__text { font-size: 15px; font-weight: 700; }
+
+.bb-product {
+	display: flex; align-items: center; gap: 14px;
+	padding: 12px; margin-bottom: 12px;
+	border-radius: 22px;
+	background: rgb(255 255 255 / .93);
+	color: #1b1b1b;
+	text-align: left;
+	box-shadow: 0 12px 30px rgb(0 0 0 / .18);
+}
+.bb-product__media { position: relative; flex: none; }
+.bb-product__media img { display: block; width: 92px; height: 92px; border-radius: 16px; object-fit: cover; background: #f3f3f3; }
+.bb-product__off {
+	position: absolute; top: -8px; left: -8px;
+	padding: 4px 8px; border-radius: 999px;
+	background: linear-gradient(135deg, #ff4d6d, #e11d48);
+	color: #fff; font-size: 13px; font-weight: 800;
+	box-shadow: 0 4px 10px rgb(225 29 72 / .4);
+}
+.bb-product__info { min-width: 0; }
+.bb-product__name { font-size: 15px; font-weight: 700; line-height: 1.25; }
+.bb-product__price { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; margin-top: 4px; }
+.bb-product__price b { font-size: 20px; font-weight: 800; color: var(--bb-brand); letter-spacing: -.01em; }
+.bb-product__price s { font-size: 13px; color: #8a8a8a; }
+.bb-product__added {
+	display: inline-block; margin-top: 6px; padding: 3px 9px;
+	border-radius: 999px;
+	background: #e7f8ee; color: #138a4c;
+	font-size: 12px; font-weight: 700;
+}
+
+.bb-timer { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-bottom: 14px; }
+.bb-timer__label { font-size: 13px; color: rgb(255 255 255 / .8); }
+
+/* Soat katakchalari */
+.bb-clock { display: inline-flex; align-items: center; gap: 3px; font-variant-numeric: tabular-nums; }
+.bb-clock b {
+	min-width: 26px; padding: 3px 4px;
+	border-radius: 7px;
+	background: rgb(255 255 255 / .2);
+	box-shadow: inset 0 1px 0 rgb(255 255 255 / .35);
+	font-size: 15px; font-weight: 800; line-height: 1.2; text-align: center;
+}
+.bb-clock i { font-style: normal; font-weight: 800; opacity: .8; }
+.bb-clock--lg b { min-width: 46px; padding: 7px 6px; border-radius: 12px; font-size: 26px; background: rgb(255 255 255 / .16); border: 1px solid rgb(255 255 255 / .3); }
+.bb-clock--lg i { font-size: 22px; }
+
 .bb-go {
+	position: relative; overflow: hidden;
 	display: block; width: 100%;
-	padding: 14px 16px;
-	border: 0; border-radius: 14px;
-	background: var(--brand, #1F5C4A);
+	padding: 16px;
+	border: 0; border-radius: 18px;
+	background: linear-gradient(135deg, var(--bb-brand-light), var(--bb-brand) 45%, var(--bb-brand-dark));
 	color: #fff;
-	font-family: inherit; font-size: 16px; font-weight: 600; line-height: 1.2;
+	font-family: inherit; font-size: 17px; font-weight: 800;
 	cursor: pointer;
+	box-shadow: 0 14px 30px rgba(var(--bb-brand-rgb), .45), inset 0 1px 0 rgb(255 255 255 / .35);
+}
+.bb-go::after {
+	content: ""; position: absolute; top: 0; bottom: 0; left: -60%; width: 40%;
+	background: linear-gradient(100deg, transparent, rgb(255 255 255 / .45), transparent);
+	transform: skewX(-20deg);
+	animation: bb-shine 2.6s ease-in-out 1s infinite;
 }
 .bb-later {
-	margin-top: 10px; padding: 6px 10px;
+	margin-top: 10px; padding: 8px 12px;
 	border: 0; background: none;
-	color: #5c5c5c;
-	font-family: inherit; font-size: 14px; font-weight: 500; line-height: 1.2;
-	text-decoration: underline;
+	color: rgb(255 255 255 / .85);
+	font-family: inherit; font-size: 14px; font-weight: 600;
 	cursor: pointer;
 }
+.bb-later:hover { color: #fff; text-decoration: underline; }
 
-/* Taymer: har bir sahifa tepasida (savatda ham) */
+.bb-confetti { position: fixed; inset: 0; z-index: 2001; width: 100vw; height: 100vh; pointer-events: none; }
+
+/* ---------- Taymer: har bir sahifa tepasida (savatda ham) ---------- */
 .bb-bar {
+	--bb-brand: #1F5C4A; --bb-brand-rgb: 31,92,74; --bb-brand-dark: #143b30;
 	position: fixed; z-index: 45; top: 0; left: 0; right: 0;
-	display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap;
-	min-height: 40px; padding: 6px 12px;
-	background: var(--brand, #1F5C4A);
+	display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap;
+	min-height: 46px; padding: 6px 12px;
+	background: linear-gradient(90deg, rgba(var(--bb-brand-rgb), .86), rgba(var(--bb-brand-rgb), .74) 50%, rgba(var(--bb-brand-rgb), .86));
+	border-bottom: 1px solid rgb(255 255 255 / .25);
+	box-shadow: inset 0 1px 0 rgb(255 255 255 / .25), 0 6px 20px rgb(0 0 0 / .12);
+	backdrop-filter: blur(18px) saturate(180%);
+	-webkit-backdrop-filter: blur(18px) saturate(180%);
 	color: #fff;
-	font-size: 14px; line-height: 1.25;
+	font-size: 14px; line-height: 1.2;
 	text-align: center;
-	box-shadow: 0 2px 8px rgb(0 0 0 / .15);
 }
-.bb-bar__time { font-variant-numeric: tabular-nums; font-size: 15px; letter-spacing: .02em; }
-.bb-bar--done { background: #4a4a4a; }
-body.has-bb-bar { padding-top: 40px; }
+.bb-bar__icon { display: inline-block; animation: bb-sand 2s ease-in-out infinite; }
+.bb-bar__label { font-weight: 600; opacity: .95; }
+.bb-bar__deal {
+	padding: 4px 10px; border-radius: 999px;
+	background: #fff; color: var(--bb-brand-dark);
+	font-weight: 800; font-size: 13px;
+	box-shadow: 0 2px 8px rgb(0 0 0 / .12);
+}
+.bb-bar--hurry { animation: bb-hurry 1s ease-in-out infinite alternate; }
+.bb-bar--done { background: rgb(60 60 66 / .85); }
+body.has-bb-bar { padding-top: 46px; }
 body.has-bb-bar .sf-top,
-body.has-bb-bar .kt-head { top: 40px; }
+body.has-bb-bar .kt-head { top: 46px; }
 
+@media (max-width: 440px) {
+	.bb-bar__deal { display: none; } /* telefonda bir qatorda: soat ko'rinib tursin, narx kartalarda bor */
+}
 @media (max-width: 380px) {
-	.bb-bar { font-size: 13px; }
-	.bb-bar__deal { display: none; }
+	.bb-bar { gap: 6px; font-size: 13px; }
+	.bb-bar__icon { display: none; }
+	.bb-bar .bb-clock b { min-width: 23px; font-size: 14px; }
+	.bb-title { font-size: 24px; }
+}
+
+/* ---------- Harakatlar ---------- */
+@keyframes bb-fade { from { opacity: 0; } }
+@keyframes bb-fade-out { to { opacity: 0; } }
+@keyframes bb-pop { from { opacity: 0; transform: translateY(24px) scale(.94); } }
+@keyframes bb-rise { from { opacity: 0; transform: translateY(18px); } }
+@keyframes bb-float { to { transform: translate(4vmax, 3vmax) scale(1.08); } }
+@keyframes bb-bulb { 0% { fill: #fff7d1; opacity: 1; } 50% { fill: #ffb627; opacity: .55; } }
+@keyframes bb-bulb-win { from { fill: #fff; opacity: 1; } to { fill: #ffcf40; opacity: .6; } }
+@keyframes bb-tick { from { transform: translateX(-50%) rotate(0deg); } to { transform: translateX(-50%) rotate(-14deg); } }
+@keyframes bb-ring { from { transform: scale(.85); opacity: .9; } to { transform: scale(1.25); opacity: 0; } }
+@keyframes bb-shine { 0% { left: -60%; } 55%, 100% { left: 130%; } }
+@keyframes bb-sand { 0%, 70% { transform: rotate(0); } 85%, 100% { transform: rotate(180deg); } }
+@keyframes bb-hurry { from { background-color: transparent; } to { background-color: rgb(225 29 72 / .55); } }
+
+@media (prefers-reduced-motion: reduce) {
+	.bb-overlay, .bb-card, .bb-result, .bb-orb, .bb-bulb, .bb-spin::before, .bb-go::after,
+	.bb-bar__icon, .bb-bar--hurry, .is-spinning .bb-pointer { animation: none !important; }
+	.bb-wheel-wrap { transition: none; }
 }
