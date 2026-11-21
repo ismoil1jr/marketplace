@@ -188,3 +188,72 @@ class TestBarabanApi(UnitTestCase):
 		self.assertFalse(frappe.db.exists("Baraban Chegirma", {"token": "a" * 24}))
 		self.assertFalse(frappe.db.exists("Baraban Chegirma", {"token": "c" * 24}))
 		self.assertTrue(frappe.db.exists("Baraban Chegirma", {"token": "b" * 24}))
+
+
+class TestBarabanCart(UnitTestCase):
+	"""get_cart_lines: chegirma narxi faqat faol taymerda (DB'siz, mock bilan)."""
+
+	def _item(self, name, variant_of=None, old_price=0, ws=0):
+		return frappe._dict(
+			name=name, item_name=name, image=None, is_stock_item=0, wholesale_price=ws,
+			wholesale_min_qty=2 if ws else 0, variant_of=variant_of, mp_tez_kunda=0, old_price=old_price,
+		)
+
+	def _lines(self, active, items, qty=1, tpl_old=0):
+		from marketplace import storefront
+
+		tpl = frappe._dict(
+			name="TPL", item_name="TPL", image=None, wholesale_price=0, wholesale_min_qty=0,
+			mp_tez_kunda=0, old_price=tpl_old,
+		)
+		rows = {"first": items}
+
+		def get_all(doctype, **kw):
+			return rows.pop("first", None) or [tpl]
+
+		shop = frappe._dict(name="SHOP-A", warehouse="W")
+		with patch("marketplace.baraban.active", return_value=active) as act, \
+			patch("frappe.get_all", side_effect=get_all), \
+			patch.object(storefront, "_get_prices", return_value={i.name: 500000 for i in items}), \
+			patch.object(storefront, "_get_stock", return_value={}), \
+			patch.object(storefront, "_get_thumbnails", return_value={}), \
+			patch.object(storefront, "variant_labels", return_value={}), \
+			patch.object(storefront, "_color_thumbs", return_value={}):
+			out = storefront.get_cart_lines(shop, [{"code": i.name, "qty": qty} for i in items])
+			self.assertEqual(act.call_count, 1)
+			act.assert_called_with("SHOP-A")
+		return {line["code"]: line for line in out}
+
+	def test_cart_price_only_while_active(self):
+		items = [self._item("V1", variant_of="TPL", old_price=0)]
+		on = self._lines(("TPL", 360000), items, qty=2, tpl_old=600000)["V1"]
+		self.assertEqual(on["price"], 360000)
+		self.assertEqual(on["retail_price"], 500000)
+		self.assertEqual(on["list_price"], 600000)
+		self.assertFalse(on["is_wholesale"])
+		self.assertEqual(on["amount"], 720000)
+		self.assertTrue(on["baraban"])
+		off = self._lines(None, [self._item("V1", variant_of="TPL")], qty=2)["V1"]
+		self.assertEqual(off["price"], 500000)
+		self.assertEqual(off["amount"], 1000000)
+		self.assertFalse(off.get("baraban"))
+
+	def test_cart_price_applies_to_variants_only(self):
+		items = [self._item("V1", variant_of="TPL"), self._item("OTHER", variant_of="TPL2")]
+		out = self._lines(("TPL", 360000), items)
+		self.assertEqual(out["V1"]["price"], 360000)
+		self.assertEqual(out["OTHER"]["price"], 500000)
+		self.assertFalse(out["OTHER"].get("baraban"))
+
+	def test_wheel_price_beats_wholesale(self):
+		items = [self._item("SINGLE", ws=300000)]
+		out = self._lines(("SINGLE", 360000), items, qty=5)["SINGLE"]
+		self.assertEqual(out["price"], 360000)
+		self.assertFalse(out["is_wholesale"])
+
+	def test_token_of_other_shop_ignored(self):
+		row = frappe._dict(name="x", shop="SHOP-B", soat=3, qolgan_soniya=100, oxirgi_signal=None)
+		with patch("frappe.request", MagicMock(cookies={baraban._cookie_name("SHOP-A"): "t" * 24})), \
+			patch("frappe.db.get_value", return_value=row):
+			self.assertIsNone(baraban._row("SHOP-A"))
+			self.assertIsNone(baraban.active("SHOP-A"))

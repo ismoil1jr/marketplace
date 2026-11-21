@@ -383,6 +383,9 @@ def get_cart_lines(shop, lines, held=None):
 	labels = variant_labels([i.name for i in items if i.variant_of])
 	color_thumbs = _color_thumbs([i.name for i in items if i.variant_of])
 
+	from marketplace import baraban
+
+	promo = baraban.active(shop.name)  # (tovar, narx) — faqat brauzerdagi taymer faol bo'lsa
 	out = []
 	for i in items:
 		if i.name not in prices:
@@ -398,6 +401,10 @@ def get_cart_lines(shop, lines, held=None):
 		price = unit_price(prices[i.name], ws, qty)
 		# Chegirmasiz narx (saytdagi chizilgan eski narx, bo'lmasa oddiy narx) — savatda "Chegirma: −X so'm" shundan
 		old = flt(base.old_price)
+		retail, list_price, is_ws, wheel = prices[i.name], max(prices[i.name], old), price != prices[i.name], False
+		if promo and (i.name == promo[0] or i.variant_of == promo[0]):
+			# Baraban chegirmasi: ulgurji narx bilan qo'shilmaydi
+			price, is_ws, wheel = flt(promo[1]), False, True
 		out.append(
 			{
 				"code": i.name,
@@ -405,9 +412,10 @@ def get_cart_lines(shop, lines, held=None):
 				"variant": labels.get(i.name),
 				"template": i.variant_of,
 				"price": price,
-				"retail_price": prices[i.name],
-				"is_wholesale": price != prices[i.name],
-				"list_price": old if old > prices[i.name] else prices[i.name],
+				"retail_price": retail,
+				"is_wholesale": is_ws,
+				"list_price": list_price,
+				"baraban": wheel,
 				"qty": qty,
 				"max_qty": available,
 				"thumb": color_thumbs.get(i.name) or thumbs.get(i.name) or thumbs.get(i.variant_of) or base.image or i.image,
