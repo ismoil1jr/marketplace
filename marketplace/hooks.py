@@ -259,6 +259,7 @@ doc_events = {
 		],
 		"on_trash": "marketplace.storefront.clear_catalog_cache",
 	},
+	"Shop": {"validate": ["marketplace.baraban.validate_shop"]},
 	"Item Group": {
 		"before_insert": "marketplace.permissions.item_group_before_insert",
 		"validate": "marketplace.permissions.item_group_validate",

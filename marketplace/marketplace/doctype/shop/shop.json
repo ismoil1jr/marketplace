@@ -66,6 +66,12 @@
   "cb_meta",
   "meta_holat",
   "meta_page_token",
+  "sb_baraban",
+  "baraban_yoqilgan",
+  "baraban_tovar",
+  "baraban_narx",
+  "baraban_variantlar",
+  "baraban_yutuq",
   "sb_ig_ai",
   "ig_ai_rejim",
   "ig_ai_malumot",
@@ -469,6 +475,44 @@
    "permlevel": 2,
    "read_only": 1,
    "no_copy": 1
+  },
+  {
+   "fieldname": "sb_baraban",
+   "fieldtype": "Section Break",
+   "label": "Chegirma barabani"
+  },
+  {
+   "fieldname": "baraban_yoqilgan",
+   "fieldtype": "Check",
+   "label": "Baraban yoqilgan",
+   "description": "Vitrinada mijozga chegirma barabani chiqadi"
+  },
+  {
+   "fieldname": "baraban_tovar",
+   "fieldtype": "Link",
+   "label": "Tovar",
+   "options": "Item",
+   "description": "Chegirma shu tovarga beriladi (faqat shu do'konning tovari)"
+  },
+  {
+   "fieldname": "baraban_narx",
+   "fieldtype": "Currency",
+   "label": "Chegirma narxi",
+   "description": "Baraban yutganda tovarning narxi"
+  },
+  {
+   "fieldname": "baraban_variantlar",
+   "fieldtype": "Data",
+   "label": "Variantlar (soat, vergul bilan)",
+   "default": "1,2,3,4,5",
+   "description": "Chegirma necha soat amal qilishi mumkin, masalan 1,2,3,4,5"
+  },
+  {
+   "fieldname": "baraban_yutuq",
+   "fieldtype": "Int",
+   "label": "Har doim tushadigan variant (soat)",
+   "default": "3",
+   "description": "Baraban doim shu variantga to'xtaydi; u variantlar ichida bo'lishi kerak"
   },
   {
    "fieldname": "sb_ig_ai",
