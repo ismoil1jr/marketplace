@@ -18,6 +18,56 @@ CACHE_TTL = 300  # 5 daqiqa; tovar/narx o'zgarsa darhol tozalanadi
 BANNER_URL_RE = re.compile(r"^(https?://\S+|/[^/\s]\S*|/)$")
 
 
+# Footer: ijtimoiy tarmoqlar (tartib — ekranda shunday). Qiymat havola yoki @username/raqam bo'lishi mumkin
+SOCIALS = (
+	("telegram", "telegram_kanal", "Telegram", "https://t.me/{}"),
+	("instagram", "instagram", "Instagram", "https://instagram.com/{}"),
+	("youtube", "youtube", "YouTube", "https://youtube.com/@{}"),
+	("facebook", "facebook", "Facebook", "https://facebook.com/{}"),
+	("x", "x_link", "X", "https://x.com/{}"),
+	("whatsapp", "whatsapp", "WhatsApp", "https://wa.me/{}"),
+)
+
+
+def social_url(kind, value):
+	"""Do'kon egasi yozgan qiymat -> xavfsiz havola yoki None.
+
+	Faqat http(s) havola qabul qilinadi (javascript: va boshqalar emas); @username / username / telefon raqamdan
+	tarmoqning o'z manzili yasaladi. WhatsApp: raqamdagi faqat raqamlar (9 xonali bo'lsa +998 qo'shiladi)."""
+	import re
+	from urllib.parse import urlparse
+
+	value = (value or "").strip()
+	if not value:
+		return None
+	if kind != "whatsapp" or re.match(r"^https?://", value, re.I):
+		value = value.split()[0]  # telefon raqamda bo'sh joy bo'ladi, havola/username'da — yo'q
+	template = next((t for k, _f, _l, t in SOCIALS if k == kind), None)
+	if not template:
+		return None
+	if re.match(r"^https?://", value, re.I):
+		u = urlparse(value)
+		return value if u.scheme.lower() in ("http", "https") and u.netloc and '"' not in value and "<" not in value else None
+	if re.match(r"^(t\.me|wa\.me|(www\.)?(instagram|youtube|facebook|x|twitter)\.com)/", value, re.I):
+		return social_url(kind, "https://" + value)
+	if kind == "whatsapp":
+		digits = re.sub(r"\D", "", value)
+		if len(digits) == 9:
+			digits = "998" + digits
+		return template.format(digits) if 9 <= len(digits) <= 15 else None
+	handle = value.lstrip("@")
+	return template.format(handle) if re.fullmatch(r"[A-Za-z0-9._-]{1,64}", handle) else None
+
+
+def social_links(shop):
+	out = []
+	for kind, field, label, _t in SOCIALS:
+		url = social_url(kind, shop.get(field))
+		if url:
+			out.append({"kind": kind, "title": label, "href": url})
+	return out
+
+
 def get_shop(slug):
 	"""Faol do'kon yoki 404."""
 	shop = frappe.db.get_value(
@@ -28,7 +78,7 @@ def get_shop(slug):
 			"instagram", "phone", "pickup_address", "pickup_hours", "pickup_map",
 			"delivery_info", "delivery_short", "banner_label", "banner_title", "banner_image",
 			"banner_group", "enable_payme", "enable_click", "enable_cod", "enable_pickup", "warehouse",
-			"baraban_yoqilgan",
+			"baraban_yoqilgan", "telegram_kanal", "youtube", "facebook", "x_link", "whatsapp",
 		],
 		as_dict=True,
 	)
@@ -44,6 +94,7 @@ def get_shop(slug):
 		label for flag, label in ((shop.enable_payme, "Payme"), (shop.enable_click, "Click"), (shop.enable_cod, "Naqd")) if flag
 	)
 	shop.instagram_handle = (shop.instagram or "").lstrip("@")
+	shop.socials = social_links(shop)
 	# Karusel slaydlari (sotuvchi Shop formasida o'zi yangilaydi)
 	shop.banners = frappe.get_all(
 		"Shop Banner",

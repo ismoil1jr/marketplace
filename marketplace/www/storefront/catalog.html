@@ -15,5 +15,13 @@
 {% endautoescape %}{% endblock %}
 
 {% block foot %}{% autoescape true %}
-<footer class="sf-foot">© {{ shop.shop_name }} · <a href="/s/{{ shop.name | urlencode }}/maxfiylik">Maxfiylik siyosati</a></footer>
+<footer class="sf-foot">
+	{% if shop.socials %}
+	<p class="sf-foot__title">Bizni kuzatib boring</p>
+	<nav class="sf-social" aria-label="Ijtimoiy tarmoqlar">
+		{% for s in shop.socials %}<a class="sf-social__a sf-social__a--{{ s.kind }}" href="{{ s.href }}" target="_blank" rel="noopener" aria-label="{{ s.title }}" title="{{ s.title }}"><svg aria-hidden="true"><use href="#i-so-{{ s.kind }}"/></svg></a>{% endfor %}
+	</nav>
+	{% endif %}
+	<p class="sf-foot__legal">© {{ shop.shop_name }} · <a href="/s/{{ shop.name | urlencode }}/maxfiylik">Maxfiylik siyosati</a></p>
+</footer>
 {% endautoescape %}{% endblock %}

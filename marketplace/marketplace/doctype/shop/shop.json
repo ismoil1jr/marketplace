@@ -31,6 +31,11 @@
   "banners",
   "sb_contact",
   "instagram",
+  "telegram_kanal",
+  "youtube",
+  "facebook",
+  "x_link",
+  "whatsapp",
   "phone",
   "delivery_info",
   "pickup_address",
@@ -249,7 +254,38 @@
   {
    "fieldname": "instagram",
    "fieldtype": "Small Text",
-   "label": "Instagram"
+   "label": "Instagram",
+   "description": "@username yoki havola. Sayt pastida (footer) ijtimoiy tarmoqlar logolari bilan chiqadi — bosilganda o'sha sahifa ochiladi"
+  },
+  {
+   "fieldname": "telegram_kanal",
+   "fieldtype": "Data",
+   "label": "Telegram kanal",
+   "description": "Masalan: @pandoo_books yoki https://t.me/pandoo_books"
+  },
+  {
+   "fieldname": "youtube",
+   "fieldtype": "Data",
+   "label": "YouTube",
+   "description": "@kanal yoki havola"
+  },
+  {
+   "fieldname": "facebook",
+   "fieldtype": "Data",
+   "label": "Facebook",
+   "description": "Sahifa nomi yoki havola"
+  },
+  {
+   "fieldname": "x_link",
+   "fieldtype": "Data",
+   "label": "X (Twitter)",
+   "description": "@username yoki havola"
+  },
+  {
+   "fieldname": "whatsapp",
+   "fieldtype": "Data",
+   "label": "WhatsApp",
+   "description": "Telefon raqam (+998 90 123 45 67) yoki wa.me havolasi"
   },
   {
    "fieldname": "phone",
@@ -584,7 +620,7 @@
  "image_field": "logo",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-11-18 19:45:00.000000",
+ "modified": "2026-11-21 21:30:00.000000",
  "modified_by": "Administrator",
  "module": "Marketplace",
  "name": "Shop",

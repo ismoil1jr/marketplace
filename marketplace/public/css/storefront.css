@@ -44,8 +44,22 @@ svg { width: 20px; height: 20px; flex: none; }
 .sf-center { text-align: center; }
 .sf-pad { padding: 32px 0; }
 /* Sahifa tagidagi kichik qator; pastki qismi qotib turgan tugmalar (savat, buyurtma) tagida qolmasin */
-.sf-foot { padding: 8px var(--gutter) calc(100px + env(safe-area-inset-bottom)); text-align: center; color: var(--muted); font-size: 12px; }
-.sf-foot a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.sf-foot { margin-top: 20px; padding: 26px var(--gutter) calc(100px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); text-align: center; color: var(--muted); font-size: 13px; }
+.sf-foot__title { margin: 0 0 12px; color: var(--ink); font-size: 14px; font-weight: 600; }
+/* Ijtimoiy tarmoqlar: har biri o'z brend rangida (logolar icons.html, simple-icons) */
+.sf-social { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin: 0 0 20px; }
+.sf-social__a { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; color: #fff; box-shadow: 0 6px 16px rgb(0 0 0 / .14); transition: transform .15s ease, box-shadow .15s ease; }
+.sf-social__a svg { width: 22px; height: 22px; }
+.sf-social__a:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgb(0 0 0 / .18); }
+.sf-social__a:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+.sf-social__a--telegram { background: #26A5E4; }
+.sf-social__a--instagram { background: radial-gradient(circle at 30% 107%, #fdf497 0%, #fdf497 5%, #fd5949 45%, #d6249f 60%, #285aeb 90%); }
+.sf-social__a--youtube { background: #ff0000; }
+.sf-social__a--facebook { background: #0866ff; }
+.sf-social__a--x { background: #000; }
+.sf-social__a--whatsapp { background: #25d366; }
+.sf-foot__legal { margin: 0; }
+.sf-foot__legal a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 
 /* ---------- Tugmalar ---------- */
 .sf-btn {

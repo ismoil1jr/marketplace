@@ -11,8 +11,17 @@ frappe.ui.form.on("Shop", {
 		frm.set_query("tovar", "meta_forms", () => ({
 			filters: { shop: frm.doc.name, disabled: 0, variant_of: ["is", "not set"] },
 		}));
+		// Chegirma barabani: faqat shu do'kon tovarlari, uzun tavsifsiz (kod + nom)
+		frm.set_query("baraban_tovar", () => ({ query: "marketplace.baraban.tovar_query", filters: { shop: frm.doc.name } }));
+	},
+	baraban_tovar(frm) {
+		baraban_preview(frm);
+	},
+	baraban_narx(frm) {
+		baraban_preview(frm);
 	},
 	refresh(frm) {
+		baraban_preview(frm);
 		if (frm.is_new()) return;
 
 		const url = `/s/${encodeURIComponent(frm.doc.name)}`;
@@ -185,4 +194,109 @@ function marketplace_meta_connect(frm) {
 		},
 	});
 	d.show();
+}
+
+// ---------- Chegirma barabani: tanlangan tovar kartochkasi va rasmli "Tovar tanlash" oynasi ----------
+function baraban_style() {
+	if (document.getElementById("mp-bb-style")) return;
+	const css = `
+	.mp-bb-pick { margin-top: 8px; }
+	.mp-bb-card { display: flex; align-items: center; gap: 12px; padding: 10px; border: 1px solid var(--border-color); border-radius: 12px; background: var(--card-bg); }
+	.mp-bb-card img, .mp-bb-ph { width: 64px; height: 64px; flex: none; border-radius: 10px; object-fit: cover; background: var(--subtle-fg); }
+	.mp-bb-card__name { font-weight: 600; }
+	.mp-bb-card__meta { color: var(--text-muted); font-size: 12px; }
+	.mp-bb-card__price { margin-top: 2px; }
+	.mp-bb-card__price b { color: var(--green-600, #16a34a); }
+	.mp-bb-card__price s { color: var(--text-muted); margin-left: 6px; }
+	.mp-bb-card .btn { margin-left: auto; white-space: nowrap; }
+	.mp-bb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; max-height: 60vh; overflow: auto; padding: 2px; }
+	.mp-bb-item { display: flex; flex-direction: column; text-align: left; padding: 0; border: 1px solid var(--border-color); border-radius: 12px; background: var(--card-bg); overflow: hidden; cursor: pointer; transition: box-shadow .15s, border-color .15s; }
+	.mp-bb-item:hover, .mp-bb-item:focus-visible { border-color: var(--primary); box-shadow: 0 4px 14px rgba(0,0,0,.08); }
+	.mp-bb-item.is-active { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary); }
+	.mp-bb-item img, .mp-bb-item .mp-bb-ph { width: 100%; height: auto; aspect-ratio: 1; border-radius: 0; object-fit: cover; }
+	.mp-bb-item__body { padding: 8px 10px 10px; }
+	.mp-bb-item__name { font-weight: 600; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+	.mp-bb-item__price { margin-top: 4px; font-weight: 600; }
+	.mp-bb-item__tags { margin-top: 4px; display: flex; gap: 4px; flex-wrap: wrap; }
+	.mp-bb-tag { font-size: 11px; padding: 1px 6px; border-radius: 999px; background: var(--subtle-fg); color: var(--text-muted); }
+	.mp-bb-empty { padding: 24px; text-align: center; color: var(--text-muted); }`;
+	const el = document.createElement("style");
+	el.id = "mp-bb-style";
+	el.textContent = css;
+	document.head.append(el);
+}
+
+const bb_money = (n) => (n ? `${format_number(n, null, 0)} so'm` : __("narx yo'q"));
+const bb_img = (r) => (r.image ? `<img src="${encodeURI(r.image)}" alt="" loading="lazy">` : '<span class="mp-bb-ph"></span>');
+
+function baraban_preview(frm) {
+	const field = frm.fields_dict.baraban_tovar;
+	if (!field || !field.$wrapper) return;
+	baraban_style();
+	let box = field.$wrapper.find(".mp-bb-pick");
+	if (!box.length) box = $('<div class="mp-bb-pick"></div>').appendTo(field.$wrapper);
+	if (frm.is_new()) return box.empty();
+	const code = frm.doc.baraban_tovar;
+	const button = () =>
+		$(`<button type="button" class="btn btn-default btn-sm">${code ? __("Boshqa tovar") : __("Tovar tanlash")}</button>`).on("click", () => baraban_pick(frm));
+	if (!code) return box.empty().append(button());
+	frappe.call({ method: "marketplace.baraban.tovarlar", args: { shop: frm.doc.name, code } }).then((r) => {
+		if (frm.doc.baraban_tovar !== code) return; // tanlov o'zgarib ulgurdi
+		const it = (r.message || [])[0];
+		if (!it) return box.empty().append(button());
+		const e = frappe.utils.escape_html;
+		const wheel = flt(frm.doc.baraban_narx);
+		const card = $(`<div class="mp-bb-card">
+			${bb_img(it)}
+			<div>
+				<div class="mp-bb-card__name">${e(it.item_name)}</div>
+				<div class="mp-bb-card__meta">${e(it.name)}${it.has_variants ? " · " + __("rangli/o'lchamli — chegirma hamma variantga") : ""}${it.is_published ? "" : " · " + __("saytda ko'rinmaydi")}</div>
+				<div class="mp-bb-card__price">${wheel ? `<b>${bb_money(wheel)}</b><s>${bb_money(it.price)}</s>` : bb_money(it.price)}</div>
+			</div>
+		</div>`);
+		card.append(button());
+		box.empty().append(card);
+	});
+}
+
+function baraban_pick(frm) {
+	baraban_style();
+	const d = new frappe.ui.Dialog({
+		title: __("Baraban uchun tovar tanlang"),
+		size: "large",
+		fields: [
+			{ fieldtype: "Data", fieldname: "q", placeholder: __("Qidirish: nomi yoki kodi") },
+			{ fieldtype: "HTML", fieldname: "grid" },
+		],
+	});
+	const grid = $('<div class="mp-bb-grid"></div>').appendTo(d.fields_dict.grid.$wrapper);
+	const e = frappe.utils.escape_html;
+	let seq = 0;
+	const load = async () => {
+		const mine = ++seq;
+		const r = await frappe.call({ method: "marketplace.baraban.tovarlar", args: { shop: frm.doc.name, txt: d.get_value("q") || "" } });
+		if (mine !== seq) return; // eski qidiruv javobi
+		const items = r.message || [];
+		grid.empty();
+		if (!items.length) return grid.append(`<div class="mp-bb-empty">${__("Tovar topilmadi")}</div>`);
+		for (const it of items) {
+			const tags = [it.has_variants ? __("rangli/o'lchamli") : "", it.is_published ? "" : __("saytda yo'q")].filter(Boolean);
+			$(`<button type="button" class="mp-bb-item${it.name === frm.doc.baraban_tovar ? " is-active" : ""}">
+				${bb_img(it)}
+				<div class="mp-bb-item__body">
+					<div class="mp-bb-item__name">${e(it.item_name)}</div>
+					<div class="mp-bb-item__price">${bb_money(it.price)}</div>
+					${tags.length ? `<div class="mp-bb-item__tags">${tags.map((t) => `<span class="mp-bb-tag">${e(t)}</span>`).join("")}</div>` : ""}
+				</div>
+			</button>`)
+				.on("click", () => {
+					frm.set_value("baraban_tovar", it.name);
+					d.hide();
+				})
+				.appendTo(grid);
+		}
+	};
+	d.fields_dict.q.$input.on("input", frappe.utils.debounce(load, 250));
+	d.show();
+	load();
 }

@@ -231,3 +231,56 @@ def cleanup():
 	"""Kunlik: cookie (30 kun) muddati o'tgan qatorlarni o'chiradi. Ertaroq o'chirilsa, qaytgan mijozga baraban
 	qayta chiqib, yangi chegirma olardi (tick modified'ni yangilamaydi — shuning uchun creation bo'yicha)."""
 	frappe.db.delete("Baraban Chegirma", {"creation": ["<", add_days(now_datetime(), -31)]})
+
+
+# ---------- Admin: do'kon formasida baraban tovarini tanlash ----------
+def _shop_items(shop, txt="", code=None, start=0, limit=60, fields=None):
+	frappe.has_permission("Shop", "read", shop, throw=True)
+	filters = {"shop": shop, "disabled": 0, "variant_of": ["is", "not set"]}
+	if code:
+		filters["name"] = code
+	txt = (txt or "").strip()
+	or_filters = {"item_name": ["like", f"%{txt}%"], "name": ["like", f"%{txt}%"]} if txt else None
+	return frappe.get_all(
+		"Item",
+		filters=filters,
+		or_filters=or_filters,
+		fields=fields or ["name", "item_name", "image", "has_variants", "is_published"],
+		order_by="item_name asc",
+		limit_start=cint(start),
+		limit_page_length=cint(limit),
+	)
+
+
+@frappe.whitelist()
+def tovarlar(shop, txt="", code=None):
+	"""«Tovar tanlash» oynasi: shu do'kon tovarlari rasm, nom va narx bilan (variantlar emas — ota tovar)."""
+	from marketplace.storefront import _get_prices
+
+	rows = _shop_items(shop, txt, code)
+	prices = _get_prices([r.name for r in rows]) if rows else {}
+	if any(r.has_variants for r in rows):
+		# Variantli tovarda narx variantlarda: eng arzon variant narxi ko'rsatiladi
+		var = frappe.get_all(
+			"Item",
+			filters={"variant_of": ["in", [r.name for r in rows if r.has_variants]], "disabled": 0},
+			fields=["name", "variant_of"],
+		)
+		vp = _get_prices([v.name for v in var]) if var else {}
+		for v in var:
+			p = flt(vp.get(v.name))
+			if p and (not prices.get(v.variant_of) or p < flt(prices[v.variant_of])):
+				prices[v.variant_of] = p
+	for r in rows:
+		r.price = flt(prices.get(r.name))
+	return rows
+
+
+@frappe.whitelist()
+@frappe.validate_and_sanitize_search_inputs
+def tovar_query(doctype, txt, searchfield, start, page_len, filters):
+	"""Tovar maydonining ochiladigan ro'yxati: faqat shu do'kon tovarlari, uzun tavsifsiz — kod va nom."""
+	shop = (filters or {}).get("shop")
+	if not shop:
+		return []
+	return [(r.name, r.item_name) for r in _shop_items(shop, txt, start=start, limit=page_len, fields=["name", "item_name"])]
