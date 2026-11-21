@@ -83,7 +83,7 @@ def add_lines(so, lines, who=None):
 	if so.payment_status == "To'langan" and so.payment_method != "Naqd":
 		frappe.throw(_("Onlayn to'langan buyurtmaga tovar qo'shib bo'lmaydi — mijoz yangi buyurtma bersin"))
 	shop = storefront.get_shop(so.shop)
-	cart = storefront.get_cart_lines(shop, lines)
+	cart = storefront.get_cart_lines(shop, lines, promo=False)
 	if not cart:
 		frappe.throw(_("Tanlangan tovar sotuvda yo'q yoki tugagan"))
 	requested = {line.get("code"): int(line.get("qty") or 0) for line in lines}

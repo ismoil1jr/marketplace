@@ -70,10 +70,16 @@ class TestBarabanApi(UnitTestCase):
 		]
 		for p in self.patches:
 			p.start()
+		self._reset_limiter()
+
+	def _reset_limiter(self):
+		# @rate_limit hisoblagichi redis'da (IP bo'yicha, 1 soat) — testlar takror ishlaganda to'lib qolmasin
+		frappe.cache.delete_keys("rl:")
 
 	def tearDown(self):
 		for p in self.patches:
 			p.stop()
+		self._reset_limiter()
 		frappe.db.rollback()
 
 	def _row(self, secs_ago=0, remaining=3 * 3600, token="tok" * 8):
@@ -250,6 +256,26 @@ class TestBarabanCart(UnitTestCase):
 		out = self._lines(("SINGLE", 360000), items, qty=5)["SINGLE"]
 		self.assertEqual(out["price"], 360000)
 		self.assertFalse(out["is_wholesale"])
+
+	def test_promo_false_skips_baraban(self):
+		items = [self._item("V1", variant_of="TPL")]
+		from marketplace import storefront
+
+		tpl = frappe._dict(name="TPL", item_name="TPL", image=None, wholesale_price=0, wholesale_min_qty=0,
+			mp_tez_kunda=0, old_price=0)
+		rows = {"first": items}
+		shop = frappe._dict(name="SHOP-A", warehouse="W")
+		with patch("marketplace.baraban.active", return_value=("TPL", 360000)) as act, \
+			patch("frappe.get_all", side_effect=lambda *a, **k: rows.pop("first", None) or [tpl]), \
+			patch.object(storefront, "_get_prices", return_value={"V1": 500000}), \
+			patch.object(storefront, "_get_stock", return_value={}), \
+			patch.object(storefront, "_get_thumbnails", return_value={}), \
+			patch.object(storefront, "variant_labels", return_value={}), \
+			patch.object(storefront, "_color_thumbs", return_value={}):
+			out = storefront.get_cart_lines(shop, [{"code": "V1", "qty": 1}], promo=False)
+		act.assert_not_called()
+		self.assertEqual(out[0]["price"], 500000)
+		self.assertFalse(out[0]["baraban"])
 
 	def test_token_of_other_shop_ignored(self):
 		row = frappe._dict(name="x", shop="SHOP-B", soat=3, qolgan_soniya=100, oxirgi_signal=None)

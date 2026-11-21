@@ -349,10 +349,11 @@ def _size_key(size, rank):
 		return (2, 0, 0, size)
 
 
-def get_cart_lines(shop, lines, held=None):
+def get_cart_lines(shop, lines, held=None, *, promo=True):
 	"""Savatdagi tovarlarning HOZIRGI narxi va qoldig'i. Brauzerdagi narxga ishonilmaydi.
 	held: {kod: soni} — mijozning o'z to'lanmagan buyurtmasi zaxiralagani (qayta rasmiylashtirganda bo'shaydi),
-	shuning uchun savatda "tugagan" bo'lib ko'rinmasin."""
+	shuning uchun savatda "tugagan" bo'lib ko'rinmasin.
+	promo=False — mijoz bo'lmagan chaqiruvchi (sotuv menejeri): joriy brauzerning baraban chegirmasi qo'llanmaydi."""
 	qty_by_code = {}
 	for line in lines or []:
 		code, qty = line.get("code"), cint(line.get("qty"))
@@ -383,9 +384,10 @@ def get_cart_lines(shop, lines, held=None):
 	labels = variant_labels([i.name for i in items if i.variant_of])
 	color_thumbs = _color_thumbs([i.name for i in items if i.variant_of])
 
-	from marketplace import baraban
+	if promo:
+		from marketplace import baraban
 
-	promo = baraban.active(shop.name)  # (tovar, narx) — faqat brauzerdagi taymer faol bo'lsa
+		promo = baraban.active(shop.name)  # (tovar, narx) — faqat brauzerdagi taymer faol bo'lsa
 	out = []
 	for i in items:
 		if i.name not in prices:
