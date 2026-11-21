@@ -333,7 +333,7 @@
 		// Variantli tovar: shu tovarning biror varianti savatda bo'lsa, yana qo'shilmaydi
 		const inCart = SF.cart && (p.codes || [code]).some((c) => SF.cart.qty(c) > 0);
 		if (SF.cart && !inCart) {
-			SF.cart.remember(code, { name: p.name, variant: p.variant || "", thumb: p.thumb || "" });
+			SF.cart.remember(code, { name: p.name, variant: p.variant || "", thumb: p.thumb || "", price: p.add_price || 0 });
 			SF.cart.add(code, 1);
 		}
 		sub.hidden = true;

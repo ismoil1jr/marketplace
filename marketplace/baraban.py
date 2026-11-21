@@ -102,6 +102,7 @@ def config(shop):
 			cfg.qoshish = (bor or codes)[0]
 			cfg.qoshish_nomi = variant_labels([cfg.qoshish]).get(cfg.qoshish)
 		narxlar = _get_prices(cfg.kodlar)
+		cfg.qoshish_narx = flt(narxlar.get(cfg.qoshish))  # muddat tugagach yon savatda oddiy narx ko'rinsin
 		eski = max([flt(v) for v in narxlar.values()] or [0])
 		cfg.eski_narx = eski if eski > cfg.narx else None
 		return cfg
@@ -146,6 +147,7 @@ def _state(shop, cfg, row, spun=False):
 			"codes": cfg.kodlar,
 			"add": cfg.qoshish,
 			"variant": cfg.qoshish_nomi,
+			"add_price": cfg.get("qoshish_narx") or 0,
 		},
 	}
 
