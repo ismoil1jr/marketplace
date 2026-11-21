@@ -42,51 +42,77 @@
 	let remaining = 0;
 
 	// ---------- Chegirma narxi: yon savat jami va sahifadagi narxlar ----------
+	// Sahifadagi har bir o'zgarish yozib boriladi — muddat tugaganda hammasi asl holiga qaytariladi
+	const undo = [];
+	const setText = (node, text) => {
+		const prev = node.textContent;
+		undo.push(() => (node.textContent = prev));
+		node.textContent = text;
+	};
+	const setData = (node, key, val) => {
+		const had = key in node.dataset;
+		const prev = node.dataset[key];
+		undo.push(() => (had ? (node.dataset[key] = prev) : delete node.dataset[key]));
+		node.dataset[key] = val;
+	};
+	const show = (node) => {
+		const prev = node.hidden;
+		undo.push(() => (node.hidden = prev));
+		node.hidden = false;
+	};
+	const insertAfter = (ref, ...nodes) => {
+		ref.after(...nodes);
+		undo.push(() => nodes.forEach((n) => n.remove()));
+	};
+
 	function applyPrices() {
 		if (!st) return;
-		const code = st.product.code;
+		const codes = st.product.codes || [st.product.code];
 		const on = remaining > 0;
-		SF.promoPrice = on ? (c) => (c === code ? st.price : 0) : null;
-		if (on) {
-			const old = st.old_price;
+		const old = st.old_price;
+		SF.promoPrice = on ? (c) => (codes.includes(c) ? st.price : 0) : null;
+		// Narxlar faqat haqiqiy chegirma bo'lsa almashadi (oddiy narx chegirma narxidan qimmat — server ham shunday)
+		if (on && old && !undo.length) {
 			// Katalog kartalari: oddiy (sf-price), "story" (st-card) va ro'yxat (kt-row) ko'rinishlari
 			document.querySelectorAll(".sf-card[data-code]").forEach((card) => {
-				if (card.dataset.code !== code) return;
+				if (!codes.includes(card.dataset.code)) return;
 				const nowEl = card.querySelector(".sf-price__now, .st-card__price strong, .kt-price [data-retail]");
 				if (!nowEl) return;
-				nowEl.textContent = fmt(st.price);
+				setText(nowEl, fmt(st.price));
 				let oldEl = card.querySelector(".sf-price__old, .st-card__price s, .kt-price s");
-				if (!oldEl && old) {
+				if (!oldEl) {
 					oldEl = el("s", nowEl.classList.contains("sf-price__now") ? "sf-price__old" : "");
-					nowEl.after(oldEl);
+					insertAfter(nowEl, oldEl);
 				}
-				if (oldEl && old) oldEl.textContent = fmt(old);
+				setText(oldEl, fmt(old));
+				const badge = card.querySelector(".sf-badge:not(.sf-badge--soon):not(.sf-badge--muted)");
+				if (badge) setText(badge, `−${Math.round((1 - st.price / old) * 100)}%`);
 			});
-			// Mahsulot sahifasi
+			// Mahsulot sahifasi (rang tanlanganda storefront.js ham SF.promoPrice'ni hisobga oladi)
 			const buy = document.querySelector(".sf-buy[data-code]");
 			const nowEl = document.querySelector("[data-price-now]");
-			if (buy && nowEl && buy.dataset.code === code) {
-				nowEl.textContent = fmt(st.price);
-				nowEl.dataset.priceNow = st.price;
-				if (old) {
-					let oldEl = document.querySelector("[data-price-old]");
-					let badge = document.querySelector("[data-price-badge]");
-					if (!oldEl) {
-						oldEl = el("s");
-						badge = el("span", "sf-badge sf-badge--inline");
-						badge.setAttribute("data-price-badge", "");
-						nowEl.after(oldEl, badge);
-					}
-					oldEl.dataset.priceOld = old;
-					oldEl.textContent = fmt(old);
-					oldEl.hidden = false;
-					if (badge) {
-						badge.textContent = `−${Math.round((1 - st.price / old) * 100)}%`;
-						badge.hidden = false;
-					}
+			if (buy && nowEl && codes.includes(buy.dataset.code)) {
+				setText(nowEl, fmt(st.price));
+				setData(nowEl, "priceNow", st.price);
+				setData(nowEl, "promoText", fmt(st.price));
+				let oldEl = document.querySelector("[data-price-old]");
+				let badge = document.querySelector("[data-price-badge]");
+				if (!oldEl) {
+					oldEl = el("s");
+					badge = el("span", "sf-badge sf-badge--inline");
+					badge.setAttribute("data-price-badge", "");
+					insertAfter(nowEl, oldEl, badge);
+				}
+				setData(oldEl, "priceOld", old);
+				setText(oldEl, fmt(old));
+				show(oldEl);
+				if (badge) {
+					setText(badge, `−${Math.round((1 - st.price / old) * 100)}%`);
+					show(badge);
 				}
 			}
 		}
+		if (!on) while (undo.length) undo.pop()();
 		if (SF.cart && SF.cart.refresh) SF.cart.refresh();
 	}
 
@@ -125,14 +151,17 @@
 			if (remaining <= 0) expire();
 		}, 1000);
 		document.addEventListener("visibilitychange", () => {
-			if (remaining > 0) tick(); // qaytganda serverdan aniq qiymat; ketayotganda oxirgi soniyalarni yozib qo'yadi
+			// Ketayotganda oxirgi soniyalar yoziladi; qaytganda hisob shu daqiqadan boshlanadi (yo'q vaqt hisoblanmaydi)
+			if (remaining > 0) tick(document.visibilityState === "visible");
 		});
 	}
 
-	async function tick() {
+	async function tick(resume = false) {
 		sinceTick = 0;
-		// keepalive: boshqa sahifaga o'tayotganda ham so'rov uziladi-ketmaydi (oxirgi soniyalar yo'qolmasin)
-		const r = await api("tick", { shop: SF.shop }, document.visibilityState !== "visible");
+		// keepalive: boshqa sahifaga o'tayotganda ham so'rov uzilmaydi (oxirgi soniyalar yo'qolmasin)
+		const data = { shop: SF.shop };
+		if (resume) data.resume = 1;
+		const r = await api("tick", data, document.visibilityState !== "visible");
 		if (!r || typeof r.remaining !== "number" || remaining <= 0) return;
 		remaining = r.remaining;
 		if (timeEl) timeEl.textContent = hms(remaining);
@@ -269,11 +298,17 @@
 			spinBtn.disabled = true;
 			const r = await api("spin", { shop: SF.shop });
 			if (!r || !r.enabled) {
-				// Server javob bermadi yoki aksiya o'chirildi: mijozni qamab qo'ymaymiz
+				// Server javob bermadi yoki aksiya o'chirildi: mijozni qamab qo'ymaymiz — sayt ishlayveradi
 				if (r && !r.enabled) return close();
 				busy = false;
 				spinBtn.disabled = false;
-				sub.textContent = "Internet bilan muammo. Qayta bosing.";
+				sub.textContent = "Hozircha aylanmadi. Qayta bosing yoki xaridni davom ettiring.";
+				if (!card.querySelector(".bb-later")) {
+					const skip = el("button", "bb-later", "Xaridni davom ettirish");
+					skip.type = "button";
+					skip.addEventListener("click", close);
+					card.append(skip);
+				}
 				return;
 			}
 			st = r;
@@ -293,10 +328,13 @@
 	}
 
 	function showResult(result, sub, close) {
-		const code = st.product.code;
-		if (SF.cart) {
-			SF.cart.remember(code, { name: st.product.name, thumb: st.product.thumb || "" });
-			if (!SF.cart.qty(code)) SF.cart.add(code, 1);
+		const p = st.product;
+		const code = p.add || p.code;
+		// Variantli tovar: shu tovarning biror varianti savatda bo'lsa, yana qo'shilmaydi
+		const inCart = SF.cart && (p.codes || [code]).some((c) => SF.cart.qty(c) > 0);
+		if (SF.cart && !inCart) {
+			SF.cart.remember(code, { name: p.name, variant: p.variant || "", thumb: p.thumb || "" });
+			SF.cart.add(code, 1);
 		}
 		sub.hidden = true;
 		result.replaceChildren();
@@ -306,14 +344,14 @@
 		result.append(winSub);
 
 		const prod = el("div", "bb-product");
-		if (st.product.thumb) {
+		if (p.thumb) {
 			const img = el("img");
-			img.src = st.product.thumb;
+			img.src = p.thumb;
 			img.alt = "";
 			prod.append(img);
 		}
 		const info = el("div");
-		info.append(el("div", "bb-product__name", st.product.name));
+		info.append(el("div", "bb-product__name", p.variant ? `${p.name} (${p.variant})` : p.name));
 		const price = el("div", "bb-product__price", fmt(st.price));
 		if (st.old_price) price.append(el("s", "", fmt(st.old_price)));
 		info.append(price);
@@ -339,6 +377,7 @@
 
 	// ---------- Ishga tushirish ----------
 	async function init() {
+		if (/\bpage-(privacy|order)\b/.test(document.body.className)) return;
 		const r = await api("state", { shop: SF.shop });
 		if (!r || !r.enabled) return;
 		st = r;

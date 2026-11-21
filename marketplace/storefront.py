@@ -405,8 +405,8 @@ def get_cart_lines(shop, lines, held=None, *, promo=True):
 		# Chegirmasiz narx (saytdagi chizilgan eski narx, bo'lmasa oddiy narx) — savatda "Chegirma: −X so'm" shundan
 		old = flt(base.old_price)
 		retail, list_price, is_ws, wheel = prices[i.name], max(prices[i.name], old), price != prices[i.name], False
-		if promo and (i.name == promo[0] or i.variant_of == promo[0]):
-			# Baraban chegirmasi: ulgurji narx bilan qo'shilmaydi
+		if promo and (i.name == promo[0] or i.variant_of == promo[0]) and flt(promo[1]) < price:
+			# Baraban chegirmasi: ulgurji narx bilan qo'shilmaydi; oddiy/ulgurji narx arzonroq bo'lsa — o'sha qoladi
 			price, is_ws, wheel = flt(promo[1]), False, True
 		out.append(
 			{

@@ -41,11 +41,11 @@
 	store.set(META_KEY, meta);
 
 	const unitPrice = (code, q) => {
-		// Chegirma barabani faol bo'lsa (baraban.js) — o'sha tovar chegirma narxida
-		const promo = SF.promoPrice && SF.promoPrice(code);
-		if (promo) return promo;
 		const m = meta[code] || {};
-		return m.ws && q >= m.wsmin ? m.ws : m.price || 0;
+		const normal = m.ws && q >= m.wsmin ? m.ws : m.price || 0;
+		// Chegirma barabani faol bo'lsa (baraban.js) — chegirma narxi, lekin oddiy/ulgurji arzonroq bo'lsa o'sha (server ham shunday)
+		const promo = SF.promoPrice && SF.promoPrice(code);
+		return promo && (!normal || promo < normal) ? promo : normal;
 	};
 
 	const cart = {
@@ -685,7 +685,7 @@
 			const baseText = nowEl?.textContent;
 			function showPrice(price) {
 				if (!nowEl) return;
-				nowEl.textContent = price ? fmt(price) : baseText;
+				nowEl.textContent = price ? fmt(price) : nowEl.dataset.promoText || baseText;
 				if (!oldEl) return;
 				const old = +oldEl.dataset.priceOld, now = price || +nowEl.dataset.priceNow;
 				oldEl.hidden = badgeEl.hidden = !(old > now);
@@ -705,7 +705,9 @@
 				if (lab) lab.textContent = sel.color || "tanlang";
 				const v = opt.variants[key(hasColors ? sel.color : "", hasSizes ? sel.size : "")];
 				const ready = (!hasColors || sel.color) && (!hasSizes || sel.size);
-				showPrice(ready && v ? v.price : null);
+				// Baraban chegirmasi variantga ham (SF.promoPrice — baraban.js)
+				const promo = ready && v && SF.promoPrice ? SF.promoPrice(v.code) : 0;
+				showPrice(ready && v ? (promo && promo < v.price ? promo : v.price) : null);
 				const stockEl = $("[data-variant-stock]", box);
 				// Tez kunda / tugagan: tugma yo'q — rang faqat rasmlarni ko'rsatadi
 				if (!addBtn) { stockEl.textContent = ""; return; }

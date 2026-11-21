@@ -35,7 +35,8 @@ def as_system():
 		frappe.set_user(user)
 
 
-def place_order(shop, lines, delivery_method, address, customer):
+def place_order(shop, lines, delivery_method, address, customer, promo=True):
+	"""promo=False — sotuv menejeri yaratgan buyurtma: menejer brauzeridagi baraban cookie'si mijozga ta'sir qilmasin."""
 	if delivery_method not in DELIVERY_METHODS:
 		frappe.throw(_("Yetkazib berish usulini tanlang"))
 	if delivery_method == "O'zim olaman" and not cint(shop.get("enable_pickup", 1)):
@@ -45,7 +46,7 @@ def place_order(shop, lines, delivery_method, address, customer):
 		frappe.throw(_("Yetkazib berish manzilini yozing"), title=_("Manzil"))
 	_release_pending(shop.name, customer)
 
-	cart = storefront.get_cart_lines(shop, lines)
+	cart = storefront.get_cart_lines(shop, lines, promo=promo)
 	if not cart:
 		frappe.throw(_("Savat bo‘sh yoki tovarlar tugagan"))
 

@@ -842,7 +842,7 @@ def _make_order(lead, shop_name, data, kanal):
 		if not pick and must["has_variants"]:
 			frappe.throw(_("Majburiy tovar «{0}»: rang / o'lchamni tanlang").format(must["name"]))
 		lines.append({"code": pick or must["code"], "qty": 1})
-	so = orders.place_order(shop, lines, method, data.manzil, customer)
+	so = orders.place_order(shop, lines, method, data.manzil, customer, promo=False)
 	so.db_set({"payment_method": "Naqd", "order_source": ORDER_SOURCE.get(lead.manba, "Web"), "mp_aloqa_natija": "Oladi",
 	           "mp_aloqa_kanal": kanal}, update_modified=False)
 	so.add_comment("Info", _("Murojaat {0} bo'yicha sotuv menejeri yaratdi: {1}").format(lead.name, frappe.utils.get_fullname()))

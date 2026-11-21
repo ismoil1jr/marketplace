@@ -62,12 +62,13 @@ def _base_config(shop):
 		if not tovar or narx <= 0 or not vs or yutuq not in vs:
 			return None
 		item = frappe.db.get_value(
-			"Item", tovar, ["shop", "item_name", "image", "disabled", "is_published"], as_dict=True
+			"Item", tovar, ["shop", "item_name", "image", "disabled", "is_published", "has_variants"], as_dict=True
 		)
 		if not item or item.shop != shop or cint(item.disabled) or not cint(item.is_published):
 			return None
 		return frappe._dict(
-			tovar=tovar, narx=narx, variantlar=vs, yutuq=yutuq, tovar_nomi=item.item_name, rasm=item.image
+			tovar=tovar, narx=narx, variantlar=vs, yutuq=yutuq, tovar_nomi=item.item_name, rasm=item.image,
+			has_variants=cint(item.has_variants),
 		)
 	except Exception:
 		frappe.log_error(title="Baraban: config", message=frappe.get_traceback())
@@ -80,9 +81,28 @@ def config(shop):
 		cfg = _base_config(shop)
 		if not cfg:
 			return None
-		from marketplace.storefront import _get_prices
+		from marketplace.storefront import _get_prices, _get_stock, variant_labels
 
-		eski = flt(_get_prices([cfg.tovar]).get(cfg.tovar))
+		# Variantli tovar (masalan, Panda books: Ko'k/Sariq/Yashil): chegirma har bir variantga; savatga qoldig'i
+		# bor birinchi variant qo'shiladi (shablonning o'zi savatga tushmaydi)
+		cfg.kodlar, cfg.qoshish, cfg.qoshish_nomi = [cfg.tovar], cfg.tovar, None
+		if cfg.has_variants:
+			rows = frappe.get_all(
+				"Item",
+				filters={"variant_of": cfg.tovar, "disabled": 0, "is_published": 1},
+				fields=["name", "is_stock_item"],
+				order_by="name asc",
+			)
+			if not rows:
+				return None
+			codes = [r.name for r in rows]
+			stock = _get_stock(codes, frappe.db.get_value("Shop", shop, "warehouse"))
+			bor = [r.name for r in rows if not cint(r.is_stock_item) or stock.get(r.name, 0) > 0]
+			cfg.kodlar += codes
+			cfg.qoshish = (bor or codes)[0]
+			cfg.qoshish_nomi = variant_labels([cfg.qoshish]).get(cfg.qoshish)
+		narxlar = _get_prices(cfg.kodlar)
+		eski = max([flt(v) for v in narxlar.values()] or [0])
 		cfg.eski_narx = eski if eski > cfg.narx else None
 		return cfg
 	except Exception:
@@ -105,6 +125,11 @@ def _row(shop):
 	return row
 
 
+def _live_shop(shop):
+	"""Faol do'kon nomi yoki None — har 15 soniyadagi tick uchun arzon (get_shop banner va boshqalarni ham yuklaydi)."""
+	return frappe.db.get_value("Shop", {"name": shop, "status": "Active"}, "name") if shop else None
+
+
 def _state(shop, cfg, row, spun=False):
 	return {
 		"enabled": True,
@@ -114,29 +139,32 @@ def _state(shop, cfg, row, spun=False):
 		"remaining": max(0, cint(row.qolgan_soniya)) if row else 0,
 		"price": cfg.narx,
 		"old_price": cfg.eski_narx,
-		"product": {"code": cfg.tovar, "name": cfg.tovar_nomi, "thumb": cfg.rasm},
+		"product": {
+			"code": cfg.tovar,
+			"name": cfg.tovar_nomi,
+			"thumb": cfg.rasm,
+			"codes": cfg.kodlar,
+			"add": cfg.qoshish,
+			"variant": cfg.qoshish_nomi,
+		},
 	}
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 @rate_limit(limit=300, seconds=60)
 def state(shop):
-	from marketplace.storefront import get_shop
-
-	shop = get_shop(shop).name
-	cfg = config(shop)
+	shop = _live_shop(shop)
+	cfg = shop and config(shop)
 	if not cfg:
 		return {"enabled": False}
 	return _state(shop, cfg, _row(shop))
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
-@rate_limit(limit=10, seconds=3600)
+@rate_limit(limit=100, seconds=600)  # bir IP ortida ko'p mijoz (mobil operator, ofis Wi-Fi)
 def spin(shop):
-	from marketplace.storefront import get_shop
-
-	shop = get_shop(shop).name
-	cfg = config(shop)
+	shop = _live_shop(shop)
+	cfg = shop and config(shop)
 	if not cfg:
 		return {"enabled": False}
 	row = _row(shop)
@@ -162,17 +190,17 @@ def spin(shop):
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 @rate_limit(limit=300, seconds=60)
-def tick(shop):
-	from marketplace.storefront import get_shop
-
-	shop = get_shop(shop).name
-	row = _row(shop)
+def tick(shop, resume=0):
+	"""Mijoz saytda: qolgan vaqtni kamaytiradi. resume=1 — mijoz qaytdi: faqat hisobni shu daqiqadan boshlaydi
+	(yo'q bo'lgan vaqt hisoblanmaydi; ketishda yuborilgan tick oxirgi soniyalarni allaqachon yozgan)."""
+	shop = _live_shop(shop)
+	row = shop and _row(shop)
 	if not row:
 		return {"remaining": 0}
 	remaining = max(0, cint(row.qolgan_soniya))
 	if remaining > 0:
 		now = now_datetime()
-		gap = time_diff_in_seconds(now, row.oxirgi_signal) if row.oxirgi_signal else 0
+		gap = time_diff_in_seconds(now, row.oxirgi_signal) if row.oxirgi_signal and not cint(resume) else 0
 		remaining = max(0, remaining - int(min(max(0, gap), MAX_STEP)))
 		frappe.db.set_value(
 			"Baraban Chegirma",
@@ -191,16 +219,13 @@ def active(shop):
 			return None
 		cfg = _base_config(shop)
 		if cfg:
-			return (cfg.tovar, cfg.narx)
+			return (cfg.tovar, cfg.narx)  # storefront: tovarning o'zi yoki uning varianti
 	except Exception:
 		frappe.log_error(title="Baraban active xatosi")
 	return None
 
 
 def cleanup():
-	"""Kunlik: tugagan (7 kundan eski) va 60 kundan eski qatorlarni o'chiradi."""
-	frappe.db.delete(
-		"Baraban Chegirma",
-		{"qolgan_soniya": ["<=", 0], "modified": ["<", add_days(now_datetime(), -7)]},
-	)
-	frappe.db.delete("Baraban Chegirma", {"creation": ["<", add_days(now_datetime(), -60)]})
+	"""Kunlik: cookie (30 kun) muddati o'tgan qatorlarni o'chiradi. Ertaroq o'chirilsa, qaytgan mijozga baraban
+	qayta chiqib, yangi chegirma olardi (tick modified'ni yangilamaydi — shuning uchun creation bo'yicha)."""
+	frappe.db.delete("Baraban Chegirma", {"creation": ["<", add_days(now_datetime(), -31)]})

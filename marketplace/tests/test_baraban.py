@@ -66,7 +66,7 @@ class TestBarabanApi(UnitTestCase):
 			patch("frappe.local.cookie_manager", self.cm, create=True),
 			patch("marketplace.baraban.config", return_value=self.cfg),
 			patch("marketplace.baraban._base_config", return_value=self.cfg),
-			patch("marketplace.storefront.get_shop", return_value=frappe._dict(name=self.shop)),
+			patch("marketplace.baraban._live_shop", side_effect=lambda shop: shop),
 		]
 		for p in self.patches:
 			p.start()
@@ -131,6 +131,22 @@ class TestBarabanApi(UnitTestCase):
 		res = baraban.tick(self.shop)
 		self.assertAlmostEqual(3 * 3600 - res["remaining"], 10, delta=2)
 
+	def test_tick_resume_does_not_count_time_away(self):
+		self._row(secs_ago=15)
+		res = baraban.tick(self.shop, resume=1)
+		self.assertEqual(res["remaining"], 3 * 3600)
+		# signal shu daqiqaga ko'chdi: keyingi oddiy tick faqat shundan beri o'tgan vaqtni oladi
+		self.assertLess(
+			(now_datetime() - frappe.db.get_value("Baraban Chegirma", {"shop": self.shop}, "oxirgi_signal")).total_seconds(), 5
+		)
+
+	def test_spin_rate_limit_allows_shared_ip(self):
+		# bir IP ortida ko'p mijoz (CGNAT): 10 dan ortiq yangi mijoz ham aylantira oladi
+		for i in range(12):
+			self.cookies.clear()
+			res = baraban.spin(self.shop)
+			self.assertTrue(res["spun"], i)
+
 	def test_tick_no_row(self):
 		self.assertEqual(baraban.tick(self.shop), {"remaining": 0})
 
@@ -183,17 +199,41 @@ class TestBarabanApi(UnitTestCase):
 		self.assertIsNone(self._full_config(50).eski_narx)
 
 	def test_cleanup(self):
-		old = now_datetime() - timedelta(days=10)
+		# Cookie 30 kun yashaydi: tugagan qator ham undan oldin o'chmasin, aks holda qaytgan mijozga baraban qayta chiqadi
 		self._row(remaining=0, token="a" * 24)
-		self._row(remaining=500, token="b" * 24)
+		self._row(remaining=0, token="b" * 24)
 		self._row(remaining=500, token="c" * 24)
-		frappe.db.set_value("Baraban Chegirma", {"token": "a" * 24}, "modified", old, update_modified=False)
+		frappe.db.set_value("Baraban Chegirma", {"token": "a" * 24}, "creation",
+			now_datetime() - timedelta(days=10), update_modified=False)
+		frappe.db.set_value("Baraban Chegirma", {"token": "b" * 24}, "creation",
+			now_datetime() - timedelta(days=32), update_modified=False)
 		frappe.db.set_value("Baraban Chegirma", {"token": "c" * 24}, "creation",
-			now_datetime() - timedelta(days=61), update_modified=False)
+			now_datetime() - timedelta(days=32), update_modified=False)
 		baraban.cleanup()
-		self.assertFalse(frappe.db.exists("Baraban Chegirma", {"token": "a" * 24}))
+		self.assertTrue(frappe.db.exists("Baraban Chegirma", {"token": "a" * 24}))
+		self.assertFalse(frappe.db.exists("Baraban Chegirma", {"token": "b" * 24}))
 		self.assertFalse(frappe.db.exists("Baraban Chegirma", {"token": "c" * 24}))
-		self.assertTrue(frappe.db.exists("Baraban Chegirma", {"token": "b" * 24}))
+
+	def test_config_variant_item(self):
+		# Variantli tovar (Panda books: Ko'k/Sariq/Yashil): chegirma hamma variantga, savatga qoldig'i bor birinchisi
+		self.patches[2].stop()
+		self.patches[3].stop()
+		try:
+			rows = [frappe._dict(name="I-A", is_stock_item=1), frappe._dict(name="I-B", is_stock_item=1)]
+			with patch("marketplace.baraban._base_config", return_value=frappe._dict(
+				tovar="I", narx=360000, variantlar=[1, 3], yutuq=3, tovar_nomi="n", rasm=None, has_variants=1)), \
+				patch("frappe.get_all", return_value=rows), \
+				patch("marketplace.storefront._get_stock", return_value={"I-A": 0, "I-B": 4}), \
+				patch("marketplace.storefront.variant_labels", return_value={"I-B": "Sariq"}), \
+				patch("marketplace.storefront._get_prices", return_value={"I-A": 500000, "I-B": 500000}):
+				cfg = baraban.config(self.shop)
+		finally:
+			self.patches[2].start()
+			self.patches[3].start()
+		self.assertEqual(cfg.kodlar, ["I", "I-A", "I-B"])
+		self.assertEqual(cfg.qoshish, "I-B")
+		self.assertEqual(cfg.qoshish_nomi, "Sariq")
+		self.assertEqual(cfg.eski_narx, 500000)
 
 
 class TestBarabanCart(UnitTestCase):
@@ -252,10 +292,44 @@ class TestBarabanCart(UnitTestCase):
 		self.assertFalse(out["OTHER"].get("baraban"))
 
 	def test_wheel_price_beats_wholesale(self):
-		items = [self._item("SINGLE", ws=300000)]
+		items = [self._item("SINGLE", ws=400000)]
 		out = self._lines(("SINGLE", 360000), items, qty=5)["SINGLE"]
 		self.assertEqual(out["price"], 360000)
 		self.assertFalse(out["is_wholesale"])
+		self.assertTrue(out["baraban"])
+
+	def test_cheaper_normal_price_wins_over_wheel(self):
+		# Ulgurji (yoki keyin tushirilgan oddiy narx) chegirmadan arzon bo'lsa — mijoz arzonini to'laydi
+		items = [self._item("SINGLE", ws=300000)]
+		out = self._lines(("SINGLE", 360000), items, qty=5)["SINGLE"]
+		self.assertEqual(out["price"], 300000)
+		self.assertTrue(out["is_wholesale"])
+		self.assertFalse(out["baraban"])
+		out = self._lines(("SINGLE", 600000), [self._item("SINGLE")], qty=1)["SINGLE"]
+		self.assertEqual(out["price"], 500000)
+		self.assertFalse(out["baraban"])
+
+	def test_manager_order_ignores_wheel_cookie(self):
+		# Sotuv menejeri buyurtmasi: menejer brauzeridagi baraban cookie'si mijoz narxiga ta'sir qilmaydi
+		from marketplace import orders
+
+		shop = frappe._dict(name="SHOP-A", enable_pickup=1)
+		with patch.object(orders, "_release_pending"), \
+			patch("marketplace.storefront.get_cart_lines", return_value=[]) as gcl:
+			with self.assertRaises(frappe.ValidationError):
+				orders.place_order(shop, [{"code": "X", "qty": 1}], "O'zim olaman", "", "C", promo=False)
+			self.assertFalse(gcl.call_args.kwargs["promo"])
+			with self.assertRaises(frappe.ValidationError):
+				orders.place_order(shop, [{"code": "X", "qty": 1}], "O'zim olaman", "", "C")
+			self.assertTrue(gcl.call_args.kwargs["promo"])
+
+	def test_murojaat_order_passes_promo_false(self):
+		import inspect
+
+		from marketplace.sotuv import murojaat
+
+		src = inspect.getsource(murojaat)
+		self.assertIn("orders.place_order(shop, lines, method, data.manzil, customer, promo=False)", src)
 
 	def test_promo_false_skips_baraban(self):
 		items = [self._item("V1", variant_of="TPL")]
