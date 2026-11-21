@@ -65,6 +65,7 @@ class TestBarabanApi(UnitTestCase):
 			patch("frappe.request", MagicMock(cookies=self.cookies)),
 			patch("frappe.local.cookie_manager", self.cm, create=True),
 			patch("marketplace.baraban.config", return_value=self.cfg),
+			patch("marketplace.baraban._base_config", return_value=self.cfg),
 			patch("marketplace.storefront.get_shop", return_value=frappe._dict(name=self.shop)),
 		]
 		for p in self.patches:
@@ -85,12 +86,14 @@ class TestBarabanApi(UnitTestCase):
 
 	def test_state_disabled_on_bad_config(self):
 		self.patches[2].stop()
+		self.patches[3].stop()
 		with patch("frappe.db.get_value", return_value=frappe._dict(
 			baraban_yoqilgan=1, baraban_tovar="X", baraban_narx=5,
 			baraban_variantlar="1,2", baraban_yutuq=9,
 		)):
 			self.assertIsNone(baraban.config(self.shop))
 		self.patches[2].start()
+		self.patches[3].start()
 		with patch("marketplace.baraban.config", return_value=None):
 			self.assertEqual(baraban.state(self.shop), {"enabled": False})
 
@@ -135,5 +138,53 @@ class TestBarabanApi(UnitTestCase):
 		self.assertIsNone(baraban.active(self.shop))
 
 	def test_active_never_raises(self):
-		with patch("marketplace.baraban.config", side_effect=RuntimeError("x")):
+		with patch("marketplace.baraban._base_config", side_effect=RuntimeError("x")):
 			self.assertIsNone(baraban.active(self.shop))
+
+	def test_active_no_cookie_no_config_call(self):
+		with patch("marketplace.baraban._base_config") as bc, patch("marketplace.baraban.config") as c:
+			self.assertIsNone(baraban.active(self.shop))
+			bc.assert_not_called()
+			c.assert_not_called()
+
+	def _full_config(self, old):
+		self.patches[2].stop()
+		self.patches[3].stop()
+		try:
+			with patch("marketplace.baraban._base_config", return_value=frappe._dict(
+				tovar="I", narx=100, variantlar=[1], yutuq=1, tovar_nomi="n", rasm=None)), \
+				patch("marketplace.storefront._get_prices", return_value={"I": old}):
+				return baraban.config(self.shop)
+		finally:
+			self.patches[2].start()
+			self.patches[3].start()
+
+	def test_config_never_throws(self):
+		self.patches[2].stop()
+		self.patches[3].stop()
+		try:
+			with patch("marketplace.baraban._base_config", return_value=frappe._dict(
+				tovar="I", narx=100, variantlar=[1], yutuq=1, tovar_nomi="n", rasm=None)), \
+				patch("marketplace.storefront._get_prices", side_effect=RuntimeError("x")):
+				self.assertIsNone(baraban.config(self.shop))
+		finally:
+			self.patches[2].start()
+			self.patches[3].start()
+
+	def test_eski_narx(self):
+		self.assertEqual(self._full_config(150).eski_narx, 150)
+		self.assertIsNone(self._full_config(100).eski_narx)
+		self.assertIsNone(self._full_config(50).eski_narx)
+
+	def test_cleanup(self):
+		old = now_datetime() - timedelta(days=10)
+		self._row(remaining=0, token="a" * 24)
+		self._row(remaining=500, token="b" * 24)
+		self._row(remaining=500, token="c" * 24)
+		frappe.db.set_value("Baraban Chegirma", {"token": "a" * 24}, "modified", old, update_modified=False)
+		frappe.db.set_value("Baraban Chegirma", {"token": "c" * 24}, "creation",
+			now_datetime() - timedelta(days=61), update_modified=False)
+		baraban.cleanup()
+		self.assertFalse(frappe.db.exists("Baraban Chegirma", {"token": "a" * 24}))
+		self.assertFalse(frappe.db.exists("Baraban Chegirma", {"token": "c" * 24}))
+		self.assertTrue(frappe.db.exists("Baraban Chegirma", {"token": "b" * 24}))

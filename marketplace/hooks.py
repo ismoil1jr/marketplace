@@ -298,6 +298,9 @@ doc_events = {
 # ---------------
 
 scheduler_events = {
+	"daily": [
+		"marketplace.baraban.cleanup",
+	],
 	"hourly": [
 		"marketplace.otp.cleanup_expired",
 		"marketplace.orders.cancel_abandoned",

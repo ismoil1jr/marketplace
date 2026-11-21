@@ -5,7 +5,7 @@ import hashlib
 import frappe
 from frappe import _
 from frappe.rate_limiter import rate_limit
-from frappe.utils import cint, flt, now_datetime, time_diff_in_seconds
+from frappe.utils import add_days, cint, flt, now_datetime, time_diff_in_seconds
 
 COOKIE_PREFIX = "mp_baraban_"
 MAX_STEP = 20
@@ -44,37 +44,50 @@ def _cookie_name(shop):
 	return COOKIE_PREFIX + hashlib.sha1(str(shop).encode()).hexdigest()[:12]
 
 
-def config(shop):
-	"""Faol va to'g'ri sozlangan baraban config'i, aks holda None. Hech qachon xato bermaydi."""
-	vals = frappe.db.get_value(
-		"Shop",
-		shop,
-		["baraban_yoqilgan", "baraban_tovar", "baraban_narx", "baraban_variantlar", "baraban_yutuq"],
-		as_dict=True,
-	)
-	if not vals or not vals.baraban_yoqilgan:
+def _base_config(shop):
+	"""Arzon tekshiruv (Shop + Item get_value). Yaroqsiz bo'lsa None; xato bersa ham None."""
+	try:
+		vals = frappe.db.get_value(
+			"Shop",
+			shop,
+			["baraban_yoqilgan", "baraban_tovar", "baraban_narx", "baraban_variantlar", "baraban_yutuq"],
+			as_dict=True,
+		)
+		if not vals or not vals.baraban_yoqilgan:
+			return None
+		tovar = vals.baraban_tovar
+		narx = flt(vals.baraban_narx)
+		vs = variants(vals.baraban_variantlar)
+		yutuq = cint(vals.baraban_yutuq)
+		if not tovar or narx <= 0 or not vs or yutuq not in vs:
+			return None
+		item = frappe.db.get_value(
+			"Item", tovar, ["shop", "item_name", "image", "disabled", "is_published"], as_dict=True
+		)
+		if not item or item.shop != shop or cint(item.disabled) or not cint(item.is_published):
+			return None
+		return frappe._dict(
+			tovar=tovar, narx=narx, variantlar=vs, yutuq=yutuq, tovar_nomi=item.item_name, rasm=item.image
+		)
+	except Exception:
+		frappe.log_error(title="Baraban: config", message=frappe.get_traceback())
 		return None
-	tovar = vals.baraban_tovar
-	narx = flt(vals.baraban_narx)
-	vs = variants(vals.baraban_variantlar)
-	yutuq = cint(vals.baraban_yutuq)
-	if not tovar or narx <= 0 or not vs or yutuq not in vs:
-		return None
-	item = frappe.db.get_value("Item", tovar, ["shop", "item_name", "image"], as_dict=True)
-	if not item or item.shop != shop:
-		return None
-	from marketplace.storefront import _get_prices
 
-	eski = _get_prices([tovar]).get(tovar)
-	return frappe._dict(
-		tovar=tovar,
-		narx=narx,
-		variantlar=vs,
-		yutuq=yutuq,
-		tovar_nomi=item.item_name,
-		eski_narx=flt(eski) if eski else None,
-		rasm=item.image,
-	)
+
+def config(shop):
+	"""To'liq config (state uchun): base + eski narx. Hech qachon xato bermaydi."""
+	try:
+		cfg = _base_config(shop)
+		if not cfg:
+			return None
+		from marketplace.storefront import _get_prices
+
+		eski = flt(_get_prices([cfg.tovar]).get(cfg.tovar))
+		cfg.eski_narx = eski if eski > cfg.narx else None
+		return cfg
+	except Exception:
+		frappe.log_error(title="Baraban: config", message=frappe.get_traceback())
+		return None
 
 
 def _row(shop):
@@ -106,7 +119,7 @@ def _state(shop, cfg, row, spun=False):
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
-@rate_limit(limit=60, seconds=60)
+@rate_limit(limit=300, seconds=60)
 def state(shop):
 	from marketplace.storefront import get_shop
 
@@ -118,7 +131,7 @@ def state(shop):
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
-@rate_limit(limit=60, seconds=60)
+@rate_limit(limit=10, seconds=3600)
 def spin(shop):
 	from marketplace.storefront import get_shop
 
@@ -148,7 +161,7 @@ def spin(shop):
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
-@rate_limit(limit=60, seconds=60)
+@rate_limit(limit=300, seconds=60)
 def tick(shop):
 	from marketplace.storefront import get_shop
 
@@ -173,10 +186,21 @@ def tick(shop):
 def active(shop):
 	"""(tovar, narx) agar baraban yutuqi hali amal qilsa, aks holda None. Hech qachon xato bermaydi."""
 	try:
-		cfg = config(shop)
-		row = _row(shop) if cfg else None
-		if cfg and row and cint(row.qolgan_soniya) > 0:
+		row = _row(shop)
+		if not row or cint(row.qolgan_soniya) <= 0:
+			return None
+		cfg = _base_config(shop)
+		if cfg:
 			return (cfg.tovar, cfg.narx)
 	except Exception:
 		frappe.log_error(title="Baraban active xatosi")
 	return None
+
+
+def cleanup():
+	"""Kunlik: tugagan (7 kundan eski) va 60 kundan eski qatorlarni o'chiradi."""
+	frappe.db.delete(
+		"Baraban Chegirma",
+		{"qolgan_soniya": ["<=", 0], "modified": ["<", add_days(now_datetime(), -7)]},
+	)
+	frappe.db.delete("Baraban Chegirma", {"creation": ["<", add_days(now_datetime(), -60)]})
