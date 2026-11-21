@@ -1,0 +1,122 @@
+/* Chegirma barabani (baraban.js): yopib bo'lmaydigan oyna, aylanadigan baraban, sahifa tepasida taymer */
+
+.bb-lock { overflow: hidden; }
+
+.bb-overlay {
+	position: fixed; inset: 0; z-index: 2000;
+	display: flex; align-items: center; justify-content: center;
+	padding: 16px;
+	background: rgb(10 10 10 / .62);
+	backdrop-filter: blur(3px);
+	-webkit-backdrop-filter: blur(3px);
+}
+.bb-card {
+	width: min(100%, 380px);
+	max-height: calc(100dvh - 32px);
+	overflow: auto;
+	padding: 22px 20px 20px;
+	border-radius: 22px;
+	background: #fff;
+	color: #1b1b1b;
+	text-align: center;
+	box-shadow: 0 24px 60px rgb(0 0 0 / .35);
+}
+.bb-title { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -.01em; }
+.bb-sub { margin: 6px 0 18px; font-size: 14px; color: #5c5c5c; }
+
+.bb-wheel-wrap {
+	position: relative;
+	width: min(78vw, 300px);
+	aspect-ratio: 1;
+	margin: 0 auto;
+}
+.bb-wheel { display: block; width: 100%; height: 100%; filter: drop-shadow(0 8px 18px rgb(0 0 0 / .18)); }
+.bb-seg--a { fill: var(--brand, #1F5C4A); }
+.bb-seg--b { fill: #fff4e6; }
+.bb-seg-line { stroke: #fff; stroke-width: 2; }
+.bb-rim { fill: none; stroke: var(--brand, #1F5C4A); stroke-width: 8; }
+.bb-label { font-family: inherit; font-size: 15px; font-weight: 700; text-anchor: middle; dominant-baseline: middle; }
+.bb-label--a { fill: #fff; }
+.bb-label--b { fill: #2a2a2a; }
+
+.bb-pointer {
+	position: absolute; z-index: 2; top: -4px; left: 50%;
+	width: 0; height: 0;
+	transform: translateX(-50%);
+	border-left: 14px solid transparent;
+	border-right: 14px solid transparent;
+	border-top: 26px solid #161616;
+	filter: drop-shadow(0 2px 2px rgb(0 0 0 / .3));
+}
+.bb-spin {
+	position: absolute; z-index: 3; top: 50%; left: 50%;
+	width: 31%; aspect-ratio: 1;
+	transform: translate(-50%, -50%);
+	border: 5px solid var(--brand, #1F5C4A);
+	border-radius: 50%;
+	background: #fff;
+	color: var(--brand, #1F5C4A);
+	font-family: inherit; font-size: 14px; font-weight: 700; line-height: 1.15;
+	cursor: pointer;
+	box-shadow: 0 4px 14px rgb(0 0 0 / .25);
+	transition: transform .15s ease;
+}
+.bb-spin:hover:not(:disabled) { transform: translate(-50%, -50%) scale(1.04); }
+.bb-spin:disabled { cursor: default; }
+.bb-spin:focus-visible, .bb-go:focus-visible, .bb-later:focus-visible { outline: 3px solid #161616; outline-offset: 3px; }
+
+.bb-result[hidden] { display: none; }
+.bb-result { margin-top: 2px; }
+.bb-win { margin: 0; font-size: 24px; font-weight: 700; }
+.bb-win-sub { margin: 6px 0 14px; font-size: 16px; }
+.bb-win-sub b { color: var(--brand, #1F5C4A); }
+.bb-product {
+	display: flex; align-items: center; gap: 12px;
+	padding: 10px; margin-bottom: 16px;
+	border-radius: 14px;
+	background: #f6f5f1;
+	text-align: left;
+}
+.bb-product img { width: 64px; height: 64px; flex: none; border-radius: 10px; object-fit: cover; background: #fff; }
+.bb-product__name { font-size: 15px; font-weight: 600; }
+.bb-product__price { margin-top: 4px; font-size: 17px; font-weight: 700; color: var(--brand, #1F5C4A); }
+.bb-product__price s { display: block; font-size: 13px; font-weight: 500; color: #8a8a8a; }
+.bb-go {
+	display: block; width: 100%;
+	padding: 14px 16px;
+	border: 0; border-radius: 14px;
+	background: var(--brand, #1F5C4A);
+	color: #fff;
+	font-family: inherit; font-size: 16px; font-weight: 600; line-height: 1.2;
+	cursor: pointer;
+}
+.bb-later {
+	margin-top: 10px; padding: 6px 10px;
+	border: 0; background: none;
+	color: #5c5c5c;
+	font-family: inherit; font-size: 14px; font-weight: 500; line-height: 1.2;
+	text-decoration: underline;
+	cursor: pointer;
+}
+
+/* Taymer: har bir sahifa tepasida (savatda ham) */
+.bb-bar {
+	position: fixed; z-index: 45; top: 0; left: 0; right: 0;
+	display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap;
+	min-height: 40px; padding: 6px 12px;
+	background: var(--brand, #1F5C4A);
+	color: #fff;
+	font-size: 14px; line-height: 1.25;
+	text-align: center;
+	box-shadow: 0 2px 8px rgb(0 0 0 / .15);
+}
+.bb-bar__time { font-variant-numeric: tabular-nums; font-size: 15px; letter-spacing: .02em; }
+.bb-bar--done { background: #4a4a4a; }
+body.has-bb-bar { padding-top: 40px; }
+body.has-bb-bar .sf-top,
+body.has-bb-bar .kt-head { top: 40px; }
+
+@media (max-width: 380px) {
+	.bb-bar { font-size: 13px; }
+	.bb-bar__deal { display: none; }
+}

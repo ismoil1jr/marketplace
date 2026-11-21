@@ -41,6 +41,9 @@
 	store.set(META_KEY, meta);
 
 	const unitPrice = (code, q) => {
+		// Chegirma barabani faol bo'lsa (baraban.js) — o'sha tovar chegirma narxida
+		const promo = SF.promoPrice && SF.promoPrice(code);
+		if (promo) return promo;
 		const m = meta[code] || {};
 		return m.ws && q >= m.wsmin ? m.ws : m.price || 0;
 	};
@@ -57,6 +60,18 @@
 		add: (code, n = 1) => cart.set(code, cart.qty(code) + n),
 		count: () => Object.values(cart.all()).reduce((a, b) => a + b, 0),
 		total: () => Object.entries(cart.all()).reduce((s, [code, q]) => s + unitPrice(code, q) * q, 0),
+	};
+	// Chegirma barabani (baraban.js) uchun: yutgan tovarni savatga qo'shish
+	SF.cart = {
+		add: cart.add,
+		qty: cart.qty,
+		refresh: () => renderCartSummary(),
+		// Sahifa katalogida bo'lmasa ham yon savatda nomi/rasmi ko'rinsin
+		remember(code, m) {
+			if (meta[code]) return;
+			meta[code] = m;
+			store.set(META_KEY, meta);
+		},
 	};
 
 	function toast(text) {
@@ -967,6 +982,7 @@
 		window.addEventListener("pageshow", (e) => e.persisted && location.reload());
 
 		reloadCart = load;
+		SF.reloadCart = load; // baraban.js: chegirma tugaganda narxlar serverdan qayta olinadi
 		load();
 	}
 

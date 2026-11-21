@@ -28,6 +28,7 @@ def get_shop(slug):
 			"instagram", "phone", "pickup_address", "pickup_hours", "pickup_map",
 			"delivery_info", "delivery_short", "banner_label", "banner_title", "banner_image",
 			"banner_group", "enable_payme", "enable_click", "enable_cod", "enable_pickup", "warehouse",
+			"baraban_yoqilgan",
 		],
 		as_dict=True,
 	)
@@ -655,7 +656,10 @@ def asset_version():
 	return int(
 		max(
 			os.path.getmtime(os.path.join(public, p))
-			for p in ("css/storefront.css", "js/storefront.js", "css/panel.css", "js/panel.js")
+			for p in (
+				"css/storefront.css", "js/storefront.js", "css/panel.css", "js/panel.js",
+				"css/baraban.css", "js/baraban.js",
+			)
 			if os.path.exists(os.path.join(public, p))
 		)
 	)
