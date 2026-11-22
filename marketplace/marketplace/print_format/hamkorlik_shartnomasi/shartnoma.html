@@ -1,76 +1,43 @@
 <style>
+/* Bitta A4 varaqqa sig'adi (rekvizitlar to'liq to'ldirilgan MChJ bilan ham — test_hamkorlik tekshiradi) */
 .hk { font-family: "DejaVu Serif", "Liberation Serif", "Times New Roman", serif; font-size: 10.5pt; line-height: 1.4; color: #111; }
-.hk h1 { font-size: 14pt; font-weight: 700; text-align: center; margin: 0 0 10pt; letter-spacing: .02em; }
-.hk h2 { font-size: 10.5pt; font-weight: 700; margin: 10pt 0 3pt; text-transform: uppercase; break-after: avoid; page-break-after: avoid; }
-.hk p { margin: 0 0 4pt; text-align: justify; }
-.hk .hk-lead { margin-top: 8pt; }
-.hk .hk-sub { padding-left: 14pt; }
+.hk h1 { font-size: 14pt; font-weight: 700; text-align: center; margin: 0 0 4pt; letter-spacing: .02em; }
+.hk p { margin: 0 0 5pt; text-align: justify; }
+.hk b { font-weight: 700; }
 .hk table { width: 100%; border-collapse: collapse; }
-.hk .hk-place td { padding: 0; font-size: 11pt; }
+.hk .hk-place td { padding: 0 0 8pt; }
 .hk .hk-r { text-align: right; }
-.hk .hk-sides { margin-top: 6pt; break-inside: avoid; page-break-inside: avoid; }
-.hk .hk-sides td { width: 50%; vertical-align: top; padding: 6pt 10pt 6pt 0; font-size: 10pt; line-height: 1.5; }
-.hk .hk-side { font-weight: bold; font-size: 10pt; letter-spacing: .04em; margin-bottom: 4pt; border-bottom: 1px solid #111; padding-bottom: 2pt; }
-.hk .hk-sign td { padding-top: 12pt; }
-.hk .hk-line { margin-top: 22pt; }
-.hk .hk-hint { font-size: 8.5pt; color: #444; padding-left: 40pt; }
+.hk .hk-sides { margin-top: 12pt; break-inside: avoid; page-break-inside: avoid; }
+.hk .hk-sides td { width: 50%; vertical-align: top; padding: 0 12pt 0 0; font-size: 9.5pt; line-height: 1.42; }
+.hk .hk-side { font-weight: 700; letter-spacing: .04em; margin-bottom: 3pt; border-bottom: 1px solid #111; padding-bottom: 2pt; }
+.hk .hk-sign td { padding-top: 14pt; }
+.hk .hk-line { margin-top: 30pt; }
+.hk .hk-hint { font-size: 8pt; color: #444; padding-left: 40pt; }
 </style>
 {% autoescape true %}{% set k = hamkorlik_konteksti(doc) %}{% set c = k.kompaniya %}
 <div class="hk">
 	<h1>HAMKORLIK SHARTNOMASI № {{ doc.name }}</h1>
 	<table class="hk-place"><tr><td>Toshkent sh.</td><td class="hk-r">{{ k.sana_matn }}</td></tr></table>
 
-	<p class="hk-lead">
-		<b>{{ c.nomi }}</b> (keyingi o‘rinlarda — «Platforma») nomidan kompaniya rahbari <b>{{ c.rahbar }}</b> bir tomondan,
-		va <b>{{ k.egasi_fio }}</b> (pasport: {{ doc.pasport }}, tug‘ilgan sana: {{ k.tugilgan }}){% if k.yuridik %},
-		<b>{{ k.tashkilot }}</b> (STIR: {{ doc.stir }}) nomidan{% endif %}
-		(keyingi o‘rinlarda — «Do‘kon egasi») ikkinchi tomondan, birgalikda «Tomonlar» deb ataluvchilar,
-		quyidagilar haqida ushbu shartnomani tuzdilar:
-	</p>
+	<p><b>{{ c.nomi }}</b> (keyingi o‘rinlarda — «Platforma») nomidan kompaniya rahbari <b>{{ c.rahbar }}</b> va
+	<b>{{ k.egasi_fio }}</b>{% if k.yuridik %} — <b>{{ k.tashkilot }}</b> (STIR: {{ doc.stir }}) nomidan{% endif %}
+	(keyingi o‘rinlarda — «Do‘kon egasi») quyidagilar haqida ushbu shartnomani tuzdilar:</p>
 
-	<h2>1. Shartnoma predmeti</h2>
-	<p>1.1. Platforma Do‘kon egasiga magazinlar.uz saytida <b>«{{ doc.dokon_nomi }}»</b> nomli onlayn do‘kon (keyingi o‘rinlarda — «Do‘kon») ochib beradi va undan foydalanish imkonini beradi: do‘kon sayti va tovarlar katalogi, boshqaruv paneli, Payme va Click to‘lov tizimlarini ulash, Instagram murojaatlari, buyurtmalar va kuryer boshqaruvi.</p>
-	<p>1.2. Do‘kon egasi Platforma xizmatlaridan ushbu shartnoma shartlari asosida foydalanadi.</p>
+	<p><b>1. Predmet.</b> Platforma magazinlar.uz saytida <b>«{{ doc.dokon_nomi }}»</b> onlayn do‘konini ochib beradi: do‘kon sayti va katalogi, boshqaruv paneli, Payme va Click to‘lovi, Instagram murojaatlari, buyurtma va kuryer boshqaruvi.</p>
 
-	<h2>2. To‘lovlar va pul mablag‘lari</h2>
-	<p>2.1. Xaridorlarning to‘lovi Do‘kon egasining o‘z Payme va/yoki Click kassasiga to‘g‘ridan-to‘g‘ri tushadi. Platforma xaridorlar pulini qabul qilmaydi, ushlab turmaydi va tasarruf etmaydi.</p>
-	<p>2.2. Payme va Click bilan shartnoma hamda ularning xizmat haqi Do‘kon egasi va tegishli to‘lov tizimi o‘rtasida hal qilinadi.</p>
+	<p><b>2. Pul mablag‘lari.</b> Xaridorlar to‘lovi Do‘kon egasining o‘z Payme/Click kassasiga to‘g‘ridan-to‘g‘ri tushadi. Platforma xaridorlar pulini qabul qilmaydi va ushlab turmaydi.</p>
 
-	<h2>3. Xizmat narxi</h2>
-	<p>3.1. Birinchi oy — <b>{{ k.sana }}</b> dan <b>{{ k.bepul_gacha }}</b> gacha — xizmat <b>bepul</b>. Bu davrda Platforma sotilgan tovarlar uchun komissiya ham, boshqa to‘lov ham olmaydi.</p>
-	<p>3.2. Bepul davr tugagach, Do‘kon egasi hamkorlikni davom ettirishni xohlasa, <b>{{ k.pullik_dan }}</b> dan boshlab quyidagi to‘lov turlaridan birini tanlaydi:</p>
-	<p class="hk-sub">a) oylik obuna — oyiga <b>{{ k.obuna }} so‘m</b>;<br>b) komissiya — har bir sotilgan tovar summasidan <b>{{ k.komissiya }}%</b>.</p>
-	<p>3.3. To‘lov turi Do‘kon egasining yozma xabari (shu jumladan Telegram orqali) bilan tanlanadi. Obuna har oy oldindan, komissiya esa o‘tgan oy sotuvlari bo‘yicha keyingi oyning 10-sanasiga qadar to‘lanadi.</p>
-	<p>3.4. Do‘kon egasi bepul davrdan so‘ng hamkorlikni davom ettirmasa, undan hech qanday to‘lov talab qilinmaydi va shartnoma bekor qilinadi.</p>
+	<p><b>3. Xizmat narxi.</b> <b>{{ k.sana }} – {{ k.bepul_gacha }}</b> — xizmat <b>bepul</b>, sotuvlardan komissiya olinmaydi.
+	<b>{{ k.pullik_dan }}</b> dan boshlab, hamkorlik davom etsa, Do‘kon egasi to‘lov turini tanlaydi:
+	<b>oylik obuna — {{ k.obuna }} so‘m</b> yoki <b>har bir sotilgan tovar summasidan {{ k.komissiya }}% komissiya</b>.
+	To‘lov keyingi oyning 10-sanasigacha amalga oshiriladi. Do‘kon egasi davom ettirmasa, hech qanday to‘lov talab qilinmaydi.</p>
 
-	<h2>4. Tomonlarning majburiyatlari</h2>
-	<p>4.1. Platforma:</p>
-	<p class="hk-sub">– Do‘kon saytining uzluksiz ishlashi uchun oqilona choralar ko‘radi va texnik nosozliklarni imkon qadar tez bartaraf etadi;<br>
-	– Do‘kon egasiga telefon va Telegram orqali texnik yordam beradi;<br>
-	– Do‘kon va uning xaridorlari ma’lumotlarini himoya qiladi.</p>
-	<p>4.2. Do‘kon egasi:</p>
-	<p class="hk-sub">– sotilayotgan tovarlarning sifati, qonuniyligi, narxi va tavsifining to‘g‘riligi uchun javob beradi;<br>
-	– buyurtmalarni o‘z vaqtida bajaradi, yetkazib beradi va xaridorlar bilan hisob-kitob qiladi;<br>
-	– soliq va boshqa majburiy to‘lovlarni O‘zbekiston Respublikasi qonunchiligiga muvofiq o‘zi to‘laydi;<br>
-	– qonunchilikda taqiqlangan tovarlarni sotmaydi.</p>
+	<p><b>4. Majburiyatlar.</b> Platforma saytning ishlashi, texnik yordam va ma’lumotlar himoyasini ta’minlaydi. Do‘kon egasi tovarlarning sifati, narxi va tavsifi, buyurtmani yetkazish, xaridorlar bilan hisob-kitob va soliqlar uchun javob beradi, taqiqlangan tovarlarni sotmaydi.</p>
 
-	<h2>5. Ma’lumotlar va maxfiylik</h2>
-	<p>5.1. Do‘kon xaridorlarining ma’lumotlari (ism, telefon, manzil, buyurtmalar) Do‘kon egasiga tegishli. Platforma ularni uchinchi shaxslarga bermaydi va faqat xizmat ko‘rsatish uchun foydalanadi.</p>
-	<p>5.2. Do‘kon egasining so‘rovi bo‘yicha Platforma mijozlar va buyurtmalar ro‘yxatini Excel shaklida taqdim etadi.</p>
-	<p>5.3. Tomonlar ushbu shartnoma doirasida olingan shaxsiy ma’lumotlarni, shu jumladan pasport ma’lumotlarini sir saqlaydi.</p>
+	<p><b>5. Maxfiylik.</b> Xaridorlar ma’lumotlari Do‘kon egasiga tegishli: Platforma ularni uchinchi shaxslarga bermaydi va so‘rov bo‘yicha Excel shaklida taqdim etadi. Tomonlar bir-birining shaxsiy (shu jumladan pasport) ma’lumotlarini sir saqlaydi.</p>
 
-	<h2>6. Amal qilish muddati va bekor qilish</h2>
-	<p>6.1. Shartnoma imzolangan kundan kuchga kiradi va 1 (bir) yil amal qiladi. Tomonlardan hech biri bekor qilishni so‘ramasa, har safar yana 1 (bir) yilga uzaytirilgan hisoblanadi.</p>
-	<p>6.2. Har bir tomon ikkinchi tomonni kamida 10 (o‘n) kun oldin yozma ravishda ogohlantirib, shartnomani bekor qilishi mumkin. Bunda Do‘kon egasi faqat amalda foydalangan davr uchun to‘laydi.</p>
+	<p><b>6. Muddat va nizolar.</b> Shartnoma imzolangan kundan 1 yil amal qiladi va avtomatik uzayadi. Har bir tomon 10 kun oldin yozma xabar berib uni bekor qilishi mumkin. Nizolar muzokara, kelishilmasa O‘zbekiston Respublikasi qonunchiligi bo‘yicha sudda hal qilinadi. Shartnoma teng kuchga ega ikki nusxada tuzildi.</p>
 
-	<h2>7. Nizolarni hal qilish</h2>
-	<p>7.1. Nizolar muzokaralar yo‘li bilan hal qilinadi. Kelishuvga erishilmasa, nizo O‘zbekiston Respublikasi qonunchiligiga muvofiq sudda ko‘rib chiqiladi.</p>
-
-	<h2>8. Yakuniy qoidalar</h2>
-	<p>8.1. Shartnoma o‘zbek tilida, teng yuridik kuchga ega ikki nusxada tuzildi — har bir tomonga bittadan.</p>
-	<p>8.2. Shartnomaga o‘zgartirishlar Tomonlar imzolagan qo‘shimcha kelishuv bilan kiritiladi.</p>
-
-	<h2>9. Tomonlarning rekvizitlari va imzolari</h2>
 	<table class="hk-sides">
 		<tr>
 			<td>
@@ -78,20 +45,18 @@
 				<b>{{ c.nomi }}</b><br>
 				{% if c.stir %}STIR: {{ c.stir }}<br>{% endif %}
 				{% if c.manzil %}Manzil: {{ c.manzil }}<br>{% endif %}
-				{% if c.bank %}Bank: {{ c.bank }}<br>{% endif %}
+				{% if c.bank or c.mfo %}Bank: {{ c.bank or "" }}{% if c.mfo %}, MFO: {{ c.mfo }}{% endif %}<br>{% endif %}
 				{% if c.hisob %}H/r: {{ c.hisob }}<br>{% endif %}
-				{% if c.mfo %}MFO: {{ c.mfo }}<br>{% endif %}
 				{% if c.telefon %}Telefon: {{ c.telefon }}<br>{% endif %}
 				Sayt: magazinlar.uz
 			</td>
 			<td>
 				<div class="hk-side">DO‘KON EGASI</div>
 				<b>{{ k.egasi_fio }}</b><br>
-				Pasport: {{ doc.pasport }}<br>
-				Tug‘ilgan sana: {{ k.tugilgan }}<br>
+				Pasport: {{ doc.pasport }}, tug‘ilgan sana: {{ k.tugilgan }}<br>
 				Telefon: {{ k.telefon }}<br>
 				Do‘kon: «{{ doc.dokon_nomi }}»
-				{% if k.yuridik %}<br>{{ k.tashkilot }}<br>STIR: {{ doc.stir }}{% if doc.manzil %}<br>Manzil: {{ doc.manzil }}{% endif %}{% endif %}
+				{% if k.yuridik %}<br>{{ k.tashkilot }}, STIR: {{ doc.stir }}{% if doc.manzil %}<br>Manzil: {{ doc.manzil }}{% endif %}{% endif %}
 			</td>
 		</tr>
 		<tr class="hk-sign">

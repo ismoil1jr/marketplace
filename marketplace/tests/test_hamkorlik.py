@@ -66,6 +66,24 @@ class TestHamkorlik(IntegrationTestCase):
 			"Uchqunov A.", "Karimov A.", "(imzo)"):
 			self.assertIn(text, html)
 
+	def test_fits_one_page_with_everything_filled(self):
+		"""Eng uzun holat: MChJ, uzun manzil, platformaning barcha rekvizitlari — baribir bitta A4 varaq."""
+		import io
+
+		from pypdf import PdfReader
+
+		full = hk.company_settings()
+		full.update(stir="305123456", manzil="Toshkent sh., Yunusobod t., Amir Temur ko‘chasi, 108-uy, 4-ofis",
+			bank="«Kapitalbank» ATB Toshkent sh. filiali", hisob="20208000900123456001", mfo="01088")
+		d = make(huquqiy_shakl="MChJ", tashkilot_nomi="Bolalar Rivojlantiruvchi Kitoblari Savdo Uyi", stir="305123456",
+			manzil="Toshkent viloyati, Qibray tumani, Bobur MFY, Navro‘z ko‘chasi, 15-uy")
+		d.name = "HMK-2026-9999"
+		d.validate()
+		d.obuna_narxi, d.komissiya_foizi = 50000, 2
+		with patch.object(hk, "company_settings", return_value=full):
+			pdf = hk.render_pdf(d)
+		self.assertEqual(len(PdfReader(io.BytesIO(pdf)).pages), 1)
+
 	def test_validation_errors(self):
 		with self.assertRaises(frappe.ValidationError):
 			make(pasport="12345").insert()

@@ -147,7 +147,7 @@ def render_pdf(doc):
 	from weasyprint import HTML
 
 	body = frappe.render_template(TEMPLATE, {"doc": doc})
-	page = "@page { size: A4; margin: 18mm 15mm 18mm 20mm; @bottom-center { content: counter(page) ' / ' counter(pages); font-size: 9pt; } }"
+	page = "@page { size: A4; margin: 12mm 12mm 12mm 15mm; }"  # Print Format chetlari bilan bir xil, 1 varaq
 	html = f'<!doctype html><html lang="uz"><head><meta charset="utf-8"><style>{page}</style></head><body>{body}</body></html>'
 	return HTML(string=html, base_url=frappe.utils.get_url()).write_pdf()
 
