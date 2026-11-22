@@ -22,3 +22,4 @@ marketplace.patches.aloqa_telefon_call_center
 marketplace.patches.stt_retry_failed
 marketplace.patches.stt_model_names
 marketplace.patches.murojaat_takror_holat
+marketplace.patches.hamkorlik_sozlamalari

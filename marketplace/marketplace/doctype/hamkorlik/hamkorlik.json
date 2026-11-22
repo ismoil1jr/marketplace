@@ -1,0 +1,276 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "HMK-.YYYY.-.####",
+ "creation": "2026-11-22 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "default_print_format": "Hamkorlik shartnomasi",
+ "field_order": [
+  "sb_dokon",
+  "dokon_nomi",
+  "shop",
+  "telefon",
+  "cb_dokon",
+  "sana",
+  "holat",
+  "sb_egasi",
+  "familiya",
+  "ism",
+  "otasining_ismi",
+  "cb_egasi",
+  "pasport",
+  "tugilgan_sana",
+  "egasi_qisqa",
+  "sb_shakl",
+  "huquqiy_shakl",
+  "cb_shakl",
+  "tashkilot_nomi",
+  "stir",
+  "manzil",
+  "sb_narx",
+  "bepul_gacha",
+  "cb_narx",
+  "obuna_narxi",
+  "komissiya_foizi",
+  "sb_hujjat",
+  "pdf_fayl",
+  "cb_hujjat",
+  "imzolangan_nusxa",
+  "izoh"
+ ],
+ "fields": [
+  {
+   "fieldname": "sb_dokon",
+   "fieldtype": "Section Break",
+   "label": "Do'kon"
+  },
+  {
+   "fieldname": "dokon_nomi",
+   "fieldtype": "Data",
+   "label": "Do'kon nomi",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "bold": 1
+  },
+  {
+   "fieldname": "shop",
+   "fieldtype": "Link",
+   "label": "Saytdagi do'kon",
+   "options": "Shop",
+   "description": "Do'kon saytda allaqachon ochilgan bo'lsa tanlang — nomi va STIR o'zi to'ladi"
+  },
+  {
+   "fieldname": "telefon",
+   "fieldtype": "Data",
+   "label": "Direktor telefon raqami",
+   "reqd": 1,
+   "in_list_view": 1,
+   "description": "Masalan: 90 123 45 67"
+  },
+  {
+   "fieldname": "cb_dokon",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "sana",
+   "fieldtype": "Date",
+   "label": "Shartnoma sanasi",
+   "reqd": 1,
+   "default": "Today",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "holat",
+   "fieldtype": "Select",
+   "label": "Holati",
+   "options": "Yangi\nImzolangan\nBekor qilingan",
+   "default": "Yangi",
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "sb_egasi",
+   "fieldtype": "Section Break",
+   "label": "Do'kon egasi"
+  },
+  {
+   "fieldname": "familiya",
+   "fieldtype": "Data",
+   "label": "Familiya",
+   "reqd": 1
+  },
+  {
+   "fieldname": "ism",
+   "fieldtype": "Data",
+   "label": "Ism",
+   "reqd": 1
+  },
+  {
+   "fieldname": "otasining_ismi",
+   "fieldtype": "Data",
+   "label": "Otasining ismi",
+   "reqd": 1
+  },
+  {
+   "fieldname": "cb_egasi",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "pasport",
+   "fieldtype": "Data",
+   "label": "Pasport seriya va raqami",
+   "reqd": 1,
+   "description": "Masalan: AA1234567"
+  },
+  {
+   "fieldname": "tugilgan_sana",
+   "fieldtype": "Date",
+   "label": "Tug'ilgan sana",
+   "reqd": 1
+  },
+  {
+   "fieldname": "egasi_qisqa",
+   "fieldtype": "Data",
+   "label": "Imzo ostida",
+   "read_only": 1,
+   "description": "Familiya va ism bosh harfi — PDF'da imzo joyiga tushadi"
+  },
+  {
+   "fieldname": "sb_shakl",
+   "fieldtype": "Section Break",
+   "label": "Huquqiy shakl"
+  },
+  {
+   "fieldname": "huquqiy_shakl",
+   "fieldtype": "Select",
+   "label": "Huquqiy shakl",
+   "options": "Jismoniy shaxs\nYaTT\nMChJ",
+   "default": "Jismoniy shaxs",
+   "reqd": 1
+  },
+  {
+   "fieldname": "cb_shakl",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "tashkilot_nomi",
+   "fieldtype": "Data",
+   "label": "Tashkilot nomi",
+   "depends_on": "eval:doc.huquqiy_shakl && doc.huquqiy_shakl != 'Jismoniy shaxs'",
+   "mandatory_depends_on": "eval:doc.huquqiy_shakl && doc.huquqiy_shakl != 'Jismoniy shaxs'",
+   "description": "YaTT bo'lsa — egasining F.I.Sh, MChJ bo'lsa — korxona nomi (qo'shtirnoqsiz)"
+  },
+  {
+   "fieldname": "stir",
+   "fieldtype": "Data",
+   "label": "STIR",
+   "depends_on": "eval:doc.huquqiy_shakl && doc.huquqiy_shakl != 'Jismoniy shaxs'",
+   "mandatory_depends_on": "eval:doc.huquqiy_shakl && doc.huquqiy_shakl != 'Jismoniy shaxs'"
+  },
+  {
+   "fieldname": "manzil",
+   "fieldtype": "Small Text",
+   "label": "Yuridik manzil",
+   "depends_on": "eval:doc.huquqiy_shakl && doc.huquqiy_shakl != 'Jismoniy shaxs'"
+  },
+  {
+   "fieldname": "sb_narx",
+   "fieldtype": "Section Break",
+   "label": "To'lov shartlari",
+   "description": "1-oy bepul. 2-oydan do'kon davom ettirsa — obuna yoki komissiya (Marketplace sozlamalaridan olinadi, bu yerda o'zgartirish mumkin)"
+  },
+  {
+   "fieldname": "bepul_gacha",
+   "fieldtype": "Date",
+   "label": "Bepul davr tugaydi",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb_narx",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "obuna_narxi",
+   "fieldtype": "Int",
+   "label": "Oylik obuna (so'm)",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "komissiya_foizi",
+   "fieldtype": "Percent",
+   "label": "Komissiya (har bir sotilgan tovardan, %)",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "sb_hujjat",
+   "fieldtype": "Section Break",
+   "label": "Hujjatlar"
+  },
+  {
+   "fieldname": "pdf_fayl",
+   "fieldtype": "Attach",
+   "label": "Shartnoma (PDF)",
+   "read_only": 1,
+   "description": "Saqlanganda o'zi yaratiladi",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "cb_hujjat",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "imzolangan_nusxa",
+   "fieldtype": "Attach",
+   "label": "Imzolangan nusxa (skan)",
+   "description": "Ikki tomon imzolagan nusxani yuklang — holati «Imzolangan» bo'ladi"
+  },
+  {
+   "fieldname": "izoh",
+   "fieldtype": "Small Text",
+   "label": "Izoh"
+  }
+ ],
+ "links": [],
+ "modified": "2026-11-22 13:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Marketplace",
+ "name": "Hamkorlik",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "print": 1,
+   "export": 1,
+   "report": 1,
+   "share": 1,
+   "email": 1
+  },
+  {
+   "role": "Marketplace Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "print": 1,
+   "export": 1,
+   "report": 1,
+   "share": 1,
+   "email": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "search_fields": "dokon_nomi,familiya,telefon",
+ "show_title_field_in_link": 1,
+ "title_field": "dokon_nomi",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1,
+ "description": "Do'kon bilan hamkorlik shartnomalari (PDF). Pasport ma'lumotlari bor — faqat admin ko'radi."
+}

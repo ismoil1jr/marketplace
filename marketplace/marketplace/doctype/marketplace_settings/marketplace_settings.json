@@ -28,7 +28,18 @@
   "meta_app_secret",
   "cb_meta",
   "meta_verify_token",
-  "meta_graph_version"
+  "meta_graph_version",
+  "sb_hamkorlik",
+  "hamkor_kompaniya",
+  "hamkor_rahbar",
+  "hamkor_stir",
+  "hamkor_manzil",
+  "cb_hamkorlik",
+  "hamkor_bank",
+  "hamkor_hisob",
+  "hamkor_mfo",
+  "hamkor_obuna",
+  "hamkor_komissiya"
  ],
  "fields": [
   {
@@ -177,10 +188,74 @@
    "fieldtype": "Data",
    "label": "Graph API versiyasi",
    "default": "v23.0"
+  },
+  {
+   "fieldname": "sb_hamkorlik",
+   "fieldtype": "Section Break",
+   "label": "Hamkorlik shartnomasi",
+   "collapsible": 1,
+   "description": "Do'kon bilan tuziladigan shartnoma PDF'iga tushadi (Hamkorlik bo'limi). Bo'sh maydon PDF'da chiqmaydi."
+  },
+  {
+   "fieldname": "hamkor_kompaniya",
+   "fieldtype": "Data",
+   "label": "Kompaniya nomi",
+   "default": "«ORANGE TEAM» MChJ"
+  },
+  {
+   "fieldname": "hamkor_rahbar",
+   "fieldtype": "Data",
+   "label": "Kompaniya rahbari (imzo ostida)",
+   "default": "Uchqunov A."
+  },
+  {
+   "fieldname": "hamkor_stir",
+   "fieldtype": "Data",
+   "label": "STIR"
+  },
+  {
+   "fieldname": "hamkor_manzil",
+   "fieldtype": "Small Text",
+   "label": "Yuridik manzil"
+  },
+  {
+   "fieldname": "cb_hamkorlik",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "hamkor_bank",
+   "fieldtype": "Data",
+   "label": "Bank nomi"
+  },
+  {
+   "fieldname": "hamkor_hisob",
+   "fieldtype": "Data",
+   "label": "Hisob raqami (H/r)"
+  },
+  {
+   "fieldname": "hamkor_mfo",
+   "fieldtype": "Data",
+   "label": "MFO"
+  },
+  {
+   "fieldname": "hamkor_obuna",
+   "fieldtype": "Int",
+   "label": "Oylik obuna (so'm)",
+   "default": "50000",
+   "non_negative": 1,
+   "description": "2-oydan boshlab — yangi shartnomaga o'zi tushadi"
+  },
+  {
+   "fieldname": "hamkor_komissiya",
+   "fieldtype": "Percent",
+   "label": "Komissiya (%)",
+   "default": "2",
+   "non_negative": 1,
+   "description": "Har bir sotilgan tovar summasidan"
   }
  ],
  "links": [],
- "modified": "2026-11-05 12:00:00.000000",
+ "modified": "2026-11-22 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Marketplace",
  "name": "Marketplace Settings",

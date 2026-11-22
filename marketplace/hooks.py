@@ -121,7 +121,12 @@ extend_bootinfo = "marketplace.seller_desk.extend_bootinfo"
 after_install = "marketplace.setup.after_install"
 after_migrate = "marketplace.setup.after_migrate"
 
-jinja = {"methods": ["marketplace.storefront.fmt_sum"]}
+jinja = {
+	"methods": [
+		"marketplace.storefront.fmt_sum",
+		"marketplace.marketplace.doctype.hamkorlik.hamkorlik.hamkorlik_konteksti",
+	]
+}
 
 # Mijoz sahifalari: shop.uz/s/<do'kon>, /s/<do'kon>/p/<tovar>, /s/<do'kon>/savat
 website_route_rules = [

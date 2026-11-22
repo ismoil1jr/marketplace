@@ -84,11 +84,25 @@
    "parentfield": "items",
    "parenttype": "Sidebar",
    "type": "Link",
+   "label": "Hamkorlik",
+   "link_type": "DocType",
+   "link_to": "Hamkorlik",
+   "icon": "handshake",
+   "idx": 6
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
+   "doctype": "Sidebar Item",
+   "parent": "Marketplace",
+   "parentfield": "items",
+   "parenttype": "Sidebar",
+   "type": "Link",
    "label": "To'lovlar (Payme/Click)",
    "link_type": "DocType",
    "link_to": "Payment Transaction",
    "icon": "credit-card",
-   "idx": 6
+   "idx": 7
   },
   {
    "child": 0,
@@ -102,10 +116,10 @@
    "link_type": "DocType",
    "link_to": "Marketplace Settings",
    "icon": "settings",
-   "idx": 7
+   "idx": 8
   }
  ],
- "modified": "2026-11-12 15:00:00.000000",
+ "modified": "2026-11-22 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Marketplace",
  "name": "Marketplace",
