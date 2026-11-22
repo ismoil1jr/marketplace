@@ -95,6 +95,7 @@ def get_shop(slug):
 	)
 	shop.instagram_handle = (shop.instagram or "").lstrip("@")
 	shop.socials = social_links(shop)
+	shop.auto_cart = auto_cart(shop)
 	# Karusel slaydlari (sotuvchi Shop formasida o'zi yangilaydi)
 	shop.banners = frappe.get_all(
 		"Shop Banner",
@@ -562,6 +563,69 @@ def clear_catalog_cache(doc, method=None):
 		shop = frappe.db.get_value("Item", doc.item_code, "shop")
 	if shop:
 		frappe.cache.delete_value(_cache_key(shop))
+		frappe.cache.delete_value(_auto_cart_key(shop))
+
+
+def _auto_cart_key(shop_name):
+	return f"marketplace:auto_cart:v1:{shop_name}"
+
+
+def auto_cart(shop):
+	"""«Savatda tayyor tursin» belgilangan tovarlar: [{code, family, name, variant, thumb, price}].
+
+	Har sahifada (get_shop) — shuning uchun 5 daqiqa keshda; Item/Item Price saqlanganda tozalanadi.
+	Sotib bo'lmaydiganlari (Tez kunda, narxsiz, omborda yo'q) tushib qoladi. Xato bersa — bo'sh: sayt ishlayveradi."""
+	key = _auto_cart_key(shop.name)
+	cached = frappe.cache.get_value(key)
+	if cached is not None:
+		return cached
+	try:
+		out = _build_auto_cart(shop)
+	except Exception:
+		frappe.log_error(title="Savatda tayyor tovar", message=frappe.get_traceback())
+		return []
+	frappe.cache.set_value(key, out, expires_in_sec=300)
+	return out
+
+
+def _build_auto_cart(shop):
+	rows = frappe.get_all(
+		"Item",
+		filters={
+			"shop": shop.name, "mp_savatda": 1, "disabled": 0, "is_published": 1, "mp_tez_kunda": 0,
+			"variant_of": ["is", "not set"],
+		},
+		fields=["name", "item_name", "image", "has_variants", "is_stock_item"],
+		order_by="item_name asc",
+		limit=5,
+	)
+	out = []
+	for r in rows:
+		code, family, variant = r.name, [r.name], None
+		if r.has_variants:
+			# Rangli tovar: omborda bor birinchi variant (andozaning o'zi savatga tushmaydi)
+			vs = frappe.get_all(
+				"Item",
+				filters={"variant_of": r.name, "disabled": 0, "is_published": 1},
+				fields=["name", "is_stock_item"],
+				order_by="name asc",
+			)
+			stock = _get_stock([v.name for v in vs], shop.warehouse) if vs else {}
+			bor = [v.name for v in vs if not cint(v.is_stock_item) or stock.get(v.name, 0) > 0]
+			if not bor:
+				continue
+			code, family, variant = bor[0], family + [v.name for v in vs], variant_labels([bor[0]]).get(bor[0])
+		elif cint(r.is_stock_item) and _get_stock([r.name], shop.warehouse).get(r.name, 0) <= 0:
+			continue
+		price = flt(_get_prices([code]).get(code))
+		if not price:
+			continue
+		thumbs = _get_thumbnails([code, r.name])
+		out.append({
+			"code": code, "family": family, "name": r.item_name, "variant": variant,
+			"thumb": thumbs.get(code) or thumbs.get(r.name) or r.image or "", "price": price,
+		})
+	return out
 
 
 def _cache_key(shop_name):

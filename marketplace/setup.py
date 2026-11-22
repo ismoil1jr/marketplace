@@ -67,12 +67,23 @@ CUSTOM_FIELDS = {
 			"description": "Belgilansa: saytda och rangda «Tez kunda» bo'lib chiqadi, mijoz ko'radi va sevimlilarga qo'shadi, lekin sotib ololmaydi",
 		},
 		{
+			# Saytga kirgan har bir mijoz savatida o'zi paydo bo'ladi (storefront.auto_cart -> storefront.js, brauzerda
+			# bir marta: mijoz o'chirsa — qaytib qo'shilmaydi). Variantga ko'chirilmaydi: andozada belgilanadi
+			"fieldname": "mp_savatda",
+			"label": "Savatda tayyor tursin",
+			"fieldtype": "Check",
+			"default": "0",
+			"in_standard_filter": 1,
+			"insert_after": "mp_tez_kunda",
+			"description": "Belgilansa: saytga kirgan har bir mijozning savatiga (Telegram orqali kirgan-kirmaganidan qat'i nazar) bu tovar o'zi 1 dona qo'shilib turadi. Mijoz o'chirsa — qayta qo'shilmaydi. Rangli tovarda — omborda bor birinchi rang",
+		},
+		{
 			# Instagram formasi (Google Sheets) murojaati qaysi tovar bo'yicha: SMM varaq/forma nomiga yoki tovar_id ustuniga
 			# shu raqamni yozadi (murojaat._item). Do'kon ichida takrorlanmaydi, bo'sh bo'lsa — o'zi beriladi (item_tovar_id)
 			"fieldname": "mp_tovar_id",
 			"label": "Tovar ID (reklama)",
 			"fieldtype": "Int",
-			"insert_after": "mp_tez_kunda",
+			"insert_after": "mp_savatda",
 			"no_copy": 1,
 			"search_index": 1,
 			"in_list_view": 1,

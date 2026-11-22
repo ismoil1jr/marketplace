@@ -32,6 +32,7 @@
 			cats: {{ (cat_tree or {}) | tojson }},
 			preview: {{ shop.preview | tojson }},
 			csrf: {{ (csrf_token or "") | tojson }},
+			autoCart: {{ (shop.auto_cart or []) | tojson }},
 		};
 	</script>
 	<script src="/assets/marketplace/js/storefront.js?v={{ asset_version }}" defer></script>

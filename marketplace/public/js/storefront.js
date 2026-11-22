@@ -61,6 +61,28 @@
 		count: () => Object.values(cart.all()).reduce((a, b) => a + b, 0),
 		total: () => Object.entries(cart.all()).reduce((s, [code, q]) => s + unitPrice(code, q) * q, 0),
 	};
+	// «Savatda tayyor tursin» tovarlari (storefront.auto_cart): har bir brauzerda bir marta o'zi qo'shiladi —
+	// Telegram orqali kirgan-kirmaganidan qat'i nazar. Mijoz o'chirsa — qaytib qo'shilmaydi (ro'yxat AUTO_KEY'da)
+	(() => {
+		const AUTO_KEY = `mp_auto:${SF.shop}`;
+		const done = new Set(store.get(AUTO_KEY, []));
+		const c = cart.all();
+		let changed = false;
+		for (const a of SF.autoCart || []) {
+			if (done.has(a.code)) continue;
+			done.add(a.code);
+			changed = true;
+			if ((a.family || [a.code]).some((code) => c[code] > 0)) continue; // shu tovar (biror rangi) savatda bor
+			if (!meta[a.code]) meta[a.code] = { name: a.name, variant: a.variant || "", thumb: a.thumb || "", price: a.price };
+			c[a.code] = 1;
+		}
+		if (changed) {
+			store.set(CART_KEY, c);
+			store.set(META_KEY, meta);
+			store.set(AUTO_KEY, [...done]);
+		}
+	})();
+
 	// Chegirma barabani (baraban.js) uchun: yutgan tovarni savatga qo'shish
 	SF.cart = {
 		add: cart.add,

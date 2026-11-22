@@ -50,3 +50,52 @@ class TestBarabanPicker(UnitTestCase):
 		from marketplace import baraban
 
 		self.assertEqual(baraban.tovar_query("Item", "", "name", 0, 10, {}), [])
+
+
+class TestAutoCart(UnitTestCase):
+	"""«Savatda tayyor tursin»: qaysi tovar har bir mijoz savatiga tushadi."""
+
+	def _build(self, rows, variants=None, stock=None, prices=None):
+		from marketplace import storefront
+
+		shop = frappe._dict(name="SHOP-A", warehouse="W")
+		calls = {"n": 0}
+
+		def get_all(doctype, **kw):
+			calls["n"] += 1
+			return rows if calls["n"] == 1 else (variants or [])
+
+		with patch("frappe.get_all", side_effect=get_all), \
+			patch.object(storefront, "_get_stock", return_value=stock or {}), \
+			patch.object(storefront, "_get_prices", side_effect=lambda codes: {c: (prices or {}).get(c, 0) for c in codes}), \
+			patch.object(storefront, "_get_thumbnails", return_value={}), \
+			patch.object(storefront, "variant_labels", side_effect=lambda codes: {c: "Ko'k" for c in codes}):
+			return storefront._build_auto_cart(shop)
+
+	def test_simple_item(self):
+		rows = [frappe._dict(name="PEN", item_name="Ruchka", image="/p.png", has_variants=0, is_stock_item=0)]
+		out = self._build(rows, prices={"PEN": 50000})
+		self.assertEqual(out, [{"code": "PEN", "family": ["PEN"], "name": "Ruchka", "variant": None, "thumb": "/p.png", "price": 50000}])
+
+	def test_variant_item_first_in_stock(self):
+		rows = [frappe._dict(name="BOOK", item_name="Panda books", image=None, has_variants=1, is_stock_item=1)]
+		vs = [frappe._dict(name="BOOK-A", is_stock_item=1), frappe._dict(name="BOOK-B", is_stock_item=1)]
+		out = self._build(rows, vs, stock={"BOOK-A": 0, "BOOK-B": 3}, prices={"BOOK-B": 500000})
+		self.assertEqual(out[0]["code"], "BOOK-B")
+		self.assertEqual(out[0]["family"], ["BOOK", "BOOK-A", "BOOK-B"])
+		self.assertEqual(out[0]["variant"], "Ko'k")
+
+	def test_skips_out_of_stock_and_no_price(self):
+		rows = [
+			frappe._dict(name="OUT", item_name="Out", image=None, has_variants=0, is_stock_item=1),
+			frappe._dict(name="FREE", item_name="Free", image=None, has_variants=0, is_stock_item=0),
+		]
+		self.assertEqual(self._build(rows, stock={"OUT": 0}, prices={"OUT": 1000}), [])
+
+	def test_auto_cart_never_raises(self):
+		from marketplace import storefront
+
+		shop = frappe._dict(name="SHOP-ERR", warehouse="W")
+		frappe.cache.delete_value(storefront._auto_cart_key(shop.name))
+		with patch.object(storefront, "_build_auto_cart", side_effect=RuntimeError("x")), patch("frappe.log_error"):
+			self.assertEqual(storefront.auto_cart(shop), [])

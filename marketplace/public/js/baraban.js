@@ -171,11 +171,19 @@
 
 	function showBar() {
 		if (bar) return;
-		bar = el("div", "bb-bar");
-		bar.setAttribute("role", "status");
+		// Butun panel — savatga havola: bosilsa chegirmali tovar savatda bo'ladi (o'chirilgan bo'lsa — qaytadi)
+		bar = el("a", "bb-bar");
+		bar.href = cartUrl();
 		setTones(bar);
+		bar.addEventListener("click", (e) => {
+			ensureInCart();
+			if (location.pathname === `${SF.base}/savat`) {
+				e.preventDefault();
+				window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
+			}
+		});
 		bar.append(el("span", "bb-bar__icon", "⏳"), el("span", "bb-bar__label", "Chegirma tugashiga"), clock());
-		bar.append(el("span", "bb-bar__deal", fmt(st.price)));
+		bar.append(el("span", "bb-bar__deal", fmt(st.price)), el("span", "bb-bar__go", "Savatga ›"));
 		document.body.prepend(bar);
 		placeBar();
 		window.addEventListener("resize", placeBar, { passive: true });
@@ -221,6 +229,7 @@
 		remaining = 0;
 		paint();
 		bar.classList.add("bb-bar--done");
+		bar.removeAttribute("href");
 		bar.replaceChildren(el("span", "bb-bar__label", "Chegirma muddati tugadi"));
 		applyPrices();
 		if (SF.reloadCart) SF.reloadCart();
@@ -472,15 +481,20 @@
 		});
 	}
 
-	function showResult({ card, wrap, result, eyebrow, title, sub, close, tones }) {
+	const cartUrl = () => `${SF.base}/savat${SF.preview ? `?layout=${encodeURIComponent(SF.preview)}` : ""}`;
+
+	// Chegirmali tovar savatda bo'lsin. Variantli tovar: biror varianti savatda bo'lsa, yana qo'shilmaydi
+	function ensureInCart() {
 		const p = st.product;
 		const code = p.add || p.code;
-		// Variantli tovar: shu tovarning biror varianti savatda bo'lsa, yana qo'shilmaydi
-		const inCart = SF.cart && (p.codes || [code]).some((c) => SF.cart.qty(c) > 0);
-		if (SF.cart && !inCart) {
-			SF.cart.remember(code, { name: p.name, variant: p.variant || "", thumb: p.thumb || "", price: p.add_price || 0 });
-			SF.cart.add(code, 1);
-		}
+		if (!SF.cart || (p.codes || [code]).some((c) => SF.cart.qty(c) > 0)) return;
+		SF.cart.remember(code, { name: p.name, variant: p.variant || "", thumb: p.thumb || "", price: p.add_price || 0 });
+		SF.cart.add(code, 1);
+	}
+
+	function showResult({ card, wrap, result, eyebrow, title, sub, close, tones }) {
+		const p = st.product;
+		ensureInCart();
 
 		confetti([tones.base, tones.light, "#ffd23f", "#ff4d6d", "#3ddc97", "#4cc9f0", "#ffffff"]);
 		// Baraban yig'iladi, o'rnida natija ochiladi
@@ -523,9 +537,7 @@
 		const go = el("button", "bb-go");
 		go.type = "button";
 		go.append(el("span", "", "Savatga o‘tish"));
-		go.addEventListener("click", () => {
-			location.href = `${SF.base}/savat${SF.preview ? `?layout=${encodeURIComponent(SF.preview)}` : ""}`;
-		});
+		go.addEventListener("click", () => (location.href = cartUrl()));
 		const later = el("button", "bb-later", "Xaridni davom ettirish");
 		later.type = "button";
 		later.addEventListener("click", close);

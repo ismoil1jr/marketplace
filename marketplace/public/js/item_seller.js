@@ -19,7 +19,7 @@
 		"item_name", "item_group", "image", "standard_rate", "variant_price", "mp_narxlar_html", "ranglar",
 		"disabled", "description", "has_variants", "variant_of", "is_published",
 		// Majburiy tovar (avval shuni olishi shart) va "Tez kunda" (ko'rinadi, sotilmaydi)
-		"mp_majburiy", "mp_tez_kunda",
+		"mp_majburiy", "mp_tez_kunda", "mp_savatda",
 		"gallery", "mxik_code", "package_code",
 		// "Ombor" tabi: hozirgi qoldiq, kirim (kimdan, nechta, necha puldan), kirim tarixi
 		"mp_ombor_html", "mp_kirim_kontragent", "mp_kirim", "mp_kirim_izoh", "mp_ombor_log",
