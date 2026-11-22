@@ -104,7 +104,6 @@ window.MpTovarPanel = class MpTovarPanel {
 					<b>${esc(r.mijoz_ismi || "")}</b>
 					${r.telefon ? `<a href="tel:${esc(r.telefon)}">${esc(r.telefon)}</a>` : ""}
 				</div>
-				<a class="btn btn-default btn-sm" data-product target="_blank" rel="noopener" hidden>${__("Tovarni saytda ko‘rish")}</a>
 			</div>
 			<div class="mp-tc__chat"></div>`);
 		$main.find(".mp-tc__back").on("click", () => {
@@ -128,8 +127,8 @@ window.MpTovarPanel = class MpTovarPanel {
 				edit: (xabar, matn) => call("tahrirlash", { xabar, matn }),
 				remove: (xabar) => call("ochirish", { xabar }),
 			},
+			// Qaysi tovar — chat boshidagi kartada; kartani bosganda tovar sahifasi ochiladi (alohida tugma yo'q)
 			onChange: (info) => {
-				if (info && info.tovar && info.tovar.url) $main.find("[data-product]").attr("href", info.tovar.url).prop("hidden", false);
 				if (info && info.mijoz) $main.find(".mp-tc__who b").text(info.mijoz);
 				this.refresh_list_soon();
 			},
