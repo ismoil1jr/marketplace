@@ -1,7 +1,7 @@
 import frappe
 from frappe.utils import cint
 
-from marketplace import storefront
+from marketplace import seo, storefront
 
 no_cache = 1
 
@@ -15,6 +15,7 @@ def get_context(context):
 	context.base = f"/s/{shop.name}"
 	context.catalog_json = {}
 	context.asset_version = storefront.asset_version()
+	context.canonical_url = seo.shop_url(shop.name, "maxfiylik")
 	context.csrf_token = frappe.session.data.csrf_token or ""
 	context.seller = shop.legal_name or shop.shop_name
 	# Qo'ng'iroq yozuvlari shuncha kundan keyin o'chiriladi (Telefoniya Sozlamalari), 0 — o'chirilmaydi

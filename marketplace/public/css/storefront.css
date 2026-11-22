@@ -93,7 +93,7 @@ svg { width: 20px; height: 20px; flex: none; }
 .sf-top__inner { display: flex; align-items: center; gap: 12px; max-width: 1360px; margin: 0 auto; }
 .sf-brand { display: flex; align-items: center; gap: 12px; min-width: 0; margin-right: auto; }
 .sf-brand__text { display: grid; min-width: 0; }
-.sf-brand__text strong { font-size: 19px; font-weight: 700; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sf-brand__text strong, .sf-brand__name { margin: 0; font-size: 19px; font-weight: 700; line-height: inherit; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sf-brand__text small { color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sf-avatar {
 	display: grid; place-items: center; flex: none; overflow: hidden;
@@ -517,7 +517,7 @@ html.sf-noscroll, html.sf-noscroll body { overflow: hidden; }
 	:root { --gutter: 24px; }
 	.sf-top { padding-top: 22px; }
 	.sf-avatar { width: 56px; height: 56px; font-size: 18px; }
-	.sf-brand__text strong { font-size: 22px; }
+	.sf-brand__text strong, .sf-brand__name { font-size: 22px; }
 	.sf-search--top { display: flex; width: min(340px, 40vw); }
 	.sf-search--inline, .sf-only-mobile { display: none !important; }
 
@@ -666,7 +666,7 @@ html.sf-noscroll, html.sf-noscroll body { overflow: hidden; }
 	.sf-card__body { padding: 10px; }
 	.sf-price__now { font-size: 15px; }
 	.sf-add { width: 40px; height: 40px; border-radius: 11px; }
-	.sf-brand__text strong { font-size: 17px; }
+	.sf-brand__text strong, .sf-brand__name { font-size: 17px; }
 	.sf-avatar { width: 42px; height: 42px; font-size: 14px; }
 	.sf-cartbar { padding-left: 14px; }
 	.sf-cartbar strong { font-size: 15px; }
@@ -824,7 +824,7 @@ html.sf-noscroll, html.sf-noscroll body { overflow: hidden; }
 .kt-head__inner { display: flex; align-items: center; gap: 12px; max-width: 960px; margin: 0 auto; padding: 12px var(--gutter); }
 .kt-avatar.sf-avatar { width: 44px; height: 44px; border-radius: 12px; font-size: 15px; }
 .kt-head__text { display: grid; flex: 1; min-width: 0; }
-.kt-head__text strong { font-size: 17px; }
+.kt-head__text strong, .kt-head__name { margin: 0; font-size: 17px; font-weight: 700; line-height: inherit; }
 .kt-head__text small { color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .kt-iconbtn { position: relative; display: grid; place-items: center; width: 44px; height: 44px; border: 1px solid var(--line); border-radius: 12px; }
 .kt-iconbtn .sf-count { background: var(--brand); }

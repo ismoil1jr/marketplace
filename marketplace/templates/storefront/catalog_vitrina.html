@@ -7,7 +7,7 @@
 		<div class="sf-brand">
 			<a href="{{ base }}" aria-label="{{ shop.shop_name }}">{{ shop_avatar(shop) }}</a>
 			<span class="sf-brand__text">
-				<strong><a href="{{ base }}">{{ shop.shop_name }}</a></strong>
+				<h1 class="sf-brand__name"><a href="{{ base }}">{{ shop.shop_name }}</a></h1>
 				<small>{% if shop.instagram_handle %}<a class="sf-insta-link" href="https://instagram.com/{{ shop.instagram_handle }}" target="_blank" rel="noopener">@{{ shop.instagram_handle }}</a>{% endif %}{% if shop.instagram_handle and shop.city %} · {% endif %}{{ shop.city or "" }}</small>
 			</span>
 		</div>

@@ -11,6 +11,7 @@ def get_context(context):
 	context.base = f"/s/{shop.name}"
 	context.catalog_json = {}
 	context.asset_version = storefront.asset_version()
+	context.noindex = 1  # shaxsiy sahifa — Google'da chiqmaydi
 	context.csrf_token = frappe.session.data.csrf_token or ""
 
 	# Faqat sessiyadagi mijozning va faqat shu do'kondagi buyurtmalari

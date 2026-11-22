@@ -11,9 +11,15 @@
 	<meta property="og:title" content="{{ t.title }}">
 	<meta property="og:description" content="{{ t.description }}">
 	<meta property="og:image" content="{{ og_image }}">
+	<meta property="og:site_name" content="Magazinlar">
+	<meta property="og:url" content="{{ canonical_url }}">
+	<link rel="canonical" href="{{ canonical_url }}">
 	<link rel="icon" type="image/svg+xml" href="/assets/marketplace/images/favicon.svg?v={{ asset_version }}">
-	<link rel="alternate" hreflang="uz" href="/?til=uz">
-	<link rel="alternate" hreflang="ru" href="/?til=ru">
+	<link rel="icon" type="image/png" sizes="192x192" href="/assets/marketplace/images/logo.png">
+	<link rel="alternate" hreflang="uz" href="{{ url_uz }}">
+	<link rel="alternate" hreflang="ru" href="{{ url_ru }}">
+	<link rel="alternate" hreflang="x-default" href="{{ url_uz }}">
+	{% if ld_json %}<script type="application/ld+json">{{ ld_json | tojson }}</script>{% endif %}
 	<link rel="preconnect" href="https://fonts.googleapis.com">
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 	<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Unbounded:wght@600;700&display=swap" rel="stylesheet">

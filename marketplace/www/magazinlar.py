@@ -115,3 +115,22 @@ def get_context(context):
 	context.asset_version = storefront.asset_version()
 	context.og_image = get_url(f"/assets/marketplace/images/og.png?v={context.asset_version}")
 	context.year = frappe.utils.getdate().year
+	# Google: o'zbekcha — asosiy manzil, ruscha — ?til=ru; sayt nomi «Magazinlar» (WebSite + Organization)
+	from marketplace import seo
+
+	context.url_uz = get_url("/")
+	context.url_ru = get_url("/?til=ru")
+	context.canonical_url = context.url_ru if lang == "ru" else context.url_uz
+	context.ld_json = seo.jsonld(
+		*seo.site_schema(phone=context.phone, logo=get_url("/assets/marketplace/images/logo.png")),
+		{
+			"@type": "ItemList",
+			"name": t.shops,
+			"itemListElement": [
+				{"@type": "ListItem", "position": i, "name": s.shop_name, "url": seo.shop_url(s.name)}
+				for i, s in enumerate(shops, start=1)
+			],
+		}
+		if shops
+		else None,
+	)

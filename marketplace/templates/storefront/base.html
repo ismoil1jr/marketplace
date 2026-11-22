@@ -5,12 +5,20 @@
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 	<title>{% block title %}{{ shop.shop_name }}{% endblock %}</title>
-	<meta name="description" content="{{ shop.tagline or shop.shop_name }}">
+	{% set page_desc = meta_description or (shop.tagline or shop.shop_name or "") | trim %}
+	<meta name="description" content="{{ page_desc }}">
+	{# Savat, buyurtma — shaxsiy sahifalar Google'da chiqmasin; ?layout= ko'rib chiqish nusxalari canonical bilan asl sahifaga #}
+	{% if noindex %}<meta name="robots" content="noindex, follow">{% endif %}
+	{% if canonical_url %}<link rel="canonical" href="{{ canonical_url }}">{% endif %}
 	<meta name="theme-color" content="{{ '#121110' if shop.layout == 'story' else '#F2F1EE' }}">
-	<meta property="og:type" content="website">
+	<meta property="og:type" content="{{ og_type or 'website' }}">
+	<meta property="og:site_name" content="{{ shop.shop_name }} · magazinlar.uz">
 	<meta property="og:title" content="{{ self.title() }}">
-	<meta property="og:description" content="{{ shop.tagline or '' }}">
+	<meta property="og:description" content="{{ page_desc }}">
+	{% if canonical_url %}<meta property="og:url" content="{{ canonical_url }}">{% endif %}
 	{% if og_image %}<meta property="og:image" content="{{ og_image }}">{% endif %}
+	<meta property="og:locale" content="uz_UZ">
+	{% if ld_json %}<script type="application/ld+json">{{ ld_json | tojson }}</script>{% endif %}
 	<link rel="preconnect" href="https://fonts.googleapis.com">
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 	<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700{% if shop.layout == "story" %}&family=Unbounded:wght@600;700{% endif %}&display=swap" rel="stylesheet">

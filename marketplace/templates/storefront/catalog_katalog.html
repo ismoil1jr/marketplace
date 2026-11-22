@@ -5,7 +5,7 @@
 		<div class="kt-head__inner">
 			{{ shop_avatar(shop, "kt-avatar") }}
 			<div class="kt-head__text">
-				<strong>{{ shop.shop_name }}</strong>
+				<h1 class="kt-head__name">{{ shop.shop_name }}</h1>
 				<small>{{ shop.tagline or "" }}{% if shop.tagline and shop.city %} · {% endif %}{{ shop.city or "" }}</small>
 			</div>
 			<a class="kt-iconbtn" href="{{ base }}/buyurtmalarim" aria-label="Buyurtmalarim" title="Buyurtmalarim"><svg><use href="#i-receipt"/></svg></a>
