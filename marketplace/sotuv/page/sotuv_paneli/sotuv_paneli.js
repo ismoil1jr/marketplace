@@ -8,9 +8,15 @@ frappe.pages["sotuv-paneli"].on_page_load = function (wrapper) {
 
 frappe.pages["sotuv-paneli"].on_page_show = function (wrapper) {
 	// Telegram'dagi «Murojaatni ochish» tugmasi: /desk/sotuv/sotuv-paneli?murojaat=MRJ-... — shu murojaat ochiladi
-	const lead = frappe.utils.get_query_params().murojaat;
+	const params = frappe.utils.get_query_params();
+	const lead = params.murojaat;
 	if (wrapper.sotuv && lead) {
 		Object.assign(wrapper.sotuv.state, { mode: "murojaat", view: "hammasi", q: "", dan: "", gacha: "", open: lead });
+		window.history.replaceState(null, "", window.location.pathname);
+	}
+	// Telegram'dagi «Chatni ochish»: ?tovar_murojaat=TM-... — «Tovar murojaatlari»da shu chat ochiladi
+	if (wrapper.sotuv && params.tovar_murojaat) {
+		Object.assign(wrapper.sotuv.state, { mode: "tovar", q: "", open: params.tovar_murojaat });
 		window.history.replaceState(null, "", window.location.pathname);
 	}
 	wrapper.sotuv?.load();
@@ -67,9 +73,48 @@ class SotuvPaneli {
 		this.page.set_primary_action(__("Murojaat qo‘shish"), () => this.add_lead_dialog(), "add");
 		this.$body = $(`<div class="mp-sp"></div>`).appendTo(page.main);
 		this.inject_style();
+		// Mijoz tovar bo'yicha yozdi: «Tovar murojaatlari» ochiq bo'lsa — chat/ro'yxat, aks holda — tugmadagi son
+		frappe.realtime.on("mp_tovar_chat", (data) => {
+			if (this.state.mode === "tovar") this.tovar?.on_realtime(data);
+			else if (!data.read) frappe.xcall("marketplace.sotuv.tovar_chat.yangi_soni").then((n) => this.set_mode_badge("tovar", n));
+		});
+	}
+
+	// Rejim almashtirgichi: Buyurtmalar / Murojaatlar / Tovar murojaatlari — har birida yangilari soni
+	modes_html(news) {
+		const badge = (n) => (n ? ` <span>${n} ${__("yangi")}</span>` : "");
+		return `<div class="mp-sp__modes">${[["buyurtma", "🛒", "Buyurtmalar"], ["murojaat", "📣", "Murojaatlar"], ["tovar", "💬", "Tovar murojaatlari"]]
+			.map(([m, icon, label]) => `<button class="${this.state.mode === m ? "is-active" : ""} ${news[m] ? "is-due" : ""}" data-mode="${m}">${icon} ${__(label)}${badge(news[m])}</button>`)
+			.join("")}</div>`;
+	}
+
+	set_mode_badge(mode, n) {
+		const $b = this.$body.find(`.mp-sp__modes [data-mode="${mode}"]`);
+		$b.toggleClass("is-due", !!n).find("span").remove();
+		if (n) $b.append(` <span>${n} ${__("yangi")}</span>`);
+	}
+
+	bind_modes() {
+		this.$body.find("[data-mode]").on("click", (e) => {
+			const mode = e.currentTarget.dataset.mode;
+			if (mode === this.state.mode) return;
+			if (this.state.mode === "tovar") this.tovar?.destroy();
+			// Murojaatlarda avval faqat yangi kelganlari (buyurtma berganlari — «Buyurtma berdi»da), buyurtmalarda — to'lanmaganlar
+			Object.assign(this.state, { mode, view: mode === "murojaat" ? "yangi" : "tolanmagan", open: null, q: "", dan: "", gacha: "" });
+			this.data = null;
+			this.load();
+		});
+	}
+
+	// «Tovar murojaatlari»: chat vidjeti va panel fayllari faqat shu bo'lim ochilganda yuklanadi
+	async load_tovar() {
+		await frappe.require(["/assets/marketplace/css/tovar_chat.css", "/assets/marketplace/js/tovar_chat.js", "/assets/marketplace/js/tovar_chat_desk.js"]);
+		this.tovar = this.tovar || new MpTovarPanel(this);
+		return this.tovar.load();
 	}
 
 	async load() {
+		if (this.state.mode === "tovar") return this.load_tovar();
 		if (!this.data) this.$body.html(`<div class="mp-sp__empty text-muted">${__("Yuklanmoqda…")}</div>`);
 		const leads = this.state.mode === "murojaat";
 		this.data = await frappe.xcall(leads ? "marketplace.sotuv.murojaat.get_leads" : "marketplace.sotuv.api.get_orders", {
@@ -101,12 +146,8 @@ class SotuvPaneli {
 		// Rejim almashtirgichi: ikkala tugmada ham yangi (hali ko'rilmagan) soni — qaysi rejimda bo'lsa ham ko'rinib tursin
 		const lead_new = leads ? counts.yangi : this.data.lead_new;
 		const order_new = leads ? this.data.order_new : counts.yangi;
-		const badge = (n) => (n ? ` <span>${n} ${__("yangi")}</span>` : "");
 		this.$body.html(`
-			<div class="mp-sp__modes">
-				<button class="${leads ? "" : "is-active"} ${order_new ? "is-due" : ""}" data-mode="buyurtma">🛒 ${__("Buyurtmalar")}${badge(order_new)}</button>
-				<button class="${leads ? "is-active" : ""} ${lead_new ? "is-due" : ""}" data-mode="murojaat">📣 ${__("Murojaatlar")}${badge(lead_new)}</button>
-			</div>
+			${this.modes_html({ buyurtma: order_new, murojaat: lead_new, tovar: this.data.tovar_new })}
 			<div class="mp-sp__top">
 				<div class="mp-sp__tabs">${views.map(([v, l, holat], i) => `${holat && !views[i - 1][2] ? `<span class="mp-sp__tabs-sep"></span>` : ""}
 					<button class="${this.state.view === v ? "is-active" : ""} ${v === "bugun" && counts.bugun ? "is-due" : ""}" data-view="${v}">
@@ -172,13 +213,7 @@ class SotuvPaneli {
 	}
 
 	bind() {
-		this.$body.find("[data-mode]").on("click", (e) => {
-			const mode = e.currentTarget.dataset.mode;
-			if (mode === this.state.mode) return;
-			// Murojaatlarda avval faqat yangi kelganlari (buyurtma berganlari — «Buyurtma berdi»da), buyurtmalarda — to'lanmaganlar
-			Object.assign(this.state, { mode, view: mode === "murojaat" ? "yangi" : "tolanmagan", open: null, q: "", dan: "", gacha: "" });
-			this.load();
-		});
+		this.bind_modes();
 		this.$body.find("[data-view]").on("click", (e) => {
 			this.state.view = e.currentTarget.dataset.view;
 			this.state.open = null;

@@ -1,0 +1,36 @@
+{% extends "marketplace/templates/storefront/base.html" %}
+{% from "marketplace/templates/storefront/macros.html" import auth_form, shop_avatar %}
+
+{% block title %}{% autoescape true %}Sotuvchi bilan chat — {{ product.name }}{% endautoescape %}{% endblock %}
+{% block body_class %}page-chat layout-{{ shop.layout }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="/assets/marketplace/css/tovar_chat.css?v={{ asset_version }}">{% endblock %}
+
+{% block content %}{% autoescape true %}
+<div class="sf-chat">
+	<header class="sf-chat__head">
+		<a class="sf-round" href="{{ base }}/p/{{ product.code }}" aria-label="Tovarga qaytish"><svg><use href="#i-back"/></svg></a>
+		<a class="sf-chat__who" href="{{ base }}">
+			{{ shop_avatar(shop) }}
+			<span><b>{{ shop.shop_name }}</b><small>Sotuvchi bilan chat</small></span>
+		</a>
+		{% if customer %}<a class="sf-round" href="{{ base }}/profil" aria-label="Profil — barcha chatlarim"><svg><use href="#i-user"/></svg></a>{% endif %}
+	</header>
+
+	{% if customer %}
+	<div class="sf-chat__body" data-tovar-chat data-shop="{{ shop.name }}" data-tovar="{{ product.code }}"></div>
+	{% else %}
+	<div class="sf-narrow sf-chat__guest">
+		<a class="mpc-card" href="{{ base }}/p/{{ product.code }}">
+			{% if card.thumb %}<img src="{{ card.thumb }}" alt="">{% else %}<span class="mpc-card__ph"></span>{% endif %}
+			<span><small>Tovar bo‘yicha savol</small><b>{{ product.name }}</b>{% if card.price_text %}<em>{{ card.price_text }}</em>{% endif %}</span>
+		</a>
+		<section class="sf-box" data-auth-page>
+			<h2>Sotuvchiga yozish uchun kiring</h2>
+			{{ auth_form("Sotuvchining javobini shu yerda va profilingizda ko‘rasiz.") }}
+		</section>
+	</div>
+	{% endif %}
+</div>
+{% endautoescape %}{% endblock %}
+
+{% block foot %}{% if customer %}<script src="/assets/marketplace/js/tovar_chat.js?v={{ asset_version }}" defer></script>{% endif %}{% endblock %}

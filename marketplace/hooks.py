@@ -135,6 +135,9 @@ website_route_rules = [
 	{"from_route": "/s/<shop>/savat", "to_route": "storefront/cart"},
 	{"from_route": "/s/<shop>/buyurtma/<order>", "to_route": "storefront/order"},
 	{"from_route": "/s/<shop>/buyurtmalarim", "to_route": "storefront/orders"},
+	# Mijoz profili (Telegram, seanslar, sotuvchi bilan chatlar) va tovar bo'yicha sotuvchi bilan chat
+	{"from_route": "/s/<shop>/profil", "to_route": "storefront/profil"},
+	{"from_route": "/s/<shop>/chat/<item>", "to_route": "storefront/chat"},
 	# Meta (Instagram) lead-formasi uchun majburiy havola — har bir do'konning o'zi
 	{"from_route": "/s/<shop>/maxfiylik", "to_route": "storefront/privacy"},
 ]

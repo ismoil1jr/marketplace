@@ -1,0 +1,82 @@
+{% extends "marketplace/templates/storefront/base.html" %}
+{% from "marketplace/templates/storefront/macros.html" import auth_form %}
+
+{% block title %}{% autoescape true %}Profil — {{ shop.shop_name }}{% endautoescape %}{% endblock %}
+{% block body_class %}page-profile layout-{{ shop.layout }}{% endblock %}
+
+{% block content %}{% autoescape true %}
+<div class="sf-narrow">
+	<header class="sf-pagehead">
+		<a class="sf-round" href="{{ base }}" aria-label="Do‘konga qaytish"><svg><use href="#i-back"/></svg></a>
+		<h1>Profil</h1>
+	</header>
+
+	{% if not customer %}
+	<section class="sf-box" data-auth-page>
+		<h2>Kirish</h2>
+		{{ auth_form("Buyurtmalaringiz va sotuvchi bilan yozishmalaringizni ko‘rish uchun kiring.") }}
+	</section>
+	{% else %}
+	<section class="sf-prof">
+		<span class="sf-prof__photo">
+			<span>{{ initials }}</span>
+			{% if tg.photo %}<img src="/api/method/marketplace.api.profil_rasm" alt="" onerror="this.remove()">{% endif %}
+		</span>
+		<div class="sf-prof__text">
+			<h2>{{ tg.full_name or customer.name }}</h2>
+			<p>{{ phone }}</p>
+			<p class="sf-prof__tg"><svg><use href="#i-tg"/></svg>Telegram orqali kirgansiz{% if tg.username %} · {{ tg.username }}{% endif %}</p>
+		</div>
+	</section>
+
+	<h2 class="sf-h2" id="chatlar">Sotuvchi bilan chatlar{% if unread %} <span class="sf-newpill">{{ unread }} yangi</span>{% endif %}</h2>
+	{% if chats %}
+	<div class="sf-list">
+		{% for c in chats %}
+		<a class="sf-chatrow{{ ' is-unread' if c.unread else '' }}" href="{{ c.url }}">
+			{% if c.card.thumb %}<img src="{{ c.card.thumb }}" alt="" loading="lazy">{% else %}<span class="sf-chatrow__ph"><svg><use href="#i-chat"/></svg></span>{% endif %}
+			<span class="sf-chatrow__main">
+				<b>{{ c.card.name or c.tovar_nomi }}</b>
+				<small>{% if c.oxirgi_kimdan == "Mijoz" %}Siz: {% endif %}{{ c.oxirgi_xabar or "" }}</small>
+			</span>
+			<span class="sf-chatrow__side">
+				<time>{{ c.when }}</time>
+				{% if c.unread %}<span class="sf-chatrow__n" aria-label="{{ c.unread }} ta yangi xabar">{{ c.unread }}</span>{% endif %}
+			</span>
+		</a>
+		{% endfor %}
+	</div>
+	{% else %}
+	<p class="sf-box sf-muted">Hali sotuvchiga yozmagansiz. Tovar sahifasida «Sotuvchi bilan bog‘lanish» tugmasini bosing — savolingiz shu do‘kon menejeriga boradi.</p>
+	{% endif %}
+
+	<h2 class="sf-h2">Buyurtmalar</h2>
+	<div class="sf-list">
+		<a class="sf-setrow" href="{{ base }}/buyurtmalarim">
+			<svg><use href="#i-receipt"/></svg>
+			<span>Buyurtmalarim</span>
+			<small>{% if orders_active %}{{ orders_active }} ta jarayonda{% elif orders_total %}{{ orders_total }} ta{% else %}hali yo‘q{% endif %}</small>
+			<svg class="sf-setrow__go"><use href="#i-back"/></svg>
+		</a>
+	</div>
+
+	<h2 class="sf-h2">Sozlamalar</h2>
+	<div class="sf-list">
+		<div class="sf-setrow"><svg><use href="#i-user"/></svg><span>Ism</span><small>{{ customer.name }}</small></div>
+		<div class="sf-setrow"><svg><use href="#i-phone"/></svg><span>Telefon</span><small>{{ phone }}</small></div>
+		<div class="sf-setrow"><svg><use href="#i-lock"/></svg><span>Kirish usuli</span><small>Telegram{% if tg.username %} ({{ tg.username }}){% endif %}</small></div>
+		<details class="sf-setrow sf-sessions">
+			<summary><svg><use href="#i-device"/></svg><span>Faol seanslar</span><small>{{ sessions | length }} ta qurilma</small><svg class="sf-setrow__go"><use href="#i-back"/></svg></summary>
+			<ul>
+				{% for s in sessions %}
+				<li><svg><use href="#i-device"/></svg><span><b>{{ s.device }}</b><small>{% if s.current %}shu qurilma · {% endif %}{{ s.when }}</small></span></li>
+				{% endfor %}
+			</ul>
+			{% if sessions | length > 1 %}<button type="button" class="sf-btn sf-btn--ghost sf-btn--block" data-end-sessions>Boshqa qurilmalardan chiqish</button>{% endif %}
+		</details>
+	</div>
+
+	<button type="button" class="sf-btn sf-btn--block sf-logout" data-orders-logout><svg><use href="#i-logout"/></svg>Akkauntdan chiqish</button>
+	{% endif %}
+</div>
+{% endautoescape %}{% endblock %}

@@ -18,10 +18,12 @@
 		</label>
 
 		<div class="sf-top__actions">
-			{% set orders_label = "Buyurtmalarim" if customer else "Kirish" %}
-			<a class="sf-icon-btn sf-orders-btn" href="{{ base }}/buyurtmalarim" aria-label="{{ orders_label }}" title="{{ orders_label }}">
-				<svg><use href="#{{ 'i-receipt' if customer else 'i-user' }}"/></svg>
-				<span class="sf-orders-btn__label">{{ orders_label }}</span>
+			{# Profil: buyurtmalar, sotuvchi bilan chatlar, sozlamalar. Sotuvchidan o'qilmagan javob bo'lsa — qizil raqam #}
+			{% set profile_label = "Profil" if customer else "Kirish" %}
+			<a class="sf-icon-btn sf-orders-btn" href="{{ base }}/profil" aria-label="{{ profile_label }}{% if chat_unread %}: sotuvchidan {{ chat_unread }} ta yangi xabar{% endif %}" title="{{ profile_label }}">
+				<svg><use href="#i-user"/></svg>
+				<span class="sf-orders-btn__label">{{ profile_label }}</span>
+				{% if chat_unread %}<span class="sf-count sf-count--alert">{{ chat_unread }}</span>{% endif %}
 			</a>
 			{# Noutbukda: Uzum kabi «Sevimlilar» — bosilsa faqat sevimli tovarlar (storefront.js setGroup "__fav") #}
 			<button class="sf-icon-btn sf-fav-btn sf-only-desktop" type="button" data-group="__fav" data-fav-top aria-label="Sevimlilar">

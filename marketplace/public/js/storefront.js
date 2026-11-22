@@ -1245,6 +1245,20 @@
 			await api("logout", {}).catch(() => {});
 			location.reload();
 		});
+		// Profil → Faol seanslar: shu qurilmadan boshqa hammasidan chiqish
+		$("[data-end-sessions]")?.addEventListener("click", async (e) => {
+			const btn = e.currentTarget;
+			if (!(await confirmSheet({ title: "Boshqa qurilmalardan chiqilsinmi?", text: "Shu qurilmada kirgan holatingiz qoladi." }))) return;
+			btn.disabled = true;
+			try {
+				const n = await api("end_other_sessions", {});
+				toast(`${n} ta qurilmadan chiqildi`);
+				setTimeout(() => location.reload(), 700);
+			} catch (err) {
+				toast(err.message);
+				btn.disabled = false;
+			}
+		});
 	}
 
 	// ---------- To'lov sahifasi ----------

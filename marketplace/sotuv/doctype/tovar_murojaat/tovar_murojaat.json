@@ -1,0 +1,143 @@
+{
+ "actions": [],
+ "creation": "2026-11-22 18:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "module": "Sotuv",
+ "name": "Tovar Murojaat",
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "modified": "2026-11-22 18:00:00.000000",
+ "links": [],
+ "states": [],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Marketplace Manager",
+   "read": 1,
+   "report": 1,
+   "export": 1
+  }
+ ],
+ "fields": [
+  {
+   "fieldname": "shop",
+   "fieldtype": "Link",
+   "label": "Do‘kon",
+   "read_only": 1,
+   "options": "Shop",
+   "reqd": 1,
+   "search_index": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "tovar",
+   "fieldtype": "Link",
+   "label": "Tovar",
+   "read_only": 1,
+   "options": "Item",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "tovar_nomi",
+   "fieldtype": "Data",
+   "label": "Tovar nomi",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "label": "Mijoz (Customer)",
+   "read_only": 1,
+   "options": "Customer",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "mijoz_ismi",
+   "fieldtype": "Data",
+   "label": "Mijoz",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "telefon",
+   "fieldtype": "Data",
+   "label": "Telefon",
+   "read_only": 1,
+   "options": "Phone"
+  },
+  {
+   "fieldname": "section_oxirgi",
+   "fieldtype": "Section Break",
+   "label": "Oxirgi xabar"
+  },
+  {
+   "fieldname": "oxirgi_xabar",
+   "fieldtype": "Small Text",
+   "label": "Oxirgi xabar",
+   "read_only": 1
+  },
+  {
+   "fieldname": "oxirgi_kimdan",
+   "fieldtype": "Select",
+   "label": "Kimdan",
+   "read_only": 1,
+   "options": "\nMijoz\nSotuvchi"
+  },
+  {
+   "fieldname": "column_break_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "oxirgi_vaqt",
+   "fieldtype": "Datetime",
+   "label": "Oxirgi xabar vaqti",
+   "read_only": 1,
+   "in_list_view": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "menejer",
+   "fieldtype": "Link",
+   "label": "Javob bergan menejer",
+   "read_only": 1,
+   "options": "User"
+  }
+ ],
+ "field_order": [
+  "shop",
+  "tovar",
+  "tovar_nomi",
+  "column_break_1",
+  "customer",
+  "mijoz_ismi",
+  "telefon",
+  "section_oxirgi",
+  "oxirgi_xabar",
+  "oxirgi_kimdan",
+  "column_break_2",
+  "oxirgi_vaqt",
+  "menejer"
+ ],
+ "autoname": "TM-.YYYY.-.#####",
+ "naming_rule": "Expression (old style)",
+ "title_field": "mijoz_ismi",
+ "description": "Mijozning tovar bo‘yicha murojaati — sotuvchi bilan chat (sotuv/tovar_chat.py). Sotuv paneli → «Tovar murojaatlari»."
+}

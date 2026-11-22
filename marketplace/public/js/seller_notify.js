@@ -52,6 +52,18 @@ $(document).on("app_ready", () => {
 	});
 });
 
+// Mijoz tovar bo'yicha yozdi (sotuv/tovar_chat.py): ovoz + bosilsa Sotuv panelida shu chat ochiladi.
+// Yangi murojaat yoki menejer hammasini o'qib bo'lgandan keyingi birinchi xabar (alert); chat ochiq tursa — jim.
+$(document).on("app_ready", () => {
+	frappe.realtime.on("mp_tovar_chat", (data) => {
+		if (!data.alert || window.mp_tovar_open === data.thread) return;
+		frappe.utils.play_sound("alert");
+		const text = data.text ? `<br><small>${frappe.utils.escape_html(data.text)}</small>` : "";
+		const alert = frappe.show_alert({ message: `💬 ${frappe.utils.escape_html(data.subject)}${text}`, indicator: "blue" }, 20);
+		alert?.on?.("click", () => (window.location.href = `/desk/sotuv/sotuv-paneli?tovar_murojaat=${encodeURIComponent(data.thread)}`));
+	});
+});
+
 // Admin: do'kon paneliga kirish (shops-overview va Shop formasidan). Admin o'z akkauntida qoladi.
 window.marketplace_enter_shop = (shop) =>
 	frappe

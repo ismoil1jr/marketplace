@@ -72,6 +72,29 @@ def logout():
 	customers.end_session()
 
 
+@frappe.whitelist(allow_guest=True, methods=["GET"])
+@rate_limit(limit=60, seconds=60)
+def profil_rasm():
+	"""Profildagi Telegram rasmi (yopiq fayl — faqat o'ziga). Rasm yo'q bo'lsa 404, sahifada bosh harflar qoladi."""
+	c = _require_customer()
+	url = frappe.db.get_value("Telegram Mijoz", {"phone": c.phone, "photo": ["is", "set"]}, "photo", order_by="modified desc")
+	if not url:
+		raise frappe.DoesNotExistError
+	f = frappe.get_doc("File", {"file_url": url})
+	frappe.local.response.filename = f.file_name
+	frappe.local.response.filecontent = f.get_content(encodings=[])  # baytlar (matnga aylanmasin)
+	frappe.local.response.content_type = "image/jpeg"
+	frappe.local.response.type = "download"
+	frappe.local.response.display_content_as = "inline"
+
+
+@frappe.whitelist(allow_guest=True, methods=["POST"])
+@rate_limit(limit=10, seconds=600)
+def end_other_sessions():
+	"""Profil → «Boshqa qurilmalardan chiqish»."""
+	return customers.end_other_sessions(_require_customer().customer)
+
+
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 @rate_limit(limit=20, seconds=600)
 def place_order(shop, lines, delivery_method, address=""):

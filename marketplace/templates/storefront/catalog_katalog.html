@@ -8,7 +8,9 @@
 				<h1 class="kt-head__name">{{ shop.shop_name }}</h1>
 				<small>{{ shop.tagline or "" }}{% if shop.tagline and shop.city %} · {% endif %}{{ shop.city or "" }}</small>
 			</div>
-			<a class="kt-iconbtn" href="{{ base }}/buyurtmalarim" aria-label="Buyurtmalarim" title="Buyurtmalarim"><svg><use href="#i-receipt"/></svg></a>
+			<a class="kt-iconbtn" href="{{ base }}/profil" aria-label="Profil{% if chat_unread %}: sotuvchidan {{ chat_unread }} ta yangi xabar{% endif %}" title="Profil">
+				<svg><use href="#i-user"/></svg>{% if chat_unread %}<span class="sf-count sf-count--alert">{{ chat_unread }}</span>{% endif %}
+			</a>
 			<a class="kt-iconbtn" href="{{ base }}/savat" aria-label="Savat">
 				<svg><use href="#i-bag"/></svg><span class="sf-count" data-cart-count hidden>0</span>
 			</a>

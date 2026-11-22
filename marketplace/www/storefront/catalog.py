@@ -44,3 +44,7 @@ def get_context(context):
 	context.csrf_token = frappe.session.data.csrf_token or ""
 	# Sarlavhadagi tugma: kirmagan mijozga «Kirish», kirganiga «Buyurtmalarim»
 	context.customer = customers.current_customer()
+	# Sarlavhadagi «Profil»da qizil raqam: sotuvchidan kelgan, hali o'qilmagan javoblar
+	from marketplace.sotuv.tovar_chat import customer_unread
+
+	context.chat_unread = customer_unread(context.customer.customer, shop.name) if context.customer else 0

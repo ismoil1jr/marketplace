@@ -14,8 +14,8 @@
 	<section class="st-profile">
 		<div class="st-profile__row">
 			{{ shop_avatar(shop, "st-avatar") }}
-			<a class="st-insta" href="{{ base }}/buyurtmalarim">
-				<svg><use href="#i-receipt"/></svg>Buyurtmalarim
+			<a class="st-insta" href="{{ base }}/profil"{% if chat_unread %} aria-label="Profil: sotuvchidan {{ chat_unread }} ta yangi xabar"{% endif %}>
+				<svg><use href="#i-user"/></svg>Profil{% if chat_unread %}<span class="sf-count sf-count--alert">{{ chat_unread }}</span>{% endif %}
 			</a>
 		</div>
 		<h1 class="st-name">{{ shop.shop_name }}</h1>

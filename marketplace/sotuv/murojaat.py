@@ -465,7 +465,7 @@ def _filters(view, shop):
 @frappe.whitelist()
 def get_leads(view: str = "yangi", q: str | None = None, dan: str | None = None, gacha: str | None = None):
 	"""Murojaatlar ro'yxati. dan / gacha — kelgan sanasi bo'yicha oraliq (ixtiyoriy, ikkalasi ham bo'lmasa — hammasi)."""
-	from marketplace.sotuv.api import _has_must, _shop
+	from marketplace.sotuv.api import _has_must, _shop, _tovar_new
 
 	shop = _shop(admin_optional=True)
 	if not shop:
@@ -512,6 +512,7 @@ def get_leads(view: str = "yangi", q: str | None = None, dan: str | None = None,
 
 	return {"shop": shop, "shop_name": frappe.db.get_value("Shop", shop, "shop_name"), "rows": rows, "counts": counts,
 	        "order_new": frappe.db.count("Sales Order", _order_filters("yangi", shop)), "must": _has_must(shop),
+	        "tovar_new": _tovar_new(shop),
 	        "unknown_calls": _unknown_calls(shop)}
 
 

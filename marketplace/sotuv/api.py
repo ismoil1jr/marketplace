@@ -105,8 +105,16 @@ def get_orders(view: str = "tolanmagan", q: str | None = None):
 		"shop": shop, "shop_name": frappe.db.get_value("Shop", shop, "shop_name"), "rows": rows, "counts": counts,
 		# Rejim almashtirgichida "Murojaatlar · N yangi"
 		"lead_new": frappe.db.count("Murojaat", {"shop": shop, "holat": "Yangi"}),
+		"tovar_new": _tovar_new(shop),
 		"must": _has_must(shop),
 	}
+
+
+def _tovar_new(shop):
+	"""Rejim almashtirgichida «Tovar murojaatlari · N yangi» (sotuv/tovar_chat.py)."""
+	from marketplace.sotuv.tovar_chat import seller_new_count
+
+	return seller_new_count(shop)
 
 
 def _has_must(shop):

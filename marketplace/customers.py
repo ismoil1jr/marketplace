@@ -95,3 +95,35 @@ def end_session():
 
 def _hash(token):
 	return hashlib.sha256(token.encode()).hexdigest()
+
+
+def _current_token_hash():
+	request = getattr(frappe, "request", None)
+	token = request.cookies.get(COOKIE) if request else None
+	return _hash(token) if token else None
+
+
+def list_sessions(customer):
+	"""Profil → «Faol seanslar»: mijoz kirgan qurilmalar (muddati o'tmaganlari), shu qurilma birinchi."""
+	from marketplace.tg_login import device_label
+
+	current = _current_token_hash()
+	rows = frappe.get_all(
+		"Customer Session", filters={"customer": customer, "expires_at": [">", now_datetime()]},
+		fields=["name", "token_hash", "user_agent", "last_seen", "creation"], order_by="last_seen desc",
+	)
+	out = [
+		frappe._dict(name=r.name, device=device_label(r.user_agent), last_seen=r.last_seen or r.creation,
+		             current=bool(current) and r.token_hash == current)
+		for r in rows
+	]
+	return sorted(out, key=lambda r: not r.current)
+
+
+def end_other_sessions(customer):
+	"""Shu qurilmadan boshqa hamma qurilmadan chiqish. Qaytaradi: nechta seans yopildi."""
+	current = _current_token_hash()
+	others = frappe.get_all("Customer Session", filters={"customer": customer, "token_hash": ["!=", current or ""]}, pluck="name")
+	for name in others:
+		frappe.delete_doc("Customer Session", name, ignore_permissions=True, force=True)
+	return len(others)

@@ -1,0 +1,135 @@
+{
+ "actions": [],
+ "creation": "2026-11-22 18:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "module": "Sotuv",
+ "name": "Tovar Murojaat Xabar",
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "modified": "2026-11-22 18:00:00.000000",
+ "links": [],
+ "states": [],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Marketplace Manager",
+   "read": 1,
+   "report": 1,
+   "export": 1
+  }
+ ],
+ "fields": [
+  {
+   "fieldname": "murojaat",
+   "fieldtype": "Link",
+   "label": "Tovar murojaat",
+   "read_only": 1,
+   "options": "Tovar Murojaat",
+   "reqd": 1,
+   "search_index": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "kimdan",
+   "fieldtype": "Select",
+   "label": "Kimdan",
+   "read_only": 1,
+   "options": "Mijoz\nSotuvchi",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "turi",
+   "fieldtype": "Select",
+   "label": "Turi",
+   "read_only": 1,
+   "options": "Matn\nRasm\nStiker\nTovar",
+   "reqd": 1,
+   "default": "Matn",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "matn",
+   "fieldtype": "Small Text",
+   "label": "Matn",
+   "read_only": 1
+  },
+  {
+   "fieldname": "rasm",
+   "fieldtype": "Attach Image",
+   "label": "Rasm",
+   "read_only": 1
+  },
+  {
+   "fieldname": "stiker",
+   "fieldtype": "Data",
+   "label": "Stiker",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "client_id",
+   "fieldtype": "Data",
+   "label": "Client ID",
+   "read_only": 1,
+   "search_index": 1,
+   "description": "Brauzer bergan id — qayta yuborishda xabar ikki marta tushmasin"
+  },
+  {
+   "fieldname": "yozgan",
+   "fieldtype": "Link",
+   "label": "Yozgan menejer",
+   "read_only": 1,
+   "options": "User"
+  },
+  {
+   "fieldname": "oqilgan",
+   "fieldtype": "Datetime",
+   "label": "O‘qilgan",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tahrirlangan",
+   "fieldtype": "Datetime",
+   "label": "Tahrirlangan",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ochirilgan",
+   "fieldtype": "Check",
+   "label": "O‘chirilgan",
+   "read_only": 1,
+   "default": "0"
+  }
+ ],
+ "field_order": [
+  "murojaat",
+  "kimdan",
+  "turi",
+  "matn",
+  "rasm",
+  "stiker",
+  "column_break_1",
+  "client_id",
+  "yozgan",
+  "oqilgan",
+  "tahrirlangan",
+  "ochirilgan"
+ ],
+ "autoname": "hash",
+ "description": "Tovar murojaati chatidagi bitta xabar (matn, rasm, stiker yoki tovar kartasi)."
+}
