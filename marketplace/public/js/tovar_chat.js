@@ -42,13 +42,15 @@
 		return `${dd}-${MONTHS[mm - 1]}${yy !== new Date().getFullYear() ? ` ${yy}` : ""}`;
 	}
 
-	// Telefonda kamera rasmi 5–10 MB bo'ladi: yuborishdan oldin 1600px JPEG'ga kichraytiramiz (server ham shunday qiladi)
+	// Telefonda kamera rasmi 5–10 MB bo'ladi: yuborishdan oldin 1600px JPEG'ga kichraytiramiz (server ham shunday qiladi).
+	// Server faqat JPG/PNG/WEBP ochadi — boshqa format (iPhone HEIC, AVIF, GIF) brauzer ocha olsa, doim JPEG'ga aylanadi
 	async function shrink(file) {
-		if (!window.createImageBitmap || !/^image\/(jpeg|png|webp)$/.test(file.type)) return file;
+		if (!window.createImageBitmap) return file;
+		const plain = /^image\/(jpeg|png|webp)$/.test(file.type);
 		try {
 			const bmp = await createImageBitmap(file, { imageOrientation: "from-image" });
 			const k = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
-			if (k === 1 && file.size < 1.5 * 1024 * 1024) return file;
+			if (plain && k === 1 && file.size < 1.5 * 1024 * 1024) return file;
 			const c = document.createElement("canvas");
 			c.width = Math.round(bmp.width * k);
 			c.height = Math.round(bmp.height * k);
@@ -80,6 +82,7 @@
 			this.editing = null;
 			this.stickers = [];
 			this.stick = true; // foydalanuvchi pastda turibdi — yangi xabar/rasm yuklanganda pastda qolsin
+			this.draft = []; // yuborishga tayyorlangan rasm/stikerlar: Enter (yoki ➤) bosilganda ketadi
 			this.build();
 		}
 
@@ -97,10 +100,11 @@
 					${ICON.pen}<span><b>Tahrirlash</b><small data-edit-text></small></span>
 					<button type="button" data-edit-cancel aria-label="Tahrirlashni bekor qilish">${ICON.close}</button>
 				</div>
+				<div class="mpc-tray" data-tray hidden aria-label="Yuborishga tayyor"></div>
 				<form class="mpc-compose" data-form>
 					<button type="button" class="mpc-ibtn" data-sticker-btn aria-label="Stikerlar" aria-expanded="false">${ICON.smile}</button>
 					<textarea data-input rows="1" maxlength="4000" placeholder="Xabar yozing…" aria-label="Xabar"></textarea>
-					<label class="mpc-ibtn" aria-label="Rasm yuborish" title="Rasm yuborish">${ICON.image}<input type="file" accept="image/*" data-file hidden></label>
+					<label class="mpc-ibtn" aria-label="Rasm qo‘shish" title="Rasm qo‘shish">${ICON.image}<input type="file" accept="image/*" multiple data-file hidden></label>
 					<button type="submit" class="mpc-send" data-send aria-label="Yuborish" disabled>${ICON.send}</button>
 				</form>
 				<div class="mpc-menu" data-menu hidden role="menu"></div>
@@ -109,7 +113,7 @@
 			Object.assign(this, {
 				$scroll: q("[data-scroll]"), $list: q("[data-list]"), $empty: q("[data-empty]"), $jump: q("[data-jump]"),
 				$stickers: q("[data-stickers]"), $editbar: q("[data-editbar]"), $form: q("[data-form]"), $input: q("[data-input]"),
-				$file: q("[data-file]"), $send: q("[data-send]"), $menu: q("[data-menu]"), $view: q("[data-view]"),
+				$file: q("[data-file]"), $send: q("[data-send]"), $menu: q("[data-menu]"), $view: q("[data-view]"), $tray: q("[data-tray]"),
 			});
 			this.bind();
 		}
@@ -124,22 +128,38 @@
 					this.submit();
 				}
 				if (e.key === "Escape" && this.editing) this.cancelEdit();
+				// Yozish joyi bo'sh (kursor boshida) — Backspace tayyorlangan oxirgi rasm/stikerni olib tashlaydi
+				if (e.key === "Backspace" && this.draft.length && this.$input.selectionStart === 0 && this.$input.selectionEnd === 0) {
+					e.preventDefault();
+					this.unstage(this.draft[this.draft.length - 1].id);
+				}
+			});
+			// Noutbukda rasmni nusxalab (Ctrl+V) qo'yish ham mumkin
+			this.$input.addEventListener("paste", (e) => {
+				const files = [...(e.clipboardData?.files || [])].filter((f) => /^image\//.test(f.type));
+				if (!files.length) return;
+				e.preventDefault();
+				files.forEach((f) => this.stageImage(f));
+			});
+			this.$tray.addEventListener("click", (e) => {
+				const x = e.target.closest("[data-unstage]");
+				if (x) this.unstage(x.dataset.unstage);
 			});
 			this.$form.addEventListener("submit", (e) => {
 				e.preventDefault();
 				this.submit();
 			});
 			this.$file.addEventListener("change", () => {
-				const f = this.$file.files[0];
+				const files = [...this.$file.files];
 				this.$file.value = "";
-				if (f) this.sendImage(f);
+				files.forEach((f) => this.stageImage(f));
 			});
 			this.root.querySelector("[data-sticker-btn]").addEventListener("click", (e) => this.toggleStickers(e.currentTarget));
 			this.$stickers.addEventListener("click", (e) => {
 				const b = e.target.closest("[data-st]");
 				if (!b) return;
 				this.toggleStickers(null, false);
-				this.queue({ turi: "Stiker", stiker: b.dataset.st });
+				this.stage({ turi: "Stiker", stiker: b.dataset.st });
 			});
 			this.root.querySelector("[data-edit-cancel]").addEventListener("click", () => this.cancelEdit());
 			this.$scroll.addEventListener("scroll", () => {
@@ -260,24 +280,57 @@
 			const el = this.$input;
 			el.style.height = "auto";
 			el.style.height = `${Math.min(el.scrollHeight, 140)}px`;
-			this.$send.disabled = !el.value.trim();
+			this.$send.disabled = !el.value.trim() && !(this.draft.length && !this.editing);
 		}
 
 		submit() {
 			const text = this.$input.value.trim();
-			if (!text) return;
-			if (this.editing) return this.saveEdit(text);
+			if (this.editing) return text && this.saveEdit(text);
+			if (!text && !this.draft.length) return;
+			// Avval tayyorlangan rasm/stikerlar (tanlangan tartibda), keyin matn
+			const staged = this.draft.splice(0);
+			this.renderTray();
+			staged.forEach((d) => this.queue({ turi: d.turi, stiker: d.stiker, file: d.file, preview: d.preview }));
+			if (text) this.queue({ turi: "Matn", matn: text });
 			this.$input.value = "";
 			this.syncInput();
-			this.queue({ turi: "Matn", matn: text });
 			this.$input.focus();
 		}
 
-		async sendImage(file) {
+		// ---------- Tayyorlash: rasm/stiker yozish joyi ustida turadi, Enter bosilganda ketadi ----------
+		stage(item) {
+			if (this.draft.length >= 10) return this.o.toast?.("Bir martada 10 tagacha");
+			this.draft.push(Object.assign({ id: newId() }, item));
+			this.renderTray();
+			this.$input.focus();
+		}
+
+		async stageImage(file) {
 			if (!/^image\//.test(file.type)) return this.o.toast?.("Faqat rasm yuborish mumkin");
 			const small = await shrink(file);
 			if (small.size > IMAGE_MAX) return this.o.toast?.("Rasm 10 MB dan katta");
-			this.queue({ turi: "Rasm", file: small, preview: URL.createObjectURL(small) });
+			this.stage({ turi: "Rasm", file: small, preview: URL.createObjectURL(small) });
+		}
+
+		unstage(id) {
+			const i = this.draft.findIndex((d) => d.id === id);
+			if (i < 0) return;
+			const [d] = this.draft.splice(i, 1);
+			if (d.preview) URL.revokeObjectURL(d.preview);
+			this.renderTray();
+			this.$input.focus();
+		}
+
+		renderTray() {
+			this.$tray.hidden = !this.draft.length;
+			this.$tray.innerHTML = this.draft.map((d) => `
+				<div class="mpc-tray__item">
+					${d.turi === "Rasm" ? `<img src="${esc(d.preview)}" alt="Rasm">` : `<span role="img" aria-label="Stiker">${esc(d.stiker)}</span>`}
+					<button type="button" class="mpc-tray__x" data-unstage="${d.id}" aria-label="Olib tashlash">${ICON.close}</button>
+				</div>`).join("");
+			this.$input.placeholder = this.draft.length ? "Izoh yozing yoki yuboring…" : "Xabar yozing…";
+			this.syncInput();
+			if (this.stick) this.toBottom();
 		}
 
 		queue(m) {
@@ -288,9 +341,16 @@
 			this.deliver(item);
 		}
 
-		async deliver(item) {
+		// Navbat: xabarlar birin-ketin ketadi — tanlangan tartib saqlanadi (rasm, keyin matn), serverga parallel so'rov yo'q
+		deliver(item) {
 			item.state = "pending";
 			this.render();
+			this._chain = (this._chain || Promise.resolve()).then(() => this.send(item));
+			return this._chain;
+		}
+
+		async send(item) {
+			if (!this.local.has(item.client_id)) return; // navbatda turganda o'chirildi
 			if (navigator.onLine === false) return this.failed(item, "Internet yo‘q");
 			try {
 				const r = await this.t.send({ client_id: item.client_id, turi: item.turi, matn: item.matn, stiker: item.stiker }, item.file);

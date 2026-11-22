@@ -1167,3 +1167,15 @@ html.sf-noscroll, html.sf-noscroll body { overflow: hidden; }
 .sf-logout { gap: 10px; margin-top: 22px; color: var(--sale); background: var(--surface); }
 /* Kirmagan mijoz: chat sahifasidagi tovar kartasi (.mpc tashqarisida — ranglar shu yerda) */
 .sf-chat__guest { --mpc-panel: var(--surface); --mpc-line: var(--line); --mpc-field: var(--bg); --mpc-me: var(--brand); --mpc-ink: var(--ink); --mpc-muted: var(--muted); }
+/* Profil: bitta qurilmani chiqarish va sevimlilar */
+.sf-sessions li span { flex: 1; min-width: 0; }
+.sf-sess-out { flex: none; padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; color: var(--sale); font-size: 13px; font-weight: 600; }
+.sf-pf-empty { margin: 0; padding: 16px 14px; }
+.sf-favrow { display: flex; align-items: center; gap: 12px; padding: 10px 14px; }
+.sf-favrow > a { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+.sf-favrow img, .sf-favrow__ph { width: 52px; height: 52px; flex: none; border-radius: 12px; object-fit: cover; background: var(--bg); }
+.sf-favrow__main { display: grid; gap: 2px; min-width: 0; }
+.sf-favrow__main b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sf-favrow__main small { color: var(--muted); font-size: 14px; font-weight: 600; }
+.sf-favrow__heart { display: grid; place-items: center; width: 40px; height: 40px; flex: none; border-radius: 50%; color: var(--sale); }
+.sf-favrow__heart svg { fill: currentColor; }

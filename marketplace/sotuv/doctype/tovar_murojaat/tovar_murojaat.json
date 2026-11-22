@@ -7,11 +7,11 @@
  "name": "Tovar Murojaat",
  "owner": "Administrator",
  "modified_by": "Administrator",
- "modified": "2026-11-22 18:00:00.000000",
+ "modified": "2026-11-22 16:30:00.000000",
  "links": [],
  "states": [],
  "row_format": "Dynamic",
- "sort_field": "creation",
+ "sort_field": "modified",
  "sort_order": "DESC",
  "permissions": [
   {
@@ -82,43 +82,6 @@
    "label": "Telefon",
    "read_only": 1,
    "options": "Phone"
-  },
-  {
-   "fieldname": "section_oxirgi",
-   "fieldtype": "Section Break",
-   "label": "Oxirgi xabar"
-  },
-  {
-   "fieldname": "oxirgi_xabar",
-   "fieldtype": "Small Text",
-   "label": "Oxirgi xabar",
-   "read_only": 1
-  },
-  {
-   "fieldname": "oxirgi_kimdan",
-   "fieldtype": "Select",
-   "label": "Kimdan",
-   "read_only": 1,
-   "options": "\nMijoz\nSotuvchi"
-  },
-  {
-   "fieldname": "column_break_2",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "oxirgi_vaqt",
-   "fieldtype": "Datetime",
-   "label": "Oxirgi xabar vaqti",
-   "read_only": 1,
-   "in_list_view": 1,
-   "search_index": 1
-  },
-  {
-   "fieldname": "menejer",
-   "fieldtype": "Link",
-   "label": "Javob bergan menejer",
-   "read_only": 1,
-   "options": "User"
   }
  ],
  "field_order": [
@@ -128,13 +91,7 @@
   "column_break_1",
   "customer",
   "mijoz_ismi",
-  "telefon",
-  "section_oxirgi",
-  "oxirgi_xabar",
-  "oxirgi_kimdan",
-  "column_break_2",
-  "oxirgi_vaqt",
-  "menejer"
+  "telefon"
  ],
  "autoname": "TM-.YYYY.-.#####",
  "naming_rule": "Expression (old style)",

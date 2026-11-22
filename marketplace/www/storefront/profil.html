@@ -50,6 +50,12 @@
 	<p class="sf-box sf-muted">Hali sotuvchiga yozmagansiz. Tovar sahifasida «Sotuvchi bilan bog‘lanish» tugmasini bosing — savolingiz shu do‘kon menejeriga boradi.</p>
 	{% endif %}
 
+	{# Sevimlilar brauzerda saqlanadi (♥) — ro'yxat storefront.js initProfileFavs() bilan chiziladi #}
+	<h2 class="sf-h2">Sevimlilar <span class="sf-muted" data-pf-count></span></h2>
+	<div class="sf-list" data-profile-favs>
+		<p class="sf-pf-empty sf-muted">Yuklanmoqda…</p>
+	</div>
+
 	<h2 class="sf-h2">Buyurtmalar</h2>
 	<div class="sf-list">
 		<a class="sf-setrow" href="{{ base }}/buyurtmalarim">
@@ -69,7 +75,11 @@
 			<summary><svg><use href="#i-device"/></svg><span>Faol seanslar</span><small>{{ sessions | length }} ta qurilma</small><svg class="sf-setrow__go"><use href="#i-back"/></svg></summary>
 			<ul>
 				{% for s in sessions %}
-				<li><svg><use href="#i-device"/></svg><span><b>{{ s.device }}</b><small>{% if s.current %}shu qurilma · {% endif %}{{ s.when }}</small></span></li>
+				<li data-session-row>
+					<svg><use href="#i-device"/></svg>
+					<span><b>{{ s.device }}</b><small>{% if s.current %}shu qurilma · {% endif %}{{ s.when }}</small></span>
+					{% if not s.current %}<button type="button" class="sf-sess-out" data-end-session="{{ s.name }}">Chiqarish</button>{% endif %}
+				</li>
 				{% endfor %}
 			</ul>
 			{% if sessions | length > 1 %}<button type="button" class="sf-btn sf-btn--ghost sf-btn--block" data-end-sessions>Boshqa qurilmalardan chiqish</button>{% endif %}

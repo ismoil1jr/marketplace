@@ -73,16 +73,33 @@ def current_customer():
 	if not token:
 		return None
 	row = frappe.db.get_value(
-		"Customer Session", {"token_hash": _hash(token)}, ["name", "customer", "phone", "expires_at"], as_dict=True
+		"Customer Session", {"token_hash": _hash(token)}, ["name", "customer", "phone", "expires_at", "last_seen"], as_dict=True
 	)
-	if not row or get_datetime(row.expires_at) < now_datetime():
+	now = now_datetime()
+	if not row or get_datetime(row.expires_at) < now:
 		return None
-	frappe.db.set_value("Customer Session", row.name, "last_seen", now_datetime(), update_modified=False)
+	_touch(row, now)
 	return frappe._dict(
 		customer=row.customer,
 		phone=row.phone,
 		name=frappe.db.get_value("Customer", row.customer, "customer_name"),
 	)
+
+
+SEEN_EVERY = 300  # soniya
+
+
+def _touch(row, now):
+	"""Profil → «Faol seanslar» uchun oxirgi faollik. Har so'rovda emas, 5 daqiqada bir yoziladi: chat har 3 soniyada
+	so'raydi, bir mijozning parallel so'rovlari bitta qatorni yangilab MariaDB 1020 «Record has changed since last
+	read» bilan yiqilardi. Shunday to'qnashuv bo'lsa ham so'rov davom etadi — bu yozuv muhim emas."""
+	if row.last_seen and (now - get_datetime(row.last_seen)).total_seconds() < SEEN_EVERY:
+		return
+	frappe.db.savepoint("mp_seen")
+	try:
+		frappe.db.set_value("Customer Session", row.name, "last_seen", now, update_modified=False)
+	except (frappe.QueryDeadlockError, frappe.QueryTimeoutError):
+		frappe.db.rollback(save_point="mp_seen")
 
 
 def end_session():
@@ -98,7 +115,7 @@ def _hash(token):
 
 
 def _current_token_hash():
-	request = getattr(frappe, "request", None)
+	request = getattr(frappe.local, "request", None)  # so'rovsiz (test, navbat) — None
 	token = request.cookies.get(COOKIE) if request else None
 	return _hash(token) if token else None
 
@@ -118,6 +135,19 @@ def list_sessions(customer):
 		for r in rows
 	]
 	return sorted(out, key=lambda r: not r.current)
+
+
+def end_one_session(customer, name):
+	"""Profil → Faol seanslar → «Chiqarish»: bitta boshqa qurilmani chiqaradi. Faqat o'z seansini va shu qurilmani
+	emas (shu qurilmadan — «Akkauntdan chiqish» tugmasi)."""
+	from frappe import _
+
+	row = frappe.db.get_value("Customer Session", name, ["customer", "token_hash"], as_dict=True)
+	if not row or row.customer != customer:
+		frappe.throw(_("Seans topilmadi"))
+	if row.token_hash == _current_token_hash():
+		frappe.throw(_("Bu — shu qurilma. Chiqish uchun «Akkauntdan chiqish»ni bosing"))
+	frappe.delete_doc("Customer Session", name, ignore_permissions=True, force=True)
 
 
 def end_other_sessions(customer):

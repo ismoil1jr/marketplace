@@ -89,6 +89,29 @@ def profil_rasm():
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
+@rate_limit(limit=30, seconds=600)
+def end_session(name):
+	"""Profil → Faol seanslar → bitta qurilmani chiqarish."""
+	customers.end_one_session(_require_customer().customer, name)
+
+
+@frappe.whitelist(allow_guest=True, methods=["POST"])
+@rate_limit(limit=60, seconds=60)
+def fav_items(shop, codes):
+	"""Profil → Sevimlilar: brauzerda saqlangan sevimli tovarlar (localStorage) — faqat shu do'konning saytdagi
+	tovarlari, mijoz bosgan tartibda. Kirish shart emas (sevimlilar brauzerda)."""
+	from marketplace.sotuv.tovar_chat import product_cards
+
+	if isinstance(codes, str):
+		codes = json.loads(codes or "[]")
+	codes = [c for c in (codes or [])[:100] if isinstance(c, str)]
+	shop_name = storefront.get_shop(shop).name
+	live = set(frappe.get_all("Item", filters={"name": ["in", codes], "shop": shop_name, "is_published": 1, "disabled": 0}, pluck="name")) if codes else set()
+	cards = product_cards(shop_name, list(live))
+	return [cards[c] for c in codes if c in cards]
+
+
+@frappe.whitelist(allow_guest=True, methods=["POST"])
 @rate_limit(limit=10, seconds=600)
 def end_other_sessions():
 	"""Profil → «Boshqa qurilmalardan chiqish»."""

@@ -69,7 +69,7 @@ class TestTovarChat(IntegrationTestCase):
 		r = self.send(client_id="a1", matn="  Salom, bu bormi?  ")
 		thread = frappe.get_doc(tc.TM, r["thread"])
 		self.assertEqual((thread.shop, thread.tovar, thread.customer), (SHOP, self.item, self.c1.customer))
-		self.assertEqual(thread.oxirgi_xabar, "Salom, bu bormi?")
+		self.assertEqual(tc.customer_threads(self.c1.customer, SHOP)[0].oxirgi_xabar, "Salom, bu bormi?")
 		kinds = frappe.get_all(tc.XABAR, filters={"murojaat": thread.name}, pluck="turi", order_by="creation asc")
 		self.assertEqual(kinds, ["Tovar", "Matn"])
 		self.assertTrue(r["message"]["mine"])
@@ -85,6 +85,23 @@ class TestTovarChat(IntegrationTestCase):
 		b = self.send(client_id="same", matn="Salom")
 		self.assertEqual(a["message"]["id"], b["message"]["id"])
 		self.assertEqual(frappe.db.count(tc.XABAR, {"murojaat": a["thread"], "turi": "Matn"}), 1)
+
+	def test_parallel_first_messages_do_not_create_two_threads(self):
+		"""Rasm va matn bir vaqtda «birinchi xabar» bo'lib kelsa: ikkinchi so'rov chatni hali ko'rmagan (eski o'qish),
+		lekin qulf ostida qayta tekshiradi — ikkinchi chat yaratilmaydi."""
+		first = self.send(client_id="p1", matn="Rasm")
+		real = tc.find_thread
+		calls = []
+
+		def stale_then_real(*a):
+			calls.append(a)
+			return None if len(calls) == 1 else real(*a)
+
+		with patch.object(tc, "find_thread", side_effect=stale_then_real):
+			second = self.send(client_id="p2", matn="Matn")
+		self.assertEqual(second["thread"], first["thread"])
+		self.assertEqual(frappe.db.count(tc.TM, {"customer": self.c1.customer, "tovar": self.item}), 1)
+		self.assertEqual(frappe.db.count(tc.XABAR, {"murojaat": first["thread"], "turi": "Tovar"}), 1)
 
 	def test_product_card_cannot_be_edited_or_deleted(self):
 		r = self.send(matn="Salom")
@@ -117,7 +134,7 @@ class TestTovarChat(IntegrationTestCase):
 		mid = r["message"]["id"]
 		edited = tc.mijoz_tahrirlash(mid, "Assalomu alaykum")
 		self.assertTrue(edited["tahrirlangan"])
-		self.assertEqual(frappe.db.get_value(tc.TM, r["thread"], "oxirgi_xabar"), "Assalomu alaykum")
+		self.assertEqual(tc.customer_threads(self.c1.customer, SHOP)[0].oxirgi_xabar, "Assalomu alaykum")
 		self.as_seller()
 		with self.assertRaises(frappe.PermissionError):
 			tc.tahrirlash(mid, "menejer o'zgartirdi")
@@ -128,6 +145,7 @@ class TestTovarChat(IntegrationTestCase):
 		gone = next(m for m in tc.mijoz_ochish(SHOP, self.item, since=before)["messages"] if m["id"] == mid)
 		self.assertTrue(gone["ochirilgan"])
 		self.assertIsNone(gone["matn"])
+		self.assertEqual(tc.customer_threads(self.c1.customer, SHOP)[0].oxirgi_xabar, "Tovar bo‘yicha murojaat")
 
 	def test_other_customer_cannot_touch_thread(self):
 		r = self.send(matn="Salom")

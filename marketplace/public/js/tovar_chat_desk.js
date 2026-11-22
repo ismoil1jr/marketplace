@@ -34,6 +34,11 @@ window.MpTovarPanel = class MpTovarPanel {
 				</div>
 			</div>`);
 		this.$root = this.sp.$body.find(".mp-tc");
+		this.fit();
+		if (!this._resize) {
+			this._resize = frappe.utils.debounce(() => this.fit(), 100);
+			window.addEventListener("resize", this._resize);
+		}
 		this.sp.bind_modes();
 		const $s = this.$root.find(".mp-tc__search").val(this.q);
 		$s.on("input", frappe.utils.debounce(() => { this.q = $s.val(); this.load(); }, 300));
@@ -66,6 +71,15 @@ window.MpTovarPanel = class MpTovarPanel {
 		this.sp.set_mode_badge("tovar", this.data.yangi);
 	}
 
+	// Panel ekranning qolgan qismiga sig'sin: tepada admin qatori / sarlavha bo'lsa ham javob yozish joyi ko'rinib tursin
+	fit() {
+		const el = this.$root && this.$root[0];
+		if (!el || !el.isConnected) return;
+		const top = el.getBoundingClientRect().top + window.scrollY;
+		const h = Math.max(380, (window.visualViewport?.height || window.innerHeight) - top - 12);
+		el.style.height = `${h}px`;
+	}
+
 	when(v) {
 		if (!v) return "";
 		const s = String(v);
@@ -81,6 +95,7 @@ window.MpTovarPanel = class MpTovarPanel {
 		this.sp.state.open = name;
 		window.mp_tovar_open = name; // shu chat ochiq — umumiy ovozli xabar chiqmasin (seller_notify.js)
 		this.$root.addClass("is-chat");
+		this.fit();
 		this.$root.find(".mp-tc__row").removeClass("is-open").filter(`[data-thread="${CSS.escape(name)}"]`).addClass("is-open");
 		const $main = this.$root.find("[data-tc-main]").html(`
 			<div class="mp-tc__head">
@@ -139,6 +154,8 @@ window.MpTovarPanel = class MpTovarPanel {
 	}
 
 	destroy() {
+		if (this._resize) window.removeEventListener("resize", this._resize);
+		this._resize = null;
 		this.chat?.destroy();
 		this.chat = null;
 		this.current = null;
@@ -149,9 +166,9 @@ window.MpTovarPanel = class MpTovarPanel {
 
 // Panel uslubi (chatning o'zi — tovar_chat.css)
 $(`<style id="mp-tc-style">
-	.mp-tc { display: grid; grid-template-columns: minmax(260px, 340px) 1fr; height: calc(100vh - 210px); min-height: 460px;
+	.mp-tc { display: grid; grid-template-columns: minmax(260px, 340px) 1fr; grid-template-rows: minmax(0, 1fr); height: calc(100vh - 210px); min-height: 380px;
 		border: 1px solid var(--border-color); border-radius: var(--border-radius-lg, 12px); overflow: hidden; background: var(--card-bg); }
-	.mp-tc__side { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--border-color); }
+	.mp-tc__side { display: flex; flex-direction: column; min-height: 0; overflow: hidden; border-right: 1px solid var(--border-color); }
 	.mp-tc__search { margin: 10px; width: auto; }
 	.mp-tc__list { flex: 1; overflow-y: auto; }
 	.mp-tc__none { padding: 24px 16px; text-align: center; }
@@ -170,7 +187,7 @@ $(`<style id="mp-tc-style">
 	.mp-tc__row-side time { font-size: 11px; color: var(--text-muted); }
 	.mp-tc__n { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; background: var(--primary); color: #fff;
 		font-size: 11px; font-weight: 700; line-height: 20px; text-align: center; }
-	.mp-tc__main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+	.mp-tc__main { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
 	.mp-tc__pick { margin: auto; max-width: 340px; padding: 20px; text-align: center; }
 	.mp-tc__head { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--border-color); }
 	.mp-tc__who { display: grid; flex: 1; min-width: 0; }
@@ -178,7 +195,7 @@ $(`<style id="mp-tc-style">
 	.mp-tc__back { display: none; }
 	.mp-tc__chat { flex: 1; min-height: 0; }
 	@media (max-width: 767px) {
-		.mp-tc { grid-template-columns: 1fr; height: calc(100vh - 170px); }
+		.mp-tc { grid-template-columns: 1fr; }
 		.mp-tc.is-chat .mp-tc__side, .mp-tc:not(.is-chat) .mp-tc__main { display: none; }
 		.mp-tc__side { border-right: 0; }
 		.mp-tc__back { display: inline-block; }

@@ -252,6 +252,56 @@
 		});
 	}
 
+	// ---------- Profil → Sevimlilar: brauzerdagi ♥ tovarlar (sarlavhadagi «Sevimlilar» ham joyida qoladi) ----------
+	async function initProfileFavs() {
+		const box = $("[data-profile-favs]");
+		if (!box) return;
+		const esc = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+		const count = $("[data-pf-count]");
+		const empty = () => {
+			box.innerHTML = `<p class="sf-pf-empty sf-muted">Hali sevimli tovar yo‘q — tovardagi ♥ ni bosing, shu yerda saqlanadi.</p>`;
+			count.textContent = "";
+		};
+		if (!favs.size) return empty();
+		let cards = [];
+		try {
+			cards = await api("fav_items", { shop: SF.shop, codes: [...favs] });
+		} catch (e) {
+			box.innerHTML = `<p class="sf-pf-empty sf-muted">${esc(e.message)}</p>`;
+			return;
+		}
+		// Saytdan olingan (yoki o'chirilgan) tovar sevimlilarda qolib ketmasin
+		const live = new Set(cards.map((c) => c.code));
+		const stale = [...favs].filter((c) => !live.has(c));
+		if (stale.length) {
+			stale.forEach((c) => favs.delete(c));
+			store.set(FAV_KEY, [...favs]);
+		}
+		const draw = () => {
+			const list = cards.filter((c) => favs.has(c.code));
+			if (!list.length) return empty();
+			count.textContent = String(list.length);
+			box.innerHTML = list.map((c) => `
+				<div class="sf-favrow">
+					<a href="${esc(c.url)}">
+						${c.thumb ? `<img src="${esc(c.thumb)}" alt="" loading="lazy">` : `<span class="sf-favrow__ph"></span>`}
+						<span class="sf-favrow__main"><b>${esc(c.name)}</b><small>${esc(c.price_text || "Narxi tez kunda")}</small></span>
+					</a>
+					<button type="button" class="sf-favrow__heart" data-pf-remove="${esc(c.code)}" aria-label="Sevimlilardan olish"><svg><use href="#i-heart"/></svg></button>
+				</div>`).join("");
+		};
+		box.addEventListener("click", (e) => {
+			const b = e.target.closest("[data-pf-remove]");
+			if (!b) return;
+			favs.delete(b.dataset.pfRemove);
+			store.set(FAV_KEY, [...favs]);
+			toast("Sevimlilardan olindi");
+			onFavChange.forEach((fn) => fn());
+			draw();
+		});
+		draw();
+	}
+
 	// ---------- Katalog: kategoriya, qidiruv, narx, saralash ----------
 	function initCatalog() {
 		const grid = $("[data-grid]");
@@ -1245,6 +1295,20 @@
 			await api("logout", {}).catch(() => {});
 			location.reload();
 		});
+		// Profil → Faol seanslar: bitta qurilmani chiqarish (o'zidan boshqa)
+		$$("[data-end-session]").forEach((b) => b.addEventListener("click", async () => {
+			const device = b.closest("[data-session-row]")?.querySelector("b")?.textContent || "";
+			if (!(await confirmSheet({ title: "Shu qurilmadan chiqarilsinmi?", text: device }))) return;
+			b.disabled = true;
+			try {
+				await api("end_session", { name: b.dataset.endSession });
+				toast("Qurilmadan chiqarildi");
+				setTimeout(() => location.reload(), 600);
+			} catch (err) {
+				toast(err.message);
+				b.disabled = false;
+			}
+		}));
 		// Profil → Faol seanslar: shu qurilmadan boshqa hammasidan chiqish
 		$("[data-end-sessions]")?.addEventListener("click", async (e) => {
 			const btn = e.currentTarget;
@@ -1385,6 +1449,7 @@
 	initCarousel();
 	renderCartSummary();
 	initFavorites();
+	initProfileFavs();
 	initCatalog();
 	initProduct();
 	initOrderState();

@@ -124,7 +124,13 @@ def _mark_read(thread, reader):
 		return 0
 	now = now_datetime()
 	t = frappe.qb.DocType(XABAR)
-	frappe.qb.update(t).set(t.oqilgan, now).set(t.modified, now).where(t.name.isin(names)).run()
+	frappe.db.savepoint("mp_read")
+	try:
+		frappe.qb.update(t).set(t.oqilgan, now).set(t.modified, now).where(t.name.isin(names)).run()
+	except (frappe.QueryDeadlockError, frappe.QueryTimeoutError):
+		# Ikkinchi tomon shu payt xabarini tahrirladi/o'chirdi — keyingi so'rovda (3 soniyadan keyin) belgilanadi
+		frappe.db.rollback(save_point="mp_read")
+		return 0
 	if reader == MIJOZ:
 		shop = frappe.db.get_value(TM, thread, "shop")
 		_to_sellers(shop, {"thread": thread, "read": True})
@@ -193,10 +199,8 @@ def _send(thread, side, client_id=None, turi="Matn", matn=None, stiker=None, use
 			"attached_to_name": doc.name, "attached_to_field": "rasm", "is_private": 1, "content": content,
 		}).insert(ignore_permissions=True)
 		doc.db_set("rasm", f.file_url, update_modified=False)
-	frappe.db.set_value(TM, thread.name, {
-		"oxirgi_xabar": preview(doc), "oxirgi_vaqt": doc.creation, "oxirgi_kimdan": side,
-		**({"menejer": user} if side == SOTUVCHI else {}),
-	}, update_modified=False)
+	# Chat qatori (Tovar Murojaat) yangilanmaydi: oxirgi xabar ro'yxatda xabarlarning o'zidan olinadi (last_messages).
+	# Aks holda bir chatga bir vaqtda kelgan xabarlar bitta qatorni yangilab, bittasi yiqilardi (MariaDB 1020)
 	doc.reload()
 	return _msg(doc, side)
 
@@ -211,12 +215,29 @@ def _own_message(name, side, thread_check):
 	return m
 
 
-def _refresh_last(thread):
-	"""Oxirgi xabar o'chirilgan/tahrirlangan bo'lsa — ro'yxatdagi matn ham yangilansin."""
-	last = frappe.get_all(XABAR, filters={"murojaat": thread, "ochirilgan": 0}, fields=["turi", "matn", "stiker", "kimdan", "creation"],
-	                      order_by="creation desc", limit=1)
-	if last:
-		frappe.db.set_value(TM, thread, {"oxirgi_xabar": preview(last[0]), "oxirgi_kimdan": last[0].kimdan}, update_modified=False)
+def last_messages(threads):
+	"""Har bir chatning oxirgi (o'chirilmagan) xabari: {chat: {oxirgi_xabar, oxirgi_vaqt, oxirgi_kimdan}} — bitta so'rov."""
+	if not threads:
+		return {}
+	rows = frappe.db.sql(
+		"""select x.murojaat, x.turi, x.matn, x.stiker, x.kimdan, x.creation
+		from `tabTovar Murojaat Xabar` x
+		join (select murojaat, max(creation) as last from `tabTovar Murojaat Xabar`
+		      where murojaat in %(t)s and ochirilgan = 0 group by murojaat) l
+		  on l.murojaat = x.murojaat and l.last = x.creation
+		where x.ochirilgan = 0""",
+		{"t": tuple(threads)}, as_dict=True,
+	)
+	return {r.murojaat: {"oxirgi_xabar": preview(r), "oxirgi_vaqt": r.creation, "oxirgi_kimdan": r.kimdan} for r in rows}
+
+
+def _with_last(rows):
+	"""Ro'yxat qatorlariga oxirgi xabar va vaqt; yangi xabar kelgan chat — tepada."""
+	last = last_messages([r.name for r in rows])
+	for r in rows:
+		r.update(last.get(r.name) or {"oxirgi_xabar": None, "oxirgi_vaqt": r.creation, "oxirgi_kimdan": None})
+	rows.sort(key=lambda r: get_datetime(r.oxirgi_vaqt), reverse=True)
+	return rows
 
 
 def _edit(name, side, matn, thread_check):
@@ -226,7 +247,6 @@ def _edit(name, side, matn, thread_check):
 	m.matn = _clean_text(matn)
 	m.tahrirlangan = now_datetime()
 	m.save(ignore_permissions=True)
-	_refresh_last(m.murojaat)
 	return _msg(m, side)
 
 
@@ -237,7 +257,6 @@ def _delete(name, side, thread_check):
 		frappe.delete_doc("File", f, ignore_permissions=True, force=True)
 	m.update({"ochirilgan": 1, "matn": None, "rasm": None, "stiker": None})
 	m.save(ignore_permissions=True)
-	_refresh_last(m.murojaat)
 	return _msg(m, side)
 
 
@@ -366,14 +385,9 @@ def mijoz_yuborish(shop, tovar, client_id=None, turi="Matn", matn=None, stiker=N
 	c = _customer()
 	shop = _shop_item(shop, tovar)
 	name = find_thread(shop, c.customer, tovar)
-	new_thread = not name
-	if new_thread:
-		t = frappe.get_doc({
-			"doctype": TM, "shop": shop, "tovar": tovar, "customer": c.customer, "mijoz_ismi": c.name, "telefon": c.phone,
-			"tovar_nomi": frappe.db.get_value("Item", tovar, "item_name"), "oxirgi_vaqt": now_datetime(),
-		}).insert(ignore_permissions=True)
-		frappe.get_doc({"doctype": XABAR, "murojaat": t.name, "kimdan": MIJOZ, "turi": "Tovar"}).insert(ignore_permissions=True)
-		name = t.name
+	new_thread = False
+	if not name:
+		name, new_thread = _create_thread(shop, c, tovar)
 	thread = frappe.db.get_value(TM, name, ["name", "shop", "tovar_nomi", "mijoz_ismi", "telefon"], as_dict=True)
 	# Menejer oldingi xabarlarni o'qib bo'lgan bo'lsa — bu yangi savol: Telegram'ga ham
 	burst = not new_thread and not frappe.db.exists(XABAR, {"murojaat": name, "kimdan": MIJOZ, "oqilgan": ["is", "not set"],
@@ -403,11 +417,33 @@ def mijoz_ochirish(xabar):
 	return msg
 
 
+def _create_thread(shop, c, tovar):
+	"""Birinchi xabar: chat va boshidagi tovar kartasi. Ikki «birinchi» xabar bir vaqtda kelsa (rasm + matn) ikkita chat
+	yaratilmasin: qulf ostida qayta tekshiriladi va chat darhol saqlanadi — keyingi so'rov uni ko'radi.
+	Qaytaradi: (nomi, yangi yaratildimi)."""
+	from frappe.utils.synchronization import filelock
+
+	commit = not frappe.flags.in_test  # testda tranzaksiya oxirida orqaga qaytariladi
+	if commit:
+		frappe.db.commit()  # yangi o'qish: parallel so'rov saqlagan chat ko'rinsin
+	with filelock("tovar_chat_yangi", timeout=15):
+		name = find_thread(shop, c.customer, tovar)
+		if name:
+			return name, False
+		t = frappe.get_doc({
+			"doctype": TM, "shop": shop, "tovar": tovar, "customer": c.customer, "mijoz_ismi": c.name, "telefon": c.phone,
+			"tovar_nomi": frappe.db.get_value("Item", tovar, "item_name"),
+		}).insert(ignore_permissions=True)
+		frappe.get_doc({"doctype": XABAR, "murojaat": t.name, "kimdan": MIJOZ, "turi": "Tovar"}).insert(ignore_permissions=True)
+		if commit:
+			frappe.db.commit()
+		return t.name, True
+
+
 def customer_threads(customer, shop):
 	"""Profil: mijozning shu do'kondagi chatlari, har birida sotuvchidan o'qilmagan xabarlar soni."""
-	rows = frappe.get_all(TM, filters={"customer": customer, "shop": shop},
-	                      fields=["name", "tovar", "tovar_nomi", "oxirgi_xabar", "oxirgi_vaqt", "oxirgi_kimdan"],
-	                      order_by="oxirgi_vaqt desc", limit_page_length=100)
+	rows = _with_last(frappe.get_all(TM, filters={"customer": customer, "shop": shop},
+	                                 fields=["name", "tovar", "tovar_nomi", "creation"], limit_page_length=500))[:100]
 	unread = _unread_by_thread([r.name for r in rows], SOTUVCHI)
 	cards = product_cards(shop, [r.tovar for r in rows])
 	for r in rows:
@@ -472,9 +508,9 @@ def royxat(q=None):
 	if (q or "").strip():
 		like = f"%{q.strip()}%"
 		or_filters = [["mijoz_ismi", "like", like], ["telefon", "like", like], ["tovar_nomi", "like", like], ["name", "like", like]]
-	rows = frappe.get_all(TM, filters={"shop": shop}, or_filters=or_filters,
-	                      fields=["name", "mijoz_ismi", "telefon", "tovar", "tovar_nomi", "oxirgi_xabar", "oxirgi_vaqt", "oxirgi_kimdan"],
-	                      order_by="oxirgi_vaqt desc", limit_page_length=300)
+	rows = _with_last(frappe.get_all(TM, filters={"shop": shop}, or_filters=or_filters,
+	                                 fields=["name", "mijoz_ismi", "telefon", "tovar", "tovar_nomi", "creation"],
+	                                 order_by="modified desc", limit_page_length=2000))[:300]
 	unread = _unread_by_thread([r.name for r in rows], MIJOZ)
 	cards = product_cards(shop, [r.tovar for r in rows])
 	for r in rows:

@@ -89,6 +89,8 @@
 	display: flex; align-items: center; gap: 12px; width: min(340px, 86vw); padding: 10px; border-radius: 16px;
 	background: var(--mpc-panel); border: 1px solid var(--mpc-line); color: var(--mpc-ink); text-decoration: none;
 }
+.mpc-card, .mpc-card:hover, .mpc-card * { text-decoration: none !important; } /* Desk havolalarni tagiga chizadi */
+.mpc-card:hover { border-color: color-mix(in srgb, var(--mpc-me) 40%, var(--mpc-line)); }
 .mpc-card img, .mpc-card__ph { width: 56px; height: 56px; flex: none; border-radius: 10px; object-fit: cover; background: var(--mpc-field); }
 .mpc-card span { display: flex; flex-direction: column; min-width: 0; gap: 1px; }
 .mpc-card small { color: var(--mpc-muted); font-size: 12px; }
@@ -145,6 +147,24 @@
 	background: var(--mpc-me); color: #fff; font-size: 11px; font-weight: 700; line-height: 20px;
 }
 
+/* Yuborishga tayyor rasm/stikerlar — yozish joyi ustida; ✕ yoki Backspace bilan olib tashlanadi */
+.mpc-tray {
+	display: flex; gap: 10px; overflow-x: auto; padding: 12px 12px 4px;
+	background: var(--mpc-panel); border-top: 1px solid var(--mpc-line);
+}
+.mpc-tray__item {
+	position: relative; display: grid; place-items: center; width: 76px; height: 76px; flex: none; margin-top: 4px;
+	border-radius: 14px; background: var(--mpc-field);
+}
+.mpc-tray__item img { width: 100%; height: 100%; object-fit: cover; border-radius: 14px; }
+.mpc-tray__item span { font-size: 46px; line-height: 1; }
+.mpc-tray__x {
+	position: absolute; top: -7px; right: -7px; display: grid; place-items: center; width: 26px; height: 26px; padding: 0;
+	border: 2px solid var(--mpc-panel); border-radius: 50%; background: var(--mpc-ink); color: var(--mpc-panel); cursor: pointer;
+}
+.mpc-tray__x svg { width: 13px; height: 13px; }
+.mpc-tray + .mpc-compose { border-top: 0; }
+
 /* Bosib turilganda menyu */
 .mpc-menu {
 	position: absolute; z-index: 5; min-width: 200px; padding: 6px; border-radius: 14px;
@@ -161,7 +181,11 @@
 
 /* Rasmni to'liq ko'rish */
 .mpc-view { position: fixed; inset: 0; z-index: 1100; display: grid; place-items: center; padding: 16px; background: rgb(0 0 0 / .9); cursor: zoom-out; }
-.mpc-view img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 6px; }
+/* Rasm ekranga sig'sin (noutbukda ham): kenglik va balandlik — ekrandan oshmaydi */
+.mpc-view img {
+	display: block; width: auto; height: auto; max-width: calc(100vw - 32px); max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px);
+	object-fit: contain; border-radius: 6px; box-shadow: 0 10px 40px rgb(0 0 0 / .4);
+}
 .mpc-view button {
 	position: absolute; top: calc(12px + env(safe-area-inset-top)); right: 12px; display: inline-grid; place-items: center;
 	width: 42px; height: 42px; border: 0; border-radius: 50%; background: rgb(255 255 255 / .14); color: #fff; cursor: pointer;
