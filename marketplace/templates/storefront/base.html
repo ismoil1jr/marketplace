@@ -42,6 +42,7 @@
 			preview: {{ shop.preview | tojson }},
 			csrf: {{ (csrf_token or "") | tojson }},
 			autoCart: {{ (shop.auto_cart or []) | tojson }},
+			devLogin: {{ dev_login_enabled() | tojson }},  {# faqat lokal sinov saytida — botsiz «Test kirish» #}
 		};
 	</script>
 	<script src="/assets/marketplace/js/storefront.js?v={{ asset_version }}" defer></script>
