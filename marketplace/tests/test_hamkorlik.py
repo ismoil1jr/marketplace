@@ -82,7 +82,11 @@ class TestHamkorlik(IntegrationTestCase):
 		d.obuna_narxi, d.komissiya_foizi = 50000, 2
 		with patch.object(hk, "company_settings", return_value=full):
 			pdf = hk.render_pdf(d)
+			html = frappe.render_template(hk.TEMPLATE, {"doc": d})
 		self.assertEqual(len(PdfReader(io.BytesIO(pdf)).pages), 1)
+		# har bir rekvizit — o'z qatorida (Bank bilan MFO, pasport bilan tug'ilgan sana bir qatorga tiqilmaydi)
+		for label in ("STIR:", "Manzil:", "Bank:", "MFO:", "H/r:", "Pasport:", "Tug‘ilgan sana:", "Tashkilot:"):
+			self.assertIn(f"<tr><th>{label}</th>", html)
 
 	def test_validation_errors(self):
 		with self.assertRaises(frappe.ValidationError):
@@ -104,6 +108,50 @@ class TestHamkorlik(IntegrationTestCase):
 		self.assertEqual(d.holat, "Imzolangan")
 		again.assert_not_called()  # faqat skan qo'shildi — PDF qayta yasalmaydi
 		self.assertEqual(d.pdf_fayl, pdf)
+
+	def test_refresh_pdfs_updates_only_unsigned(self):
+		"""Rekvizit sozlamaga keyin kiritilsa — imzolanmagan shartnoma PDF'i yangi rekvizit bilan qayta yasaladi."""
+		import io
+
+		from pypdf import PdfReader
+
+		yangi = make().insert()
+		imzolangan = make(dokon_nomi="Imzoli Do‘kon", imzolangan_nusxa="/private/files/skan.pdf").insert()
+		self.assertEqual(imzolangan.holat, "Imzolangan")
+
+		full = hk.company_settings()
+		full.update(stir="309584422", mfo="01145")
+
+		def pdf_text(doc):
+			f = frappe.get_doc("File", {"attached_to_name": doc.name, "attached_to_field": "pdf_fayl"})
+			return "".join(p.extract_text() for p in PdfReader(io.BytesIO(f.get_content())).pages)
+
+		self.assertNotIn("309584422", pdf_text(yangi))
+		with patch.object(hk, "company_settings", return_value=full):
+			hk.refresh_pdfs()
+		self.assertIn("309584422", pdf_text(yangi))
+		self.assertNotIn("309584422", pdf_text(imzolangan))
+
+	def test_settings_save_queues_refresh_only_for_requisites(self):
+		p = patch("marketplace.telegram_bot.on_settings_update")  # Telegram getMe'ga chiqmasin
+		p.start()
+		self.addCleanup(p.stop)
+		s = frappe.get_single("Marketplace Settings")
+		with patch("frappe.enqueue") as enqueue:
+			s.hamkor_stir = "309584422"
+			s.save()
+		enqueue.assert_called_once()
+		self.assertEqual(enqueue.call_args.args[0], "marketplace.marketplace.doctype.hamkorlik.hamkorlik.refresh_pdfs")
+		with patch("frappe.enqueue") as enqueue:
+			s.hamkor_obuna = 70000  # narx faqat yangi shartnomaga ta'sir qiladi — eski PDF'lar o'zgarmaydi
+			s.save()
+		enqueue.assert_not_called()
+
+	def test_manual_refresh_button(self):
+		d = make().insert()
+		with patch.object(hk, "attach_pdf", return_value="/private/files/x.pdf") as attach:
+			self.assertEqual(hk.pdf_yangilash(d.name), "/private/files/x.pdf")
+		attach.assert_called_once()
 
 	def test_only_admin_roles_can_read(self):
 		perms = {p.role for p in frappe.get_meta("Hamkorlik").permissions if p.read}

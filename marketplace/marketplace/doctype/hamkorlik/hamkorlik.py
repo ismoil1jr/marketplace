@@ -18,6 +18,12 @@ PDF_FIELDS = (
 	"huquqiy_shakl", "tashkilot_nomi", "stir", "manzil", "obuna_narxi", "komissiya_foizi",
 )
 PASSPORT_RE = re.compile(r"^[A-Z]{2}\d{7}$")
+# Marketplace Settings'dagi platforma rekvizitlari: o'zgarsa imzolanmagan shartnomalar PDF'i yangilanadi
+# (narx — hamkor_obuna/hamkor_komissiya — faqat yangi shartnomaga tushadi, shuning uchun bu yerda yo'q)
+REKVIZIT_FIELDS = (
+	"hamkor_kompaniya", "hamkor_rahbar", "hamkor_stir", "hamkor_manzil", "hamkor_bank", "hamkor_hisob", "hamkor_mfo",
+	"aloqa_telefon",
+)
 
 
 class Hamkorlik(Document):
@@ -187,6 +193,31 @@ def attach_pdf(doc):
 	).insert(ignore_permissions=True)
 	doc.db_set("pdf_fayl", f.file_url, update_modified=False)
 	return f.file_url
+
+
+def on_settings_update(doc, method=None):
+	"""Marketplace Settings saqlanganda (hooks.doc_events). Saqlangan PDF — tayyor fayl, rekvizit keyin kiritilsa
+	o'zi yangilanmaydi (Frappe PDF esa har safar yangidan chiziladi) — shuning uchun fonda qayta yasaymiz."""
+	if any(doc.has_value_changed(f) for f in REKVIZIT_FIELDS):
+		frappe.enqueue("marketplace.marketplace.doctype.hamkorlik.hamkorlik.refresh_pdfs", enqueue_after_commit=True)
+
+
+def refresh_pdfs():
+	"""Imzolanmagan («Yangi») shartnomalar PDF'ini joriy rekvizitlar bilan qayta yasaydi.
+	Imzolangan va bekor qilinganlari tegilmaydi — PDF qog'ozda imzolangan nusxa bilan bir xil qolishi kerak."""
+	for name in frappe.get_all("Hamkorlik", filters={"holat": "Yangi"}, pluck="name"):
+		try:
+			attach_pdf(frappe.get_doc("Hamkorlik", name))
+		except Exception:
+			frappe.log_error(title=f"Hamkorlik PDF yangilanmadi: {name}")
+
+
+@frappe.whitelist(methods=["POST"])
+def pdf_yangilash(name):
+	"""Formadagi «Amallar → PDF'ni yangilash»: istalgan shartnoma PDF'ini joriy ma'lumot bilan qayta yasaydi."""
+	doc = frappe.get_doc("Hamkorlik", name)
+	doc.check_permission("write")
+	return attach_pdf(doc)
 
 
 @frappe.whitelist()

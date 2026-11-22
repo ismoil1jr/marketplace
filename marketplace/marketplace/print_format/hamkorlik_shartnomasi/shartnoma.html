@@ -5,12 +5,17 @@
 .hk p { margin: 0 0 5pt; text-align: justify; }
 .hk b { font-weight: 700; }
 .hk table { width: 100%; border-collapse: collapse; }
+.hk table, .hk th, .hk td { font-family: inherit; color: inherit; }
 .hk .hk-place td { padding: 0 0 8pt; }
 .hk .hk-r { text-align: right; }
 .hk .hk-sides { margin-top: 12pt; break-inside: avoid; page-break-inside: avoid; }
-.hk .hk-sides td { width: 50%; vertical-align: top; padding: 0 12pt 0 0; font-size: 9.5pt; line-height: 1.42; }
+.hk .hk-col { width: 50%; vertical-align: top; padding: 0 12pt 0 0; font-size: 9.5pt; line-height: 1.38; }
 .hk .hk-side { font-weight: 700; letter-spacing: .04em; margin-bottom: 3pt; border-bottom: 1px solid #111; padding-bottom: 2pt; }
-.hk .hk-sign td { padding-top: 14pt; }
+.hk .hk-who { font-weight: 700; margin-bottom: 1pt; }
+/* Har bir rekvizit — alohida qator: chapda nomi, o'ngda qiymati (uzun qiymat o'z ustunida o'raladi) */
+.hk .hk-req th, .hk .hk-req td { font-size: 9.5pt; line-height: 1.38; vertical-align: top; padding: 0 0 1pt; text-align: left; }
+.hk .hk-req th { font-weight: 400; white-space: nowrap; width: 1%; padding-right: 6pt; color: #333; }
+.hk .hk-sign .hk-col { padding-top: 14pt; }
 .hk .hk-line { margin-top: 30pt; }
 .hk .hk-hint { font-size: 8pt; color: #444; padding-left: 40pt; }
 </style>
@@ -40,32 +45,42 @@
 
 	<table class="hk-sides">
 		<tr>
-			<td>
+			<td class="hk-col">
 				<div class="hk-side">PLATFORMA</div>
-				<b>{{ c.nomi }}</b><br>
-				{% if c.stir %}STIR: {{ c.stir }}<br>{% endif %}
-				{% if c.manzil %}Manzil: {{ c.manzil }}<br>{% endif %}
-				{% if c.bank or c.mfo %}Bank: {{ c.bank or "" }}{% if c.mfo %}, MFO: {{ c.mfo }}{% endif %}<br>{% endif %}
-				{% if c.hisob %}H/r: {{ c.hisob }}<br>{% endif %}
-				{% if c.telefon %}Telefon: {{ c.telefon }}<br>{% endif %}
-				Sayt: magazinlar.uz
+				<div class="hk-who">{{ c.nomi }}</div>
+				<table class="hk-req">
+					{% if c.stir %}<tr><th>STIR:</th><td>{{ c.stir }}</td></tr>{% endif %}
+					{% if c.manzil %}<tr><th>Manzil:</th><td>{{ c.manzil }}</td></tr>{% endif %}
+					{% if c.bank %}<tr><th>Bank:</th><td>{{ c.bank }}</td></tr>{% endif %}
+					{% if c.mfo %}<tr><th>MFO:</th><td>{{ c.mfo }}</td></tr>{% endif %}
+					{% if c.hisob %}<tr><th>H/r:</th><td>{{ c.hisob }}</td></tr>{% endif %}
+					{% if c.telefon %}<tr><th>Telefon:</th><td>{{ c.telefon }}</td></tr>{% endif %}
+					<tr><th>Sayt:</th><td>magazinlar.uz</td></tr>
+				</table>
 			</td>
-			<td>
+			<td class="hk-col">
 				<div class="hk-side">DO‘KON EGASI</div>
-				<b>{{ k.egasi_fio }}</b><br>
-				Pasport: {{ doc.pasport }}, tug‘ilgan sana: {{ k.tugilgan }}<br>
-				Telefon: {{ k.telefon }}<br>
-				Do‘kon: «{{ doc.dokon_nomi }}»
-				{% if k.yuridik %}<br>{{ k.tashkilot }}, STIR: {{ doc.stir }}{% if doc.manzil %}<br>Manzil: {{ doc.manzil }}{% endif %}{% endif %}
+				<div class="hk-who">{{ k.egasi_fio }}</div>
+				<table class="hk-req">
+					<tr><th>Pasport:</th><td>{{ doc.pasport }}</td></tr>
+					<tr><th>Tug‘ilgan sana:</th><td>{{ k.tugilgan }}</td></tr>
+					<tr><th>Telefon:</th><td>{{ k.telefon }}</td></tr>
+					<tr><th>Do‘kon:</th><td>«{{ doc.dokon_nomi }}»</td></tr>
+					{% if k.yuridik %}
+					<tr><th>Tashkilot:</th><td>{{ k.tashkilot }}</td></tr>
+					<tr><th>STIR:</th><td>{{ doc.stir }}</td></tr>
+					{% if doc.manzil %}<tr><th>Manzil:</th><td>{{ doc.manzil }}</td></tr>{% endif %}
+					{% endif %}
+				</table>
 			</td>
 		</tr>
 		<tr class="hk-sign">
-			<td>
+			<td class="hk-col">
 				Kompaniya rahbari: <b>{{ c.rahbar }}</b>
 				<div class="hk-line">________________________</div>
 				<div class="hk-hint">(imzo)&nbsp;&nbsp;&nbsp;&nbsp;M.O‘.</div>
 			</td>
-			<td>
+			<td class="hk-col">
 				Do‘kon egasi: <b>{{ doc.egasi_qisqa }}</b>
 				<div class="hk-line">________________________</div>
 				<div class="hk-hint">(imzo){% if k.yuridik %}&nbsp;&nbsp;&nbsp;&nbsp;M.O‘.{% endif %}</div>

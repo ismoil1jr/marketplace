@@ -275,7 +275,12 @@ doc_events = {
 		],
 		"on_trash": "marketplace.storefront.clear_catalog_cache",
 	},
-	"Marketplace Settings": {"on_update": "marketplace.telegram_bot.on_settings_update"},
+	"Marketplace Settings": {
+		"on_update": [
+			"marketplace.telegram_bot.on_settings_update",
+			"marketplace.marketplace.doctype.hamkorlik.hamkorlik.on_settings_update",
+		]
+	},
 	"Item Price": {
 		"before_validate": "marketplace.permissions.set_shop",
 		"on_update": [

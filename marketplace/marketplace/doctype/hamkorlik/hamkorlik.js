@@ -12,8 +12,17 @@ frappe.ui.form.on("Hamkorlik", {
 	refresh(frm) {
 		if (frm.is_new()) return;
 		if (frm.doc.pdf_fayl) {
-			frm.add_custom_button(__("PDF yuklab olish"), () => window.open(frm.doc.pdf_fayl, "_blank")).addClass("btn-primary");
+			// ?v= — yopiq fayl brauzerda 1 soat keshlanadi, PDF yangilansa eskisi ochilmasin
+			frm.add_custom_button(__("PDF yuklab olish"), () => window.open(`${frm.doc.pdf_fayl}?v=${Date.now()}`, "_blank")).addClass("btn-primary");
 		}
+		frm.add_custom_button(__("PDF'ni yangilash"), () => {
+			frappe.call({
+				method: "marketplace.marketplace.doctype.hamkorlik.hamkorlik.pdf_yangilash",
+				args: { name: frm.doc.name },
+				freeze: true,
+				freeze_message: __("PDF yasalmoqda..."),
+			}).then(() => frm.reload_doc()).then(() => frappe.show_alert({ message: __("PDF yangilandi"), indicator: "green" }));
+		}, __("Amallar"));
 		// Frappe'ning o'z PDF'i (Print Format «Hamkorlik shartnomasi», Chrome)
 		frm.add_custom_button(__("Frappe PDF"), () => {
 			const q = new URLSearchParams({

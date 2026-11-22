@@ -6,7 +6,8 @@ frappe.listview_settings["Hamkorlik"] = {
 	},
 	formatters: {
 		pdf_fayl(value) {
-			return value ? `<a href="${encodeURI(value)}" target="_blank" onclick="event.stopPropagation()">PDF ⬇</a>` : "";
+			// ?v= — yopiq fayl brauzerda keshlanadi, yangilangan PDF ochilsin
+			return value ? `<a href="${encodeURI(value)}?v=${Date.now()}" target="_blank" onclick="event.stopPropagation()">PDF ⬇</a>` : "";
 		},
 	},
 };
