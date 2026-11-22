@@ -125,7 +125,6 @@ jinja = {
 	"methods": [
 		"marketplace.storefront.fmt_sum",
 		"marketplace.marketplace.doctype.hamkorlik.hamkorlik.hamkorlik_konteksti",
-		"marketplace.api.dev_login_enabled",
 	]
 }
 

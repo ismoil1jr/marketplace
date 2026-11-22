@@ -1167,4 +1167,3 @@ html.sf-noscroll, html.sf-noscroll body { overflow: hidden; }
 .sf-logout { gap: 10px; margin-top: 22px; color: var(--sale); background: var(--surface); }
 /* Kirmagan mijoz: chat sahifasidagi tovar kartasi (.mpc tashqarisida — ranglar shu yerda) */
 .sf-chat__guest { --mpc-panel: var(--surface); --mpc-line: var(--line); --mpc-field: var(--bg); --mpc-me: var(--brand); --mpc-ink: var(--ink); --mpc-muted: var(--muted); }
-.sf-dev-login { margin-top: 10px; border-style: dashed; color: var(--muted); }

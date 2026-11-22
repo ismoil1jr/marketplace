@@ -133,26 +133,6 @@ def receipt_pdf(order):
 	frappe.local.response.type = "download"
 
 
-# ---------------- Lokal sinov: botsiz kirish ----------------
-# Local'da Telegram bot yo'q (polling ataylab o'chiq — prod bot webhook'iga xalal bermasin). Chat, profil va savatni
-# sinash uchun kirish oynasida «Test kirish» tugmasi: faqat developer_mode + *.local sayt. Prod'da (magazinlar.uz) yo'q.
-DEV_PHONE = "+998900000001"
-
-
-def dev_login_enabled():
-	return bool(frappe.local.conf.get("developer_mode")) and (frappe.local.site or "").endswith(".local")
-
-
-@frappe.whitelist(allow_guest=True, methods=["POST"])
-def dev_login(shop):
-	if not dev_login_enabled():
-		raise frappe.PermissionError
-	shop_name = storefront.get_shop(shop).name
-	customer = customers.get_or_create_customer(DEV_PHONE, "Test", "Mijoz", shop=shop_name)
-	customers.start_session(customer, DEV_PHONE)
-	return {"name": frappe.db.get_value("Customer", customer, "customer_name"), "phone_masked": otp.mask_phone(DEV_PHONE)}
-
-
 def _require_customer():
 	customer = customers.current_customer()
 	if not customer:

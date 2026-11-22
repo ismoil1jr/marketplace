@@ -1169,25 +1169,6 @@
 			await api("logout", {}).catch(() => {});
 			setUser(null);
 		});
-		// Lokal sinov saytida (SF.devLogin — developer_mode + *.local) bot yo'q: botsiz «Test kirish»
-		if (SF.devLogin && btn && !$("[data-dev-login]", root)) {
-			const dev = document.createElement("button");
-			dev.type = "button";
-			dev.className = "sf-btn sf-btn--ghost sf-btn--block sf-dev-login";
-			dev.dataset.devLogin = "";
-			dev.textContent = "🧪 Test kirish (faqat lokal, botsiz)";
-			btn.after(dev);
-			dev.addEventListener("click", async () => {
-				dev.disabled = true;
-				try {
-					setUser(await api("dev_login", { shop: SF.shop }));
-				} catch (e) {
-					toast(e.message);
-					dev.disabled = false;
-				}
-			});
-		}
-
 		return setUser;
 	}
 
