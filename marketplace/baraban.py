@@ -1,4 +1,8 @@
-"""Chegirma barabani: do'kon sozlamalarini tekshirish va yordamchilar."""
+"""Chegirma soat (avval «chegirma barabani» edi — baraban olib tashlandi, nom ichki qoldi).
+
+Tovar formasida «Chegirma soat qo'shish» yoqilsa (Item.mp_chegirma_soat, soati, narxi): do'konga kirgan yangi mijozga
+«Tabriklaymiz! N soatlik chegirma» oynasi chiqadi, tovar chegirma narxida savatga tushadi, taymer yuradi
+(public/js/baraban.js). Qolgan vaqt va narx serverda — brauzer cookie'si bo'yicha (Baraban Chegirma)."""
 
 import hashlib
 
@@ -9,35 +13,43 @@ from frappe.utils import add_days, cint, flt, now_datetime, time_diff_in_seconds
 
 COOKIE_PREFIX = "mp_baraban_"
 MAX_STEP = 20
+MAX_SOAT = 99  # taymer HH:MM:SS — ikki xonali soat
 
 
-def variants(text):
-	"""«1, 2,3» -> [1, 2, 3]: tartib saqlanadi, takror, raqam bo'lmagan va <= 0 tashlanadi."""
-	out = []
-	for part in str(text or "").split(","):
-		part = part.strip()
-		if not part.isdigit():
-			continue
-		n = int(part)
-		if n > 0 and n not in out:
-			out.append(n)
-	return out
-
-
-def validate_shop(doc, method=None):
-	if not doc.get("baraban_yoqilgan"):
+def validate_item(doc, method=None):
+	"""Item.validate: «Chegirma soat qo'shish» — soat va narx to'g'ri, do'konda faqat bitta tovarda."""
+	if not cint(doc.get("mp_chegirma_soat")):
 		return
-	tovar = doc.get("baraban_tovar")
-	if not tovar or frappe.db.get_value("Item", tovar, "shop") != doc.name:
-		frappe.throw(_("Baraban tovari shu do'konning tovari bo'lishi kerak"))
-	if (doc.get("baraban_narx") or 0) <= 0:
-		frappe.throw(_("Chegirma narxi noldan katta bo'lishi kerak"))
-	vs = variants(doc.get("baraban_variantlar"))
-	if not vs:
-		frappe.throw(_("Variantlar noto'g'ri: soatlarni vergul bilan yozing, masalan 1,2,3"))
-	if doc.get("baraban_yutuq") not in vs:
-		frappe.throw(_("Har doim tushadigan variant variantlar ichida bo'lishi kerak"))
-	doc.baraban_variantlar = ",".join(map(str, vs))
+	if doc.get("variant_of"):
+		doc.mp_chegirma_soat = 0  # andozada belgilanadi, chegirma hamma rangga o'zi tushadi
+		return
+	soat = cint(doc.get("mp_chegirma_soati"))
+	if not 1 <= soat <= MAX_SOAT:
+		frappe.throw(_("Chegirma necha soat: 1 dan {0} gacha yozing").format(MAX_SOAT))
+	narx = flt(doc.get("mp_chegirma_narxi"))
+	if narx <= 0:
+		frappe.throw(_("Chegirma narxini yozing"))
+	if not doc.get("shop"):
+		frappe.throw(_("Chegirma soat faqat do'kon tovarida bo'ladi"))
+	other = frappe.db.get_value(
+		"Item",
+		{"shop": doc.shop, "mp_chegirma_soat": 1, "name": ["!=", doc.name or ""], "variant_of": ["is", "not set"]},
+		["name", "item_name"],
+		as_dict=True,
+	)
+	if other:
+		frappe.throw(
+			_("Bu do'konda chegirma soat «{0}» tovarida yoqilgan. Avval o'sha tovarda o'chiring — bir vaqtda bitta tovar bo'ladi").format(
+				other.item_name or other.name
+			)
+		)
+	oddiy = flt(doc.get("variant_price") if doc.get("has_variants") else doc.get("standard_rate"))
+	if oddiy and narx >= oddiy:
+		frappe.msgprint(
+			_("Chegirma narxi oddiy narxdan ({0} so'm) arzon emas — saytda chegirma ko'rinmaydi").format(f"{oddiy:,.0f}".replace(",", " ")),
+			indicator="orange",
+			alert=True,
+		)
 
 
 def _cookie_name(shop):
@@ -45,34 +57,43 @@ def _cookie_name(shop):
 
 
 def _base_config(shop):
-	"""Arzon tekshiruv (Shop + Item get_value). Yaroqsiz bo'lsa None; xato bersa ham None."""
+	"""Arzon tekshiruv (bitta Item so'rovi). Do'konda chegirma soatli sotuvdagi tovar bo'lmasa None; xato bersa ham None."""
 	try:
-		vals = frappe.db.get_value(
-			"Shop",
-			shop,
-			["baraban_yoqilgan", "baraban_tovar", "baraban_narx", "baraban_variantlar", "baraban_yutuq"],
-			as_dict=True,
+		rows = frappe.get_all(
+			"Item",
+			filters={
+				"shop": shop, "mp_chegirma_soat": 1, "disabled": 0, "is_published": 1, "mp_tez_kunda": 0,
+				"variant_of": ["is", "not set"],
+			},
+			fields=["name", "item_name", "image", "has_variants", "mp_chegirma_soati", "mp_chegirma_narxi"],
+			order_by="modified desc",
+			limit=1,
 		)
-		if not vals or not vals.baraban_yoqilgan:
+		if not rows:
 			return None
-		tovar = vals.baraban_tovar
-		narx = flt(vals.baraban_narx)
-		vs = variants(vals.baraban_variantlar)
-		yutuq = cint(vals.baraban_yutuq)
-		if not tovar or narx <= 0 or not vs or yutuq not in vs:
-			return None
-		item = frappe.db.get_value(
-			"Item", tovar, ["shop", "item_name", "image", "disabled", "is_published", "has_variants"], as_dict=True
-		)
-		if not item or item.shop != shop or cint(item.disabled) or not cint(item.is_published):
+		item = rows[0]
+		soat, narx = cint(item.mp_chegirma_soati), flt(item.mp_chegirma_narxi)
+		if soat <= 0 or narx <= 0:
 			return None
 		return frappe._dict(
-			tovar=tovar, narx=narx, variantlar=vs, yutuq=yutuq, tovar_nomi=item.item_name, rasm=item.image,
+			tovar=item.name, narx=narx, soat=min(soat, MAX_SOAT), tovar_nomi=item.item_name, rasm=item.image,
 			has_variants=cint(item.has_variants),
 		)
 	except Exception:
-		frappe.log_error(title="Baraban: config", message=frappe.get_traceback())
+		frappe.log_error(title="Chegirma soat: config", message=frappe.get_traceback())
 		return None
+
+
+def enabled(shop):
+	"""Do'konda chegirma soat yoqilganmi — sahifa baraban.js/css ni yuklashi uchun (get_shop). Hech qachon xato bermaydi."""
+	try:
+		return bool(frappe.db.exists(
+			"Item",
+			{"shop": shop, "mp_chegirma_soat": 1, "disabled": 0, "is_published": 1, "mp_tez_kunda": 0,
+			 "variant_of": ["is", "not set"]},
+		))
+	except Exception:
+		return False
 
 
 def config(shop):
@@ -107,7 +128,7 @@ def config(shop):
 		cfg.eski_narx = eski if eski > cfg.narx else None
 		return cfg
 	except Exception:
-		frappe.log_error(title="Baraban: config", message=frappe.get_traceback())
+		frappe.log_error(title="Chegirma soat: config", message=frappe.get_traceback())
 		return None
 
 
@@ -131,12 +152,11 @@ def _live_shop(shop):
 	return frappe.db.get_value("Shop", {"name": shop, "status": "Active"}, "name") if shop else None
 
 
-def _state(shop, cfg, row, spun=False):
+def _state(shop, cfg, row, claimed=False):
 	return {
 		"enabled": True,
-		"spun": spun or bool(row),
-		"variants": cfg.variantlar,
-		"win": cfg.yutuq,
+		"claimed": claimed or bool(row),
+		"soat": cfg.soat,
 		"remaining": max(0, cint(row.qolgan_soniya)) if row else 0,
 		"price": cfg.narx,
 		"old_price": cfg.eski_narx,
@@ -164,7 +184,8 @@ def state(shop):
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 @rate_limit(limit=100, seconds=600)  # bir IP ortida ko'p mijoz (mobil operator, ofis Wi-Fi)
-def spin(shop):
+def start(shop):
+	"""Yangi mijoz do'konga kirdi: chegirma taymeri boshlanadi (brauzerda bir marta — cookie)."""
 	shop = _live_shop(shop)
 	cfg = shop and config(shop)
 	if not cfg:
@@ -179,15 +200,15 @@ def spin(shop):
 			"doctype": "Baraban Chegirma",
 			"shop": shop,
 			"token": token,
-			"soat": cfg.yutuq,
-			"qolgan_soniya": cfg.yutuq * 3600,
+			"soat": cfg.soat,
+			"qolgan_soniya": cfg.soat * 3600,
 			"oxirgi_signal": now,
 		}
 	).insert(ignore_permissions=True)
 	frappe.local.cookie_manager.set_cookie(
 		_cookie_name(shop), token, max_age=30 * 86400, httponly=True, samesite="Lax"
 	)
-	return _state(shop, cfg, frappe._dict(qolgan_soniya=cfg.yutuq * 3600), spun=True)
+	return _state(shop, cfg, frappe._dict(qolgan_soniya=cfg.soat * 3600), claimed=True)
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
@@ -214,7 +235,7 @@ def tick(shop, resume=0):
 
 
 def active(shop):
-	"""(tovar, narx) agar baraban yutuqi hali amal qilsa, aks holda None. Hech qachon xato bermaydi."""
+	"""(tovar, narx) agar chegirma taymeri hali amal qilsa, aks holda None. Hech qachon xato bermaydi."""
 	try:
 		row = _row(shop)
 		if not row or cint(row.qolgan_soniya) <= 0:
@@ -223,64 +244,11 @@ def active(shop):
 		if cfg:
 			return (cfg.tovar, cfg.narx)  # storefront: tovarning o'zi yoki uning varianti
 	except Exception:
-		frappe.log_error(title="Baraban active xatosi")
+		frappe.log_error(title="Chegirma soat: active xatosi")
 	return None
 
 
 def cleanup():
-	"""Kunlik: cookie (30 kun) muddati o'tgan qatorlarni o'chiradi. Ertaroq o'chirilsa, qaytgan mijozga baraban
-	qayta chiqib, yangi chegirma olardi (tick modified'ni yangilamaydi — shuning uchun creation bo'yicha)."""
+	"""Kunlik: cookie (30 kun) muddati o'tgan qatorlarni o'chiradi. Ertaroq o'chirilsa, qaytgan mijozga «Tabriklaymiz»
+	oynasi qayta chiqib, yangi chegirma olardi (tick modified'ni yangilamaydi — shuning uchun creation bo'yicha)."""
 	frappe.db.delete("Baraban Chegirma", {"creation": ["<", add_days(now_datetime(), -31)]})
-
-
-# ---------- Admin: do'kon formasida baraban tovarini tanlash ----------
-def _shop_items(shop, txt="", code=None, start=0, limit=60, fields=None):
-	frappe.has_permission("Shop", "read", shop, throw=True)
-	filters = {"shop": shop, "disabled": 0, "variant_of": ["is", "not set"]}
-	if code:
-		filters["name"] = code
-	txt = (txt or "").strip()
-	or_filters = {"item_name": ["like", f"%{txt}%"], "name": ["like", f"%{txt}%"]} if txt else None
-	return frappe.get_all(
-		"Item",
-		filters=filters,
-		or_filters=or_filters,
-		fields=fields or ["name", "item_name", "image", "has_variants", "is_published"],
-		order_by="item_name asc",
-		limit_start=cint(start),
-		limit_page_length=cint(limit),
-	)
-
-
-@frappe.whitelist()
-def tovarlar(shop, txt="", code=None):
-	"""«Tovar tanlash» oynasi: shu do'kon tovarlari rasm, nom va narx bilan (variantlar emas — ota tovar)."""
-	from marketplace.storefront import _get_prices
-
-	rows = _shop_items(shop, txt, code)
-	prices = _get_prices([r.name for r in rows]) if rows else {}
-	if any(r.has_variants for r in rows):
-		# Variantli tovarda narx variantlarda: eng arzon variant narxi ko'rsatiladi
-		var = frappe.get_all(
-			"Item",
-			filters={"variant_of": ["in", [r.name for r in rows if r.has_variants]], "disabled": 0},
-			fields=["name", "variant_of"],
-		)
-		vp = _get_prices([v.name for v in var]) if var else {}
-		for v in var:
-			p = flt(vp.get(v.name))
-			if p and (not prices.get(v.variant_of) or p < flt(prices[v.variant_of])):
-				prices[v.variant_of] = p
-	for r in rows:
-		r.price = flt(prices.get(r.name))
-	return rows
-
-
-@frappe.whitelist()
-@frappe.validate_and_sanitize_search_inputs
-def tovar_query(doctype, txt, searchfield, start, page_len, filters):
-	"""Tovar maydonining ochiladigan ro'yxati: faqat shu do'kon tovarlari, uzun tavsifsiz — kod va nom."""
-	shop = (filters or {}).get("shop")
-	if not shop:
-		return []
-	return [(r.name, r.item_name) for r in _shop_items(shop, txt, start=start, limit=page_len, fields=["name", "item_name"])]

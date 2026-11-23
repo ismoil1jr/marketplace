@@ -25,3 +25,4 @@ marketplace.patches.murojaat_takror_holat
 marketplace.patches.hamkorlik_sozlamalari
 marketplace.patches.hamkorlik_pdf_bir_varaq
 marketplace.patches.hamkorlik_pdf_rekvizit
+marketplace.patches.chegirma_soat_tovarga

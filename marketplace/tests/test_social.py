@@ -38,20 +38,6 @@ class TestSocialLinks(UnitTestCase):
 		self.assertEqual([s["kind"] for s in social_links(shop)], ["telegram", "instagram", "whatsapp"])
 
 
-class TestBarabanPicker(UnitTestCase):
-	def test_picker_requires_shop_permission(self):
-		from marketplace import baraban
-
-		with patch("frappe.has_permission", side_effect=frappe.PermissionError):
-			with self.assertRaises(frappe.PermissionError):
-				baraban.tovarlar("SHOP-X")
-
-	def test_link_query_needs_shop(self):
-		from marketplace import baraban
-
-		self.assertEqual(baraban.tovar_query("Item", "", "name", 0, 10, {}), [])
-
-
 class TestAutoCart(UnitTestCase):
 	"""«Savatda tayyor tursin»: qaysi tovar har bir mijoz savatiga tushadi."""
 

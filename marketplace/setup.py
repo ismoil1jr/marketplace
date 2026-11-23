@@ -78,12 +78,47 @@ CUSTOM_FIELDS = {
 			"description": "Belgilansa: saytga kirgan har bir mijozning savatiga (Telegram orqali kirgan-kirmaganidan qat'i nazar) bu tovar o'zi 1 dona qo'shilib turadi. Mijoz o'chirsa — qayta qo'shilmaydi. Rangli tovarda — omborda bor birinchi rang",
 		},
 		{
+			# Chegirma soat (avvalgi «baraban» o'rniga): do'konga kirgan yangi mijozga «Tabriklaymiz! N soatlik chegirma»
+			# oynasi chiqadi, tovar chegirma narxida savatga tushadi, taymer yuradi (baraban.py, public/js/baraban.js).
+			# Do'konda bitta tovarda (baraban.validate_item). Variantga ko'chirilmaydi: andozada belgilanadi
+			"fieldname": "mp_chegirma_soat",
+			"label": "Chegirma soat qo'shish",
+			"fieldtype": "Check",
+			"default": "0",
+			"no_copy": 1,
+			"in_standard_filter": 1,
+			"insert_after": "mp_savatda",
+			"depends_on": "eval:!doc.variant_of",
+			"description": "Belgilansa: do'konga kirgan har bir yangi mijozga «Tabriklaymiz! N soatlik chegirma yutdingiz» oynasi chiqadi, tovar chegirma narxida savatga o'zi qo'shiladi va taymer yuradi. Vaqt tugasa — oddiy narx. Do'konda faqat bitta tovarda yoqiladi",
+		},
+		{
+			"fieldname": "mp_chegirma_soati",
+			"label": "Necha soat",
+			"fieldtype": "Int",
+			"default": "3",
+			"no_copy": 1,
+			"insert_after": "mp_chegirma_soat",
+			"depends_on": "eval:doc.mp_chegirma_soat && !doc.variant_of",
+			"mandatory_depends_on": "eval:doc.mp_chegirma_soat && !doc.variant_of",
+			"description": "Mijozga necha soatlik chegirma beriladi (1 dan 99 gacha). Taymer faqat mijoz saytda turganda yuradi",
+		},
+		{
+			"fieldname": "mp_chegirma_narxi",
+			"label": "Chegirma narxi",
+			"fieldtype": "Currency",
+			"no_copy": 1,
+			"insert_after": "mp_chegirma_soati",
+			"depends_on": "eval:doc.mp_chegirma_soat && !doc.variant_of",
+			"mandatory_depends_on": "eval:doc.mp_chegirma_soat && !doc.variant_of",
+			"description": "Taymer tugaguncha mijoz shu narxda oladi — oddiy narxdan arzon bo'lsin. Rangli tovarda hamma rangga",
+		},
+		{
 			# Instagram formasi (Google Sheets) murojaati qaysi tovar bo'yicha: SMM varaq/forma nomiga yoki tovar_id ustuniga
 			# shu raqamni yozadi (murojaat._item). Do'kon ichida takrorlanmaydi, bo'sh bo'lsa — o'zi beriladi (item_tovar_id)
 			"fieldname": "mp_tovar_id",
 			"label": "Tovar ID (reklama)",
 			"fieldtype": "Int",
-			"insert_after": "mp_savatda",
+			"insert_after": "mp_chegirma_narxi",
 			"no_copy": 1,
 			"search_index": 1,
 			"in_list_view": 1,

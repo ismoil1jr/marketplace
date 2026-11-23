@@ -78,7 +78,7 @@ def get_shop(slug):
 			"instagram", "phone", "pickup_address", "pickup_hours", "pickup_map",
 			"delivery_info", "delivery_short", "banner_label", "banner_title", "banner_image",
 			"banner_group", "enable_payme", "enable_click", "enable_cod", "enable_pickup", "warehouse",
-			"baraban_yoqilgan", "telegram_kanal", "youtube", "facebook", "x_link", "whatsapp",
+			"telegram_kanal", "youtube", "facebook", "x_link", "whatsapp",
 		],
 		as_dict=True,
 	)
@@ -96,6 +96,10 @@ def get_shop(slug):
 	shop.instagram_handle = (shop.instagram or "").lstrip("@")
 	shop.socials = social_links(shop)
 	shop.auto_cart = auto_cart(shop)
+	# «Chegirma soat qo'shish» yoqilgan tovar bor — sahifa baraban.js/css ni yuklaydi (Tabriklaymiz oynasi + taymer)
+	from marketplace import baraban
+
+	shop.chegirma_soat = baraban.enabled(shop.name)
 	# Karusel slaydlari (sotuvchi Shop formasida o'zi yangilaydi)
 	shop.banners = frappe.get_all(
 		"Shop Banner",

@@ -256,6 +256,8 @@ doc_events = {
 			"marketplace.permissions.item_validate",
 			"marketplace.images.process_gallery",
 			"marketplace.sotuv.murojaat.item_tovar_id",
+			# «Chegirma soat qo'shish»: soat, narx, do'konda bitta tovar
+			"marketplace.baraban.validate_item",
 		],
 		"after_insert": "marketplace.seller_desk.item_after_insert",
 		"on_update": [
@@ -264,7 +266,6 @@ doc_events = {
 		],
 		"on_trash": "marketplace.storefront.clear_catalog_cache",
 	},
-	"Shop": {"validate": ["marketplace.baraban.validate_shop"]},
 	"Item Group": {
 		"before_insert": "marketplace.permissions.item_group_before_insert",
 		"validate": "marketplace.permissions.item_group_validate",

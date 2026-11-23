@@ -8,45 +8,54 @@ from frappe.utils import now_datetime
 from marketplace import baraban
 
 
-class TestBaraban(UnitTestCase):
+class TestChegirmaSoatItem(UnitTestCase):
+	"""Tovar formasidagi «Chegirma soat qo'shish» (baraban.validate_item)."""
+
 	def tearDown(self):
 		frappe.db.rollback()
 
-	def test_variants_parse(self):
-		self.assertEqual(baraban.variants("1, 2,x,0,2,5"), [1, 2, 5])
-		self.assertEqual(baraban.variants(None), [])
-
 	def _doc(self, **kw):
 		d = dict(
-			name="Test Shop", baraban_yoqilgan=1, baraban_tovar="ITEM-1",
-			baraban_narx=10000, baraban_variantlar="1, 2,3", baraban_yutuq=3,
+			name="ITEM-1", item_name="Kitob", shop="Test Shop", variant_of=None, has_variants=0, standard_rate=500000,
+			mp_chegirma_soat=1, mp_chegirma_soati=3, mp_chegirma_narxi=360000,
 		)
 		d.update(kw)
 		return frappe._dict(d)
 
-	def test_validate_shop(self):
-		with patch("frappe.db.get_value", return_value="Test Shop"):
-			for bad in (
-				{"baraban_tovar": ""},
-				{"baraban_narx": 0},
-				{"baraban_variantlar": "x,0"},
-				{"baraban_yutuq": 9},
-			):
-				with self.assertRaises(frappe.ValidationError):
-					baraban.validate_shop(self._doc(**bad))
-			doc = self._doc()
-			baraban.validate_shop(doc)
-			self.assertEqual(doc.baraban_variantlar, "1,2,3")
-			# boshqa do'kon tovari
-		with patch("frappe.db.get_value", return_value="Other"):
-			with self.assertRaises(frappe.ValidationError):
-				baraban.validate_shop(self._doc())
-		# o'chiq bo'lsa tekshirilmaydi
-		baraban.validate_shop(self._doc(baraban_yoqilgan=0, baraban_narx=0))
+	def test_off_is_not_checked(self):
+		baraban.validate_item(self._doc(mp_chegirma_soat=0, mp_chegirma_soati=0, mp_chegirma_narxi=0))
 
-	def test_doctype_exists(self):
+	def test_bad_values_rejected(self):
+		with patch("frappe.db.get_value", return_value=None):
+			for bad in ({"mp_chegirma_soati": 0}, {"mp_chegirma_soati": 100}, {"mp_chegirma_narxi": 0}, {"shop": None}):
+				with self.assertRaises(frappe.ValidationError, msg=bad):
+					baraban.validate_item(self._doc(**bad))
+			baraban.validate_item(self._doc())
+
+	def test_only_one_item_per_shop(self):
+		with patch("frappe.db.get_value", return_value=frappe._dict(name="ITEM-2", item_name="Ruchka")) as gv:
+			with self.assertRaises(frappe.ValidationError):
+				baraban.validate_item(self._doc())
+		filters = gv.call_args.args[1]
+		self.assertEqual((filters["shop"], filters["mp_chegirma_soat"]), ("Test Shop", 1))
+		self.assertEqual(filters["name"], ["!=", "ITEM-1"])
+
+	def test_variant_never_keeps_flag(self):
+		doc = self._doc(variant_of="ITEM-1", mp_chegirma_soati=0)
+		baraban.validate_item(doc)
+		self.assertEqual(doc.mp_chegirma_soat, 0)
+
+	def test_not_cheaper_only_warns(self):
+		with patch("frappe.db.get_value", return_value=None), patch("frappe.msgprint") as mp:
+			baraban.validate_item(self._doc(mp_chegirma_narxi=600000))
+		mp.assert_called_once()
+
+	def test_fields_exist(self):
 		self.assertTrue(frappe.get_meta("Baraban Chegirma").has_field("qolgan_soniya"))
-		self.assertTrue(frappe.get_meta("Shop").has_field("baraban_yutuq"))
+		for f in ("mp_chegirma_soat", "mp_chegirma_soati", "mp_chegirma_narxi"):
+			self.assertTrue(frappe.get_meta("Item").has_field(f), f)
+		# Do'kon formasida baraban yo'q
+		self.assertFalse(frappe.get_meta("Shop").has_field("baraban_yoqilgan"))
 
 
 class TestBarabanApi(UnitTestCase):
@@ -58,8 +67,7 @@ class TestBarabanApi(UnitTestCase):
 		self.cookies = {}
 		self.cm = MagicMock()
 		self.cfg = frappe._dict(
-			tovar="ITEM-1", narx=10000, variantlar=[1, 2, 3], yutuq=3,
-			tovar_nomi="T", eski_narx=20000, rasm=None,
+			tovar="ITEM-1", narx=10000, soat=3, tovar_nomi="T", eski_narx=20000, rasm=None,
 		)
 		self.patches = [
 			patch("frappe.request", MagicMock(cookies=self.cookies)),
@@ -93,30 +101,46 @@ class TestBarabanApi(UnitTestCase):
 	def test_state_disabled_on_bad_config(self):
 		self.patches[2].stop()
 		self.patches[3].stop()
-		with patch("frappe.db.get_value", return_value=frappe._dict(
-			baraban_yoqilgan=1, baraban_tovar="X", baraban_narx=5,
-			baraban_variantlar="1,2", baraban_yutuq=9,
-		)):
+		bad = frappe._dict(name="X", item_name="X", image=None, has_variants=0, mp_chegirma_soati=0, mp_chegirma_narxi=5)
+		with patch("frappe.get_all", return_value=[bad]):
+			self.assertIsNone(baraban.config(self.shop))
+		with patch("frappe.get_all", return_value=[]):
 			self.assertIsNone(baraban.config(self.shop))
 		self.patches[2].start()
 		self.patches[3].start()
 		with patch("marketplace.baraban.config", return_value=None):
 			self.assertEqual(baraban.state(self.shop), {"enabled": False})
 
-	def test_spin_creates_row_and_cookie(self):
-		res = baraban.spin(self.shop)
-		self.assertTrue(res["spun"])
+	def test_config_reads_item(self):
+		self.patches[2].stop()
+		self.patches[3].stop()
+		try:
+			item = frappe._dict(name="I", item_name="Kitob", image="/x.jpg", has_variants=0, mp_chegirma_soati=5,
+				mp_chegirma_narxi=360000)
+			with patch("frappe.get_all", return_value=[item]) as ga:
+				cfg = baraban._base_config(self.shop)
+			flt = ga.call_args.kwargs["filters"]
+			self.assertEqual((flt["shop"], flt["mp_chegirma_soat"], flt["is_published"], flt["mp_tez_kunda"]), (self.shop, 1, 1, 0))
+			self.assertEqual((cfg.tovar, cfg.soat, cfg.narx, cfg.tovar_nomi), ("I", 5, 360000, "Kitob"))
+		finally:
+			self.patches[2].start()
+			self.patches[3].start()
+
+	def test_start_creates_row_and_cookie(self):
+		res = baraban.start(self.shop)
+		self.assertTrue(res["claimed"])
+		self.assertEqual(res["soat"], 3)
 		args, kw = self.cm.set_cookie.call_args
 		self.assertTrue(kw["httponly"])
 		self.assertEqual(args[0], baraban._cookie_name(self.shop))
 		self.assertEqual(frappe.db.get_value("Baraban Chegirma", {"token": args[1]}, "qolgan_soniya"), 3 * 3600)
 
-	def test_spin_is_once_per_browser(self):
-		self.test_spin_creates_row_and_cookie()
+	def test_start_is_once_per_browser(self):
+		self.test_start_creates_row_and_cookie()
 		token = self.cm.set_cookie.call_args[0][1]
 		self.cookies[baraban._cookie_name(self.shop)] = token
 		self.cm.reset_mock()
-		res = baraban.spin(self.shop)
+		res = baraban.start(self.shop)
 		self.cm.set_cookie.assert_not_called()
 		self.assertEqual(res["remaining"], 3 * 3600)
 		self.assertEqual(frappe.db.count("Baraban Chegirma", {"token": token}), 1)
@@ -140,12 +164,12 @@ class TestBarabanApi(UnitTestCase):
 			(now_datetime() - frappe.db.get_value("Baraban Chegirma", {"shop": self.shop}, "oxirgi_signal")).total_seconds(), 5
 		)
 
-	def test_spin_rate_limit_allows_shared_ip(self):
-		# bir IP ortida ko'p mijoz (CGNAT): 10 dan ortiq yangi mijoz ham aylantira oladi
+	def test_start_rate_limit_allows_shared_ip(self):
+		# bir IP ortida ko'p mijoz (CGNAT): 10 dan ortiq yangi mijoz ham chegirma oladi
 		for i in range(12):
 			self.cookies.clear()
-			res = baraban.spin(self.shop)
-			self.assertTrue(res["spun"], i)
+			res = baraban.start(self.shop)
+			self.assertTrue(res["claimed"], i)
 
 	def test_tick_no_row(self):
 		self.assertEqual(baraban.tick(self.shop), {"remaining": 0})
@@ -174,7 +198,7 @@ class TestBarabanApi(UnitTestCase):
 		self.patches[3].stop()
 		try:
 			with patch("marketplace.baraban._base_config", return_value=frappe._dict(
-				tovar="I", narx=100, variantlar=[1], yutuq=1, tovar_nomi="n", rasm=None)), \
+				tovar="I", narx=100, soat=1, tovar_nomi="n", rasm=None)), \
 				patch("marketplace.storefront._get_prices", return_value={"I": old}):
 				return baraban.config(self.shop)
 		finally:
@@ -186,7 +210,7 @@ class TestBarabanApi(UnitTestCase):
 		self.patches[3].stop()
 		try:
 			with patch("marketplace.baraban._base_config", return_value=frappe._dict(
-				tovar="I", narx=100, variantlar=[1], yutuq=1, tovar_nomi="n", rasm=None)), \
+				tovar="I", narx=100, soat=1, tovar_nomi="n", rasm=None)), \
 				patch("marketplace.storefront._get_prices", side_effect=RuntimeError("x")):
 				self.assertIsNone(baraban.config(self.shop))
 		finally:
@@ -199,7 +223,7 @@ class TestBarabanApi(UnitTestCase):
 		self.assertIsNone(self._full_config(50).eski_narx)
 
 	def test_cleanup(self):
-		# Cookie 30 kun yashaydi: tugagan qator ham undan oldin o'chmasin, aks holda qaytgan mijozga baraban qayta chiqadi
+		# Cookie 30 kun yashaydi: tugagan qator ham undan oldin o'chmasin, aks holda qaytgan mijozga oyna qayta chiqadi
 		self._row(remaining=0, token="a" * 24)
 		self._row(remaining=0, token="b" * 24)
 		self._row(remaining=500, token="c" * 24)
@@ -221,7 +245,7 @@ class TestBarabanApi(UnitTestCase):
 		try:
 			rows = [frappe._dict(name="I-A", is_stock_item=1), frappe._dict(name="I-B", is_stock_item=1)]
 			with patch("marketplace.baraban._base_config", return_value=frappe._dict(
-				tovar="I", narx=360000, variantlar=[1, 3], yutuq=3, tovar_nomi="n", rasm=None, has_variants=1)), \
+				tovar="I", narx=360000, soat=3, tovar_nomi="n", rasm=None, has_variants=1)), \
 				patch("frappe.get_all", return_value=rows), \
 				patch("marketplace.storefront._get_stock", return_value={"I-A": 0, "I-B": 4}), \
 				patch("marketplace.storefront.variant_labels", return_value={"I-B": "Sariq"}), \
