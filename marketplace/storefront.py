@@ -94,6 +94,9 @@ def get_shop(slug):
 		label for flag, label in ((shop.enable_payme, "Payme"), (shop.enable_click, "Click"), (shop.enable_cod, "Naqd")) if flag
 	)
 	shop.instagram_handle = (shop.instagram or "").lstrip("@")
+	# Call-center raqami (Shop.phone): «+998 50 781 86 76» → tel:+998507818676 (savat, buyurtma, sayt pasti)
+	shop.phone = (shop.phone or "").strip()
+	shop.phone_href = "".join(ch for ch in shop.phone if ch.isdigit() or ch == "+")
 	shop.socials = social_links(shop)
 	shop.auto_cart = auto_cart(shop)
 	# «Chegirma soat qo'shish» yoqilgan tovar bor — sahifa baraban.js/css ni yuklaydi (Tabriklaymiz oynasi + taymer)

@@ -30,13 +30,13 @@
   "sb_banners",
   "banners",
   "sb_contact",
+  "phone",
   "instagram",
   "telegram_kanal",
   "youtube",
   "facebook",
   "x_link",
   "whatsapp",
-  "phone",
   "delivery_info",
   "pickup_address",
   "pickup_hours",
@@ -284,8 +284,9 @@
   {
    "fieldname": "phone",
    "fieldtype": "Data",
-   "label": "Phone",
-   "options": "Phone"
+   "label": "Call-center raqami",
+   "options": "Phone",
+   "description": "Mijozga saytda ko'rinadi: savatda «Manzil» tagida, buyurtma sahifasida va sayt pastida. Bosilsa qo'ng'iroq qiladi — mijoz haqiqiy do'kon ekanini ko'radi. Masalan: +998 50 781 86 76"
   },
   {
    "fieldname": "delivery_info",
@@ -576,7 +577,7 @@
  "image_field": "logo",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-11-23 13:00:00.000000",
+ "modified": "2026-11-23 20:00:00.000000",
  "modified_by": "Administrator",
  "module": "Marketplace",
  "name": "Shop",

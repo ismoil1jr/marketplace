@@ -22,6 +22,7 @@
 		{% for s in shop.socials %}<a class="sf-social__a sf-social__a--{{ s.kind }}" href="{{ s.href }}" target="_blank" rel="noopener" aria-label="{{ s.title }}" title="{{ s.title }}"><svg aria-hidden="true"><use href="#i-so-{{ s.kind }}"/></svg></a>{% endfor %}
 	</nav>
 	{% endif %}
+	{% if shop.phone %}<p class="sf-foot__call">Call-center: <a href="tel:{{ shop.phone_href }}">{{ shop.phone }}</a></p>{% endif %}
 	<p class="sf-foot__legal">© {{ shop.shop_name }} · <a href="/s/{{ shop.name | urlencode }}/maxfiylik">Maxfiylik siyosati</a></p>
 </footer>
 {% endautoescape %}{% endblock %}

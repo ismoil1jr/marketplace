@@ -59,8 +59,8 @@
 			{% if order.delivery_address %}<div><dt>Manzil</dt><dd>{{ order.delivery_address }}</dd></div>{% endif %}
 			{% if order.delivery_method == "O'zim olaman" %}
 			<div><dt>Olib ketish</dt><dd>{{ shop.pickup_address or "Manzilni do‘kon telefon orqali aytadi" }}{% if shop.pickup_hours %}<br><small>{{ shop.pickup_hours }}</small>{% endif %}{% if shop.pickup_map %}<br><a class="sf-link" href="{{ shop.pickup_map }}" target="_blank" rel="noopener">Xaritada ochish ↗</a>{% endif %}</dd></div>
-			{% if shop.phone %}<div><dt>Telefon</dt><dd><a href="tel:{{ shop.phone }}">{{ shop.phone }}</a></dd></div>{% endif %}
 			{% endif %}
+			{% if shop.phone %}<div><dt>Call-center</dt><dd><a href="tel:{{ shop.phone_href }}">{{ shop.phone }}</a></dd></div>{% endif %}
 		</dl>
 	</section>
 

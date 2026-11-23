@@ -63,9 +63,15 @@
 			<b>Do‘kon manzili</b>
 			{% if shop.pickup_address %}<p>{{ shop.pickup_address }}</p>{% else %}<p class="sf-muted">Manzilni do‘kon buyurtmadan keyin telefon orqali aytadi{% if shop.city %} ({{ shop.city }}){% endif %}</p>{% endif %}
 			{% if shop.pickup_hours %}<small>Ish vaqti: {{ shop.pickup_hours }}</small>{% endif %}
-			{% if shop.phone %}<small>Telefon: <a href="tel:{{ shop.phone }}">{{ shop.phone }}</a></small>{% endif %}
 			{% if shop.pickup_map %}<a class="sf-link" href="{{ shop.pickup_map }}" target="_blank" rel="noopener">Xaritada ochish ↗</a>{% endif %}
 		</div>
+		{# Call-center (Shop formasida «Call-center raqami»): mijoz do'kon haqiqiy ekanini ko'radi — bosilsa qo'ng'iroq #}
+		{% if shop.phone %}
+		<a class="sf-callc" href="tel:{{ shop.phone_href }}">
+			<span class="sf-callc__icon" aria-hidden="true"><svg><use href="#i-phone"/></svg></span>
+			<span class="sf-callc__txt"><small>Savolingiz bo‘lsa, call-center</small><b>{{ shop.phone }}</b></span>
+		</a>
+		{% endif %}
 	</section>
 
 	<section class="sf-summary" data-summary hidden>

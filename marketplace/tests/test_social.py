@@ -85,3 +85,24 @@ class TestAutoCart(UnitTestCase):
 		frappe.cache.delete_value(storefront._auto_cart_key(shop.name))
 		with patch.object(storefront, "_build_auto_cart", side_effect=RuntimeError("x")), patch("frappe.log_error"):
 			self.assertEqual(storefront.auto_cart(shop), [])
+
+
+class TestCallCenter(UnitTestCase):
+	"""Shop «Call-center raqami» (phone): formada «Aloqa» boshida, saytda tel: havola bilan."""
+
+	def test_field_label_and_place(self):
+		meta = frappe.get_meta("Shop")
+		self.assertEqual(meta.get_field("phone").label, "Call-center raqami")
+		order = [f.fieldname for f in meta.fields]
+		self.assertEqual(order[order.index("sb_contact") + 1], "phone")
+
+	def test_get_shop_phone_href(self):
+		from marketplace import storefront
+
+		name = frappe.db.get_value("Shop", {"status": "Active", "phone": ["is", "set"]})
+		if not name:
+			self.skipTest("call-center raqami bor faol do'kon yo'q")
+		shop = storefront.get_shop(name)
+		self.assertTrue(shop.phone)
+		self.assertRegex(shop.phone_href, r"^\+?\d+$")
+		self.assertEqual(shop.phone_href.lstrip("+"), "".join(c for c in shop.phone if c.isdigit()))

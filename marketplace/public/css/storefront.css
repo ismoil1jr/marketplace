@@ -58,6 +58,8 @@ svg { width: 20px; height: 20px; flex: none; }
 .sf-social__a--facebook { background: #0866ff; }
 .sf-social__a--x { background: #000; }
 .sf-social__a--whatsapp { background: #25d366; }
+.sf-foot__call { margin: 0 0 10px; color: var(--ink); font-size: 14px; }
+.sf-foot__call a { color: inherit; font-weight: 700; text-decoration: none; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .sf-foot__legal { margin: 0; }
 .sf-foot__legal a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 
@@ -487,6 +489,14 @@ html.sf-noscroll, html.sf-noscroll body { overflow: hidden; }
 .sf-pickup { display: grid; gap: 4px; padding: 12px 14px; border-radius: 14px; background: var(--tile); }
 .sf-pickup p { margin: 0; white-space: pre-line; }
 .sf-pickup small { color: var(--muted); }
+/* Savatda «Manzil» tagidagi call-center qatori (bosilsa qo'ng'iroq) */
+.sf-callc { display: flex; align-items: center; gap: 12px; margin-top: 12px; padding: 10px 14px; border-radius: 14px; background: var(--tile); color: var(--ink); text-decoration: none; }
+.sf-callc:hover { color: var(--ink); text-decoration: none; }
+.sf-callc__icon { display: grid; place-items: center; flex: none; width: 38px; height: 38px; border-radius: 50%; background: var(--brand); color: #fff; }
+.sf-callc__icon svg { width: 18px; height: 18px; }
+.sf-callc__txt { display: grid; gap: 1px; min-width: 0; }
+.sf-callc__txt small { color: var(--muted); font-size: 13px; }
+.sf-callc__txt b { font-size: 16px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .sf-summary { display: grid; gap: 10px; margin: 18px 0; padding: 18px; background: var(--surface); border-radius: var(--radius); }
 .sf-summary > div { display: flex; justify-content: space-between; color: var(--muted); }
 .sf-summary__total { padding-top: 12px; border-top: 1px solid var(--line); color: var(--ink) !important; font-size: 17px; }

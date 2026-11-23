@@ -56,7 +56,7 @@
 	<section class="sf-box">
 		<h2>Aloqa</h2>
 		<p><b>{{ seller }}</b>{% if shop.stir %}<br>STIR: {{ shop.stir }}{% endif %}
-		{% if shop.phone %}<br>Telefon: <a href="tel:{{ shop.phone }}">{{ shop.phone }}</a>{% endif %}
+		{% if shop.phone %}<br>Call-center: <a href="tel:{{ shop.phone_href }}">{{ shop.phone }}</a>{% endif %}
 		{% if shop.pickup_address %}<br>Manzil: {{ shop.pickup_address }}{% elif shop.city %}<br>Shahar: {{ shop.city }}{% endif %}</p>
 	</section>
 </div>
