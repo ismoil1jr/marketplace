@@ -42,10 +42,7 @@
 
 	const unitPrice = (code, q) => {
 		const m = meta[code] || {};
-		const normal = m.ws && q >= m.wsmin ? m.ws : m.price || 0;
-		// Chegirma barabani faol bo'lsa (baraban.js) — chegirma narxi, lekin oddiy/ulgurji arzonroq bo'lsa o'sha (server ham shunday)
-		const promo = SF.promoPrice && SF.promoPrice(code);
-		return promo && (!normal || promo < normal) ? promo : normal;
+		return m.ws && q >= m.wsmin ? m.ws : m.price || 0;
 	};
 
 	const cart = {
@@ -82,19 +79,6 @@
 			store.set(AUTO_KEY, [...done]);
 		}
 	})();
-
-	// Chegirma barabani (baraban.js) uchun: yutgan tovarni savatga qo'shish
-	SF.cart = {
-		add: cart.add,
-		qty: cart.qty,
-		refresh: () => renderCartSummary(),
-		// Sahifa katalogida bo'lmasa ham yon savatda nomi/rasmi ko'rinsin
-		remember(code, m) {
-			if (meta[code]) return;
-			meta[code] = m;
-			store.set(META_KEY, meta);
-		},
-	};
 
 	function toast(text) {
 		const el = $("#sf-toast");
@@ -364,6 +348,20 @@
 				}, 120);
 			})
 		);
+		// Tovar sahifasidagi qidiruvdan kelgan (?q=...): so'z qidiruvga yoziladi, ko'rinib turgan maydon fokuslanadi
+		const q0 = new URLSearchParams(location.search).get("q");
+		if (q0 !== null) {
+			$$("[data-search]").forEach((input) => (input.value = q0));
+			state.q = q0.trim().toLowerCase();
+			if (state.q) apply();
+			const hiddenBox = $("[data-search-box][hidden]");
+			if (hiddenBox) hiddenBox.hidden = false;
+			const visible = $$("[data-search]").find((input) => input.offsetParent !== null);
+			if (visible) {
+				visible.scrollIntoView({ block: "center" });
+				visible.focus({ preventScroll: true });
+			}
+		}
 		// B shablon: qidiruv maydoni tugma bilan ochiladi
 		$("[data-toggle-search]")?.addEventListener("click", () => {
 			const box = $("[data-search-box]");
@@ -680,10 +678,13 @@
 		const fitBuy = () => document.documentElement.style.setProperty("--buy-h", `${buy.offsetHeight}px`);
 		fitBuy();
 		if ("ResizeObserver" in window) new ResizeObserver(fitBuy).observe(buy);
+		// Uzum kabi: «− N +» — savatdagi soni (0 = savatda yo'q); «+» / «−» savatni darhol o'zgartiradi.
+		// Savatda bo'lsa tugma «Savatga o'tish» bo'ladi — bosilsa savat sahifasi ochiladi
 		const out = $("[data-qty]", buy);
 		const addBtn = $("[data-buy-add]", buy);
+		const minus = $('[data-step="-1"]', buy), plus = $('[data-step="1"]', buy);
 		let max = +buy.dataset.max || 99;
-		let qty = 1;
+		let canBuy = !!addBtn; // variantli tovarda: rang/o'lcham tanlangan va o'sha variant omborda bor
 		let code = buy.dataset.code; // variantli mahsulotda: tanlangan variant kodi
 		const productCode = buy.dataset.code;
 		let variantLabel = "";
@@ -707,7 +708,7 @@
 			const baseText = nowEl?.textContent;
 			function showPrice(price) {
 				if (!nowEl) return;
-				nowEl.textContent = price ? fmt(price) : nowEl.dataset.promoText || baseText;
+				nowEl.textContent = price ? fmt(price) : baseText;
 				if (!oldEl) return;
 				const old = +oldEl.dataset.priceOld, now = price || +nowEl.dataset.priceNow;
 				oldEl.hidden = badgeEl.hidden = !(old > now);
@@ -727,21 +728,22 @@
 				if (lab) lab.textContent = sel.color || "tanlang";
 				const v = opt.variants[key(hasColors ? sel.color : "", hasSizes ? sel.size : "")];
 				const ready = (!hasColors || sel.color) && (!hasSizes || sel.size);
-				// Baraban chegirmasi variantga ham (SF.promoPrice — baraban.js)
-				const promo = ready && v && SF.promoPrice ? SF.promoPrice(v.code) : 0;
-				showPrice(ready && v ? (promo && promo < v.price ? promo : v.price) : null);
+				showPrice(ready && v ? v.price : null);
 				const stockEl = $("[data-variant-stock]", box);
 				// Tez kunda / tugagan: tugma yo'q — rang faqat rasmlarni ko'rsatadi
 				if (!addBtn) { stockEl.textContent = ""; return; }
-				if (!ready) { stockEl.textContent = "Rang va o‘lchamni tanlang"; addBtn.disabled = true; return; }
-				if (!v || v.qty <= 0) { stockEl.textContent = "Bu variant tugagan"; addBtn.disabled = true; return; }
-				code = v.code;
-				variantPrice = v.price;
-				max = v.qty;
-				variantLabel = [hasColors && sel.color, hasSizes && sel.size].filter(Boolean).join(" · ");
-				stockEl.textContent = v.qty <= 5 ? `${v.qty} ta qolgan` : "Sotuvda bor";
-				addBtn.disabled = false;
-				if (qty > max) { qty = max; out.textContent = qty; }
+				canBuy = false;
+				if (!ready) stockEl.textContent = "Rang va o‘lchamni tanlang";
+				else if (!v || v.qty <= 0) stockEl.textContent = "Bu variant tugagan";
+				else {
+					canBuy = true;
+					code = v.code;
+					variantPrice = v.price;
+					max = v.qty;
+					variantLabel = [hasColors && sel.color, hasSizes && sel.size].filter(Boolean).join(" · ");
+					stockEl.textContent = v.qty <= 5 ? `${v.qty} ta qolgan` : "Sotuvda bor";
+				}
+				syncBuy();
 			}
 			const showColor = (color) => filterGallery(color, opt.colors.find((c) => c.value === color)?.image);
 			// Tanlangan rangni yana bossa — tanlov olinadi va yana barcha ranglar rasmi chiqadi
@@ -755,21 +757,49 @@
 			if (sel.color) filterGallery(sel.color);
 		}
 
-		$$("[data-step]", buy).forEach((b) =>
-			b.addEventListener("click", () => {
-				qty = Math.max(1, Math.min(max, qty + +b.dataset.step));
-				out.textContent = qty;
-			})
-		);
-		addBtn?.addEventListener("click", () => {
+		function syncBuy() {
+			if (!addBtn) return;
+			const n = canBuy ? cart.qty(code) : 0;
+			out.textContent = n;
+			minus.disabled = n <= 0;
+			plus.disabled = !canBuy || n >= max;
+			const inCart = n > 0;
+			addBtn.textContent = inCart ? "Savatga o‘tish" : "Savatga qo‘shish";
+			addBtn.classList.toggle("is-in-cart", inCart);
+			addBtn.disabled = !canBuy;
+		}
+
+		function setQty(n) {
 			if (code !== productCode) {
 				// variant uchun savat paneli ma'lumoti (nom, rasm asosiy mahsulotdan; narx — variantning o'zi)
 				meta[code] = { ...meta[productCode], variant: variantLabel, ...(variantPrice ? { price: variantPrice } : {}) };
 				store.set(META_KEY, meta);
 			}
-			cart.add(code, qty);
-			toast(`Savatga qo‘shildi${variantLabel ? ` (${variantLabel})` : ""} · ${cart.count()} ta mahsulot`);
+			const was = cart.qty(code);
+			cart.set(code, n);
+			if (!was && n > 0) toast(`Savatga qo‘shildi${variantLabel ? ` (${variantLabel})` : ""} · ${cart.count()} ta mahsulot`);
+			else if (was && !n) toast("Savatdan olindi");
+			syncBuy();
+		}
+
+		$$("[data-step]", buy).forEach((b) =>
+			b.addEventListener("click", () => {
+				if (!canBuy) return;
+				const n = cart.qty(code) + +b.dataset.step;
+				if (n < 0) return;
+				if (n > max) return toast(`Faqat ${max} ta qolgan`);
+				setQty(n);
+			})
+		);
+		addBtn?.addEventListener("click", () => {
+			if (!canBuy) return;
+			if (cart.qty(code) > 0) location.href = withPreview(`${SF.base}/savat`);
+			else setQty(1);
 		});
+		// Boshqa oynada savat o'zgarsa yoki savatdan «orqaga» qaytilsa ham soni to'g'ri tursin
+		window.addEventListener("storage", (e) => { if (e.key === CART_KEY) { renderCartSummary(); syncBuy(); } });
+		window.addEventListener("pageshow", () => { renderCartSummary(); syncBuy(); });
+		syncBuy();
 	}
 
 	// ---------- Savat sahifasi: narxlar serverdan ----------
@@ -890,11 +920,17 @@
 				$("[data-name]", node).textContent = l.name;
 				const vEl = $("[data-variant]", node);
 				if (l.variant) { vEl.textContent = l.variant; vEl.hidden = false; }
-				$("[data-price]", node).textContent = fmt(l.price);
+				// Qator summasi (2 ta olinsa — 2 tasining narxi), ostida bittasining narxi: «360 000 so'm × 2»
+				$("[data-price]", node).textContent = fmt(l.amount);
 				if (l.list_price > l.price) {
 					const oldEl = $("[data-old]", node);
-					oldEl.textContent = fmt(l.list_price);
+					oldEl.textContent = fmt(l.list_price * l.qty);
 					oldEl.hidden = false;
+				}
+				if (l.qty > 1) {
+					const unitEl = $("[data-unit]", node);
+					unitEl.textContent = `${fmt(l.price)} × ${l.qty}`;
+					unitEl.hidden = false;
 				}
 				$("[data-qty]", node).textContent = l.qty;
 				const note = $("[data-note]", node);
@@ -1006,7 +1042,6 @@
 		window.addEventListener("pageshow", (e) => e.persisted && location.reload());
 
 		reloadCart = load;
-		SF.reloadCart = load; // baraban.js: chegirma tugaganda narxlar serverdan qayta olinadi
 		load();
 	}
 

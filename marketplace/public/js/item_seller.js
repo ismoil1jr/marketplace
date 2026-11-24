@@ -20,8 +20,6 @@
 		"disabled", "description", "has_variants", "variant_of", "is_published",
 		// Majburiy tovar (avval shuni olishi shart) va "Tez kunda" (ko'rinadi, sotilmaydi)
 		"mp_majburiy", "mp_tez_kunda", "mp_savatda",
-		// Chegirma soat: «Tabriklaymiz! N soatlik chegirma» oynasi (baraban.py)
-		"mp_chegirma_soat", "mp_chegirma_soati", "mp_chegirma_narxi",
 		"gallery", "mxik_code", "package_code",
 		// "Ombor" tabi: hozirgi qoldiq, kirim (kimdan, nechta, necha puldan), kirim tarixi
 		"mp_ombor_html", "mp_kirim_kontragent", "mp_kirim", "mp_kirim_izoh", "mp_ombor_log",

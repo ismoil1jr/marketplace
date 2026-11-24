@@ -23,7 +23,6 @@
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 	<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700{% if shop.layout == "story" %}&family=Unbounded:wght@600;700{% endif %}&display=swap" rel="stylesheet">
 	<link rel="stylesheet" href="/assets/marketplace/css/storefront.css?v={{ asset_version }}">
-	{% if shop.chegirma_soat %}<link rel="stylesheet" href="/assets/marketplace/css/baraban.css?v={{ asset_version }}">{% endif %}
 	<style>:root { --brand: {{ shop.brand_color or "#1F5C4A" }}; }</style>
 </head>
 <body class="{% block body_class %}{% endblock %}">
@@ -44,8 +43,6 @@
 		};
 	</script>
 	<script src="/assets/marketplace/js/storefront.js?v={{ asset_version }}" defer></script>
-	{# Chegirma soat: do'konda shunday tovar bo'lsa (baraban.js storefront.js'dan keyin — SF.cart kerak) #}
-	{% if shop.chegirma_soat %}<script src="/assets/marketplace/js/baraban.js?v={{ asset_version }}" defer></script>{% endif %}
 </body>
 </html>
 {% endautoescape %}

@@ -585,11 +585,22 @@ def add_lead(telefon: str, ism: str | None = None, manzil: str | None = None, iz
 	return {"name": doc.name, "existing": bool(existing), "calls": len(linked)}
 
 
+def result_holat(holat, natija, order=None):
+	"""Menejer natijasidan keyingi holat — OXIRGI natija bo'yicha: buyurtmadan keyin «Olmaydi» / «Javob bermadi» desa,
+	murojaat o'sha bo'limga o'tadi (eski «Buyurtma berdi»da qolib ketmaydi). «Oladi» buyurtmaga zid emas — buyurtma
+	bor bo'lsa «Buyurtma berdi» qoladi."""
+	if order or (natija == "Oladi" and holat == "Buyurtma berdi"):
+		return "Buyurtma berdi"
+	return natija
+
+
 def _sync_orders(shop):
-	"""Murojaatdan keyin saytda buyurtma bergan mijozlar — "Buyurtma berdi" (raqam bo'yicha, shu do'konda)."""
+	"""Murojaatdan keyin saytda buyurtma bergan mijozlar — "Buyurtma berdi" (raqam bo'yicha, shu do'konda).
+	Faqat menejerning oxirgi natijasidan KEYIN berilgan buyurtma: buyurtmadan keyin «Olmaydi» deb yozilgan bo'lsa,
+	o'sha eski buyurtma murojaatni qayta «Buyurtma berdi»ga qaytarmaydi."""
 	open_leads = frappe.get_all(
 		"Murojaat", filters={"shop": shop, "holat": ["not in", ["Buyurtma berdi"]], "normal_telefon": ["is", "set"]},
-		fields=["name", "normal_telefon", "creation"], limit_page_length=1000,
+		fields=["name", "normal_telefon", "creation", "aloqa_vaqt"], limit_page_length=1000,
 	)
 	if not open_leads:
 		return
@@ -599,7 +610,8 @@ def _sync_orders(shop):
 		fields=["name", "customer_phone", "creation"], order_by="creation asc",
 	)
 	for lead in open_leads:
-		so = next((o for o in orders if o.customer_phone == "+" + lead.normal_telefon and o.creation >= lead.creation), None)
+		since = max(filter(None, (lead.creation, lead.aloqa_vaqt)))
+		so = next((o for o in orders if o.customer_phone == "+" + lead.normal_telefon and o.creation >= since), None)
 		if so:
 			frappe.db.set_value("Murojaat", lead.name, {"holat": "Buyurtma berdi", "buyurtma": so.name}, update_modified=False)
 
@@ -721,7 +733,7 @@ def save_lead_result(name: str, kanal: str, natija: str, izoh: str | None = None
 	)
 	log.insert(ignore_permissions=True)
 	doc.db_set(
-		{"holat": "Buyurtma berdi" if order or doc.holat == "Buyurtma berdi" else natija, "keyingi_qongiroq": date,
+		{"holat": result_holat(doc.holat, natija, order), "keyingi_qongiroq": date,
 		 "menejer": frappe.session.user, "aloqa_vaqt": now_datetime(), "buyurtma": order.name if order else doc.buyurtma},
 		update_modified=False,
 	)
@@ -842,7 +854,7 @@ def _make_order(lead, shop_name, data, kanal):
 		if not pick and must["has_variants"]:
 			frappe.throw(_("Majburiy tovar «{0}»: rang / o'lchamni tanlang").format(must["name"]))
 		lines.append({"code": pick or must["code"], "qty": 1})
-	so = orders.place_order(shop, lines, method, data.manzil, customer, promo=False)
+	so = orders.place_order(shop, lines, method, data.manzil, customer)
 	so.db_set({"payment_method": "Naqd", "order_source": ORDER_SOURCE.get(lead.manba, "Web"), "mp_aloqa_natija": "Oladi",
 	           "mp_aloqa_kanal": kanal}, update_modified=False)
 	so.add_comment("Info", _("Murojaat {0} bo'yicha sotuv menejeri yaratdi: {1}").format(lead.name, frappe.utils.get_fullname()))

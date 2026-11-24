@@ -99,10 +99,6 @@ def get_shop(slug):
 	shop.phone_href = "".join(ch for ch in shop.phone if ch.isdigit() or ch == "+")
 	shop.socials = social_links(shop)
 	shop.auto_cart = auto_cart(shop)
-	# «Chegirma soat qo'shish» yoqilgan tovar bor — sahifa baraban.js/css ni yuklaydi (Tabriklaymiz oynasi + taymer)
-	from marketplace import baraban
-
-	shop.chegirma_soat = baraban.enabled(shop.name)
 	# Karusel slaydlari (sotuvchi Shop formasida o'zi yangilaydi)
 	shop.banners = frappe.get_all(
 		"Shop Banner",
@@ -409,11 +405,10 @@ def _size_key(size, rank):
 		return (2, 0, 0, size)
 
 
-def get_cart_lines(shop, lines, held=None, *, promo=True):
+def get_cart_lines(shop, lines, held=None):
 	"""Savatdagi tovarlarning HOZIRGI narxi va qoldig'i. Brauzerdagi narxga ishonilmaydi.
 	held: {kod: soni} — mijozning o'z to'lanmagan buyurtmasi zaxiralagani (qayta rasmiylashtirganda bo'shaydi),
-	shuning uchun savatda "tugagan" bo'lib ko'rinmasin.
-	promo=False — mijoz bo'lmagan chaqiruvchi (sotuv menejeri): joriy brauzerning baraban chegirmasi qo'llanmaydi."""
+	shuning uchun savatda "tugagan" bo'lib ko'rinmasin."""
 	qty_by_code = {}
 	for line in lines or []:
 		code, qty = line.get("code"), cint(line.get("qty"))
@@ -444,10 +439,6 @@ def get_cart_lines(shop, lines, held=None, *, promo=True):
 	labels = variant_labels([i.name for i in items if i.variant_of])
 	color_thumbs = _color_thumbs([i.name for i in items if i.variant_of])
 
-	if promo:
-		from marketplace import baraban
-
-		promo = baraban.active(shop.name)  # (tovar, narx) — faqat brauzerdagi taymer faol bo'lsa
 	out = []
 	for i in items:
 		if i.name not in prices:
@@ -463,10 +454,7 @@ def get_cart_lines(shop, lines, held=None, *, promo=True):
 		price = unit_price(prices[i.name], ws, qty)
 		# Chegirmasiz narx (saytdagi chizilgan eski narx, bo'lmasa oddiy narx) — savatda "Chegirma: −X so'm" shundan
 		old = flt(base.old_price)
-		retail, list_price, is_ws, wheel = prices[i.name], max(prices[i.name], old), price != prices[i.name], False
-		if promo and (i.name == promo[0] or i.variant_of == promo[0]) and flt(promo[1]) < price:
-			# Baraban chegirmasi: ulgurji narx bilan qo'shilmaydi; oddiy/ulgurji narx arzonroq bo'lsa — o'sha qoladi
-			price, is_ws, wheel = flt(promo[1]), False, True
+		retail, list_price, is_ws = prices[i.name], max(prices[i.name], old), price != prices[i.name]
 		out.append(
 			{
 				"code": i.name,
@@ -477,7 +465,6 @@ def get_cart_lines(shop, lines, held=None, *, promo=True):
 				"retail_price": retail,
 				"is_wholesale": is_ws,
 				"list_price": list_price,
-				"baraban": wheel,
 				"qty": qty,
 				"max_qty": available,
 				"thumb": color_thumbs.get(i.name) or thumbs.get(i.name) or thumbs.get(i.variant_of) or base.image or i.image,
@@ -780,7 +767,6 @@ def asset_version():
 			os.path.getmtime(os.path.join(public, p))
 			for p in (
 				"css/storefront.css", "js/storefront.js", "css/panel.css", "js/panel.js",
-				"css/baraban.css", "js/baraban.js",
 			)
 			if os.path.exists(os.path.join(public, p))
 		)

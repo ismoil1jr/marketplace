@@ -1,45 +1,8 @@
-{% from "marketplace/templates/storefront/macros.html" import product_card, shop_avatar, carousel %}
+{% from "marketplace/templates/storefront/macros.html" import product_card, shop_avatar, carousel, shop_top %}
 {% autoescape true %}
 {# Qidiruv maslahati — do'konning o'z kategoriyalaridan (kitob do'konida "ko'ylak" chiqmasin) #}
 {% set search_hint = ("Qidirish: " ~ (catalog.groups[:2] | join(", ")) | lower ~ "…") if catalog.groups else "Mahsulot qidirish…" %}
-<header class="sf-top">
-	<div class="sf-top__inner">
-		<div class="sf-brand">
-			<a href="{{ base }}" aria-label="{{ shop.shop_name }}">{{ shop_avatar(shop) }}</a>
-			<span class="sf-brand__text">
-				<h1 class="sf-brand__name"><a href="{{ base }}">{{ shop.shop_name }}</a></h1>
-				<small>{% if shop.instagram_handle %}<a class="sf-insta-link" href="https://instagram.com/{{ shop.instagram_handle }}" target="_blank" rel="noopener">@{{ shop.instagram_handle }}</a>{% endif %}{% if shop.instagram_handle and shop.city %} · {% endif %}{{ shop.city or "" }}</small>
-			</span>
-		</div>
-
-		<label class="sf-search sf-search--top">
-			<svg><use href="#i-search"/></svg>
-			<input type="search" placeholder="{{ search_hint }}" data-search aria-label="Mahsulot qidirish">
-		</label>
-
-		<div class="sf-top__actions">
-			{% set orders_label = "Buyurtmalarim" if customer else "Kirish" %}
-			<a class="sf-icon-btn sf-orders-btn" href="{{ base }}/buyurtmalarim" aria-label="{{ orders_label }}" title="{{ orders_label }}">
-				<svg><use href="#{{ 'i-receipt' if customer else 'i-user' }}"/></svg>
-				<span class="sf-orders-btn__label">{{ orders_label }}</span>
-			</a>
-			{# Noutbukda: Uzum kabi «Sevimlilar» — bosilsa faqat sevimli tovarlar (storefront.js setGroup "__fav") #}
-			<button class="sf-icon-btn sf-fav-btn sf-only-desktop" type="button" data-group="__fav" data-fav-top aria-label="Sevimlilar">
-				<svg><use href="#i-heart"/></svg>
-				<span class="sf-fav-btn__label">Sevimlilar</span>
-				<span class="sf-count" data-fav-count hidden>0</span>
-			</button>
-			<button class="sf-icon-btn sf-only-mobile" type="button" data-focus-search aria-label="Qidirish">
-				<svg><use href="#i-search"/></svg>
-			</button>
-			<a class="sf-icon-btn sf-cart-btn" href="{{ base }}/savat" aria-label="Savat">
-				<svg><use href="#i-bag"/></svg>
-				<span class="sf-cart-btn__label">Savat</span>
-				<span class="sf-count" data-cart-count hidden>0</span>
-			</a>
-		</div>
-	</div>
-</header>
+{{ shop_top(shop, base, customer, search_hint) }}
 
 <div class="sf-layout" data-cart-empty>
 	<aside class="sf-filters" aria-label="Filtrlar">

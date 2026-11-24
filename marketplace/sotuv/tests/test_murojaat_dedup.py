@@ -147,3 +147,53 @@ class TestMurojaatDedup(UnitTestCase):
 		lone = _lead(self.shop, holat="Yangi")
 		murojaat_takror_holat.execute()
 		self.assertEqual(frappe.db.get_value("Murojaat", lone, "holat"), "Yangi")
+
+
+class TestOxirgiNatija(UnitTestCase):
+	"""Murojaat holati — menejerning oxirgi natijasi bo'yicha (eski «Buyurtma berdi»da qolib ketmaydi)."""
+
+	def setUp(self):
+		self.shop = _shop()
+		if not self.shop:
+			self.skipTest("Shop yo'q")
+		frappe.db.delete("Murojaat", {"normal_telefon": PHONE})
+
+	def tearDown(self):
+		frappe.db.rollback()
+
+	def test_result_holat(self):
+		self.assertEqual(m.result_holat("Buyurtma berdi", "Olmaydi"), "Olmaydi")
+		self.assertEqual(m.result_holat("Buyurtma berdi", "Javob bermadi"), "Javob bermadi")
+		self.assertEqual(m.result_holat("Buyurtma berdi", "Oladi"), "Buyurtma berdi")
+		self.assertEqual(m.result_holat("Olmaydi", "Oladi"), "Oladi")
+		self.assertEqual(m.result_holat("Yangi", "Oladi", order=frappe._dict(name="SO-1")), "Buyurtma berdi")
+
+	def test_sync_orders_only_after_last_result(self):
+		from unittest.mock import patch
+
+		now = now_datetime()
+		lead = frappe._dict(name="L1", normal_telefon=PHONE, creation=add_to_date(now, days=-6), aloqa_vaqt=add_to_date(now, days=-1))
+		old_so = frappe._dict(name="SO-OLD", customer_phone="+" + PHONE, creation=add_to_date(now, days=-5))
+		new_so = frappe._dict(name="SO-NEW", customer_phone="+" + PHONE, creation=now)
+		for orders, expected in (([old_so], None), ([old_so, new_so], "SO-NEW")):
+			with patch.object(m.frappe, "get_all", side_effect=[[lead], orders]), \
+				patch.object(m.frappe.db, "set_value") as sv:
+				m._sync_orders(self.shop)
+			if expected:
+				sv.assert_called_once_with("Murojaat", "L1", {"holat": "Buyurtma berdi", "buyurtma": expected}, update_modified=False)
+			else:
+				sv.assert_not_called()
+
+	def test_patch_moves_stuck_lead(self):
+		from marketplace.patches import murojaat_oxirgi_natija
+
+		stuck = _lead(self.shop, holat="Buyurtma berdi", ago_min=300)
+		ok = _lead(self.shop, holat="Buyurtma berdi", ago_min=200, mijoz_ismi="Boshqa")
+		for name, natija in ((stuck, "Olmaydi"), (ok, "Oladi")):
+			frappe.get_doc({
+				"doctype": "Menejer Xulosasi", "murojaat": name, "telefon": "+998 33 074 04 90", "shop": self.shop,
+				"kanal": "Qo‘ng‘iroq", "natija": natija, "menejer": "Administrator",
+			}).insert(ignore_permissions=True)
+		murojaat_oxirgi_natija.execute()
+		self.assertEqual(frappe.db.get_value("Murojaat", stuck, "holat"), "Olmaydi")
+		self.assertEqual(frappe.db.get_value("Murojaat", ok, "holat"), "Buyurtma berdi")

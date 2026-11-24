@@ -1,11 +1,13 @@
 {% extends "marketplace/templates/storefront/base.html" %}
 
-{% from "marketplace/templates/storefront/macros.html" import product_card %}
+{% from "marketplace/templates/storefront/macros.html" import product_card, shop_top %}
 
 {% block title %}{% autoescape true %}{{ product.name }} — {{ shop.shop_name }}{% endautoescape %}{% endblock %}
 {% block body_class %}page-product layout-{{ shop.layout }}{% endblock %}
 
 {% block content %}{% autoescape true %}
+{# Uzum kabi: tovar ichida ham do'kon paneli — savat (soni bilan) doim ko'rinib turadi #}
+{{ shop_top(shop, base, customer, on_catalog=False) }}
 <div class="sf-product">
 	<section class="sf-gallery">
 		{% if product.gallery | length > 1 %}
@@ -52,7 +54,6 @@
 	</section>
 
 	<section class="sf-sheet">
-		<a class="sf-sheet__shop sf-only-desktop" href="{{ base }}">← {{ shop.shop_name }}</a>
 		<h1>{{ product.name }}</h1>
 		<div class="sf-sheet__price">
 			<strong data-price-now="{{ product.price }}">{% if product.price %}{{ fmt_sum(product.price) }}{% if product.price_from %}dan{% endif %}{% else %}Narxi tez kunda{% endif %}</strong>
@@ -90,7 +91,7 @@
 			{% if product.in_stock %}
 			<div class="sf-stepper">
 				<button type="button" data-step="-1" aria-label="Kamaytirish"><svg><use href="#i-minus"/></svg></button>
-				<output data-qty>1</output>
+				<output data-qty aria-label="Savatda">0</output>
 				<button type="button" data-step="1" aria-label="Ko‘paytirish"><svg><use href="#i-plus"/></svg></button>
 			</div>
 			<button class="sf-btn sf-btn--brand sf-btn--grow" type="button" data-buy-add>Savatga qo‘shish</button>

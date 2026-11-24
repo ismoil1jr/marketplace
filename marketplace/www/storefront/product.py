@@ -1,7 +1,7 @@
 import frappe
 from frappe.utils import flt
 
-from marketplace import seo, storefront
+from marketplace import customers, seo, storefront
 
 no_cache = 1
 
@@ -14,6 +14,7 @@ def get_context(context):
 	context.base = f"/s/{shop.name}"
 	context.product = product
 	context.related = storefront.get_related(shop, product)
+	context.customer = customers.current_customer()  # tepadagi panel: «Buyurtmalarim» yoki «Kirish»
 	# JS savat paneli uchun: shu mahsulot va pastdagi o'xshashlari (kartadagi "+" tugmasi)
 	context.catalog_json = {
 		p["code"]: {"name": p["name"], "price": p["price"], "thumb": p["thumb"], "ws": p.get("wholesale_price"), "wsmin": p.get("wholesale_min")}

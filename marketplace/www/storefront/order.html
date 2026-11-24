@@ -110,7 +110,13 @@
 		</label>
 		{% endfor %}
 	</div>
-	<p class="sf-note"><svg><use href="#i-lock"/></svg><span>Pul to‘g‘ridan-to‘g‘ri <b>{{ shop.shop_name }}</b> hisobiga tushadi. Karta ma’lumotlari faqat Payme yoki Click sahifasida kiritiladi.</span></p>
+	{# Mijozga tushunarli: savol bo'lsa — do'kon call-centeri (Shop formasida «Call-center raqami») #}
+	{% if shop.phone %}
+	<a class="sf-callc" href="tel:{{ shop.phone_href }}">
+		<span class="sf-callc__icon" aria-hidden="true"><svg><use href="#i-phone"/></svg></span>
+		<span class="sf-callc__txt"><small>Buyurtmangiz haqida ma’lumot kerak bo‘lsa, call-center</small><b>{{ shop.phone }}</b></span>
+	</a>
+	{% endif %}
 	<div class="sf-checkout">
 		<button class="sf-btn sf-btn--brand sf-btn--block" type="button" data-pay-btn data-total="{{ fmt_sum(order.grand_total) }}">Buyurtmani tasdiqlash</button>
 	</div>

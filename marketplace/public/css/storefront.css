@@ -426,6 +426,16 @@ html.sf-noscroll, html.sf-noscroll body { overflow: hidden; }
 .sf-stepper button:active { background: var(--bg); }
 .sf-stepper svg { width: 18px; height: 18px; }
 .sf-stepper output { min-width: 28px; text-align: center; font-weight: 600; }
+/* Tovar savatda bo'lsa tugma «Savatga o'tish» — qora (katalogdagi savat paneli kabi), qorong'i shablonda och rang */
+.sf-btn.is-in-cart { background: var(--dark); border-color: var(--dark); color: #fff; }
+.layout-story .sf-btn.is-in-cart { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+/* Tovar sahifasi: tepada do'kon paneli (savat soni bilan) doim ko'rinib turadi */
+.page-product .sf-top {
+	position: sticky; top: 0; z-index: 30;
+	padding: calc(10px + env(safe-area-inset-top)) var(--gutter) 10px;
+	background: var(--surface); border-bottom: 1px solid var(--line);
+}
+.page-product .sf-gallery__bar { padding-top: 12px; }
 .sf-stepper--sm { height: 42px; padding: 0 2px; border-radius: 12px; }
 .sf-stepper--sm button { width: 34px; height: 34px; }
 
@@ -503,6 +513,7 @@ html.sf-noscroll, html.sf-noscroll body { overflow: hidden; }
 .sf-summary__save span:last-child { color: var(--ok); font-weight: 600; }
 .sf-line__price { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; min-width: 0; }
 .sf-line__price s { color: var(--muted); font-size: 13px; }
+.sf-line__unit { flex-basis: 100%; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 .sf-checkout {
 	position: fixed; left: 0; right: 0; bottom: 0; padding: 12px var(--gutter) calc(12px + env(safe-area-inset-bottom));
 	background: linear-gradient(transparent, var(--bg) 30%);
@@ -563,7 +574,7 @@ html.sf-noscroll, html.sf-noscroll body { overflow: hidden; }
 
 	/* Mahsulot sahifasi: rasm chapda, ma'lumot o'ngda */
 	.sf-product { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; max-width: 1180px; margin: 0 auto; padding: 24px var(--gutter); }
-	.sf-gallery { flex-direction: row; gap: 12px; align-self: start; position: sticky; top: 24px; background: none; }
+	.sf-gallery { flex-direction: row; gap: 12px; align-self: start; position: sticky; top: 104px; background: none; } /* tepadagi panel ostida */
 	.sf-gallery__main { flex: 1; min-width: 0; border-radius: 24px; overflow: hidden; background: #fff; }
 	.sf-gallery__track { aspect-ratio: 1 / 1; }
 	/* Uzum kabi: chapda kichik rasmlar ustuni, rasm ustida strelkalar */
