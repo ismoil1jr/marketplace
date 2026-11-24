@@ -95,6 +95,11 @@ def mark_paid(order, method, provider_ref=None):
 		from marketplace.seller_desk import notify_couriers
 
 		notify_couriers(so)
+	# Menejer panelida: «To'langan» + «Oladi» — «Yangi» bo'limida qo'ng'iroq kutib turmaydi (to'lovning o'zi tasdiq)
+	if so.get("mp_aloqa_natija") != "Oladi":
+		from frappe.utils import now_datetime
+
+		so.db_set({"mp_aloqa_natija": "Oladi", "mp_aloqa_vaqt": now_datetime()}, update_modified=False)
 
 
 def mark_refunded(order, method, provider_ref=None):

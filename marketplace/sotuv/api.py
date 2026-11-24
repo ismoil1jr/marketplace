@@ -43,8 +43,9 @@ def _order(name, shop):
 def _filters(view, shop):
 	base = {"shop": shop}
 	if view == "yangi":
-		# Menejer hali gaplashmagan buyurtmalar: kuryer ularni ko'rmaydi, avval "Oladi" bilan tasdiqlanadi
-		return {**base, "docstatus": 1, "payment_status": ["!=", CANCELLED], "per_delivered": ["<", 100],
+		# Menejer hali gaplashmagan buyurtmalar: kuryer ularni ko'rmaydi, avval "Oladi" bilan tasdiqlanadi.
+		# Onlayn to'langani (Click/Payme) bu yerga tushmaydi — to'g'ridan-to'g'ri upakovkachi va kuryerga
+		return {**base, "docstatus": 1, "payment_status": ["not in", [PAID, CANCELLED]], "per_delivered": ["<", 100],
 		        "mp_aloqa_natija": ["is", "not set"]}
 	if view == "tolanmagan":
 		return {**base, "docstatus": 1, "payment_status": ["not in", [PAID, CANCELLED]]}

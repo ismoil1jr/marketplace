@@ -27,3 +27,4 @@ marketplace.patches.hamkorlik_pdf_bir_varaq
 marketplace.patches.hamkorlik_pdf_rekvizit
 marketplace.patches.murojaat_oxirgi_natija
 marketplace.patches.chegirma_soat_olib_tashlandi
+marketplace.patches.tolangan_buyurtma_oladi

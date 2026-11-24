@@ -49,7 +49,9 @@
 			<span class="sf-brand__text">
 				{# Tovar sahifasida h1 — tovar nomi; do'kon nomi oddiy matn #}
 				{% if on_catalog %}<h1 class="sf-brand__name"><a href="{{ base }}">{{ shop.shop_name }}</a></h1>{% else %}<span class="sf-brand__name"><a href="{{ base }}">{{ shop.shop_name }}</a></span>{% endif %}
-				<small>{% if shop.instagram_handle %}<a class="sf-insta-link" href="https://instagram.com/{{ shop.instagram_handle }}" target="_blank" rel="noopener">@{{ shop.instagram_handle }}</a>{% endif %}{% if shop.instagram_handle and shop.city %} · {% endif %}{{ shop.city or "" }}</small>
+				{# Faqat manzil (Instagram — sayt pastidagi ijtimoiy tarmoqlarda): shahar, bo'lmasa do'kon manzili #}
+				{% set manzil = shop.city or shop.pickup_address %}
+				{% if manzil %}<small>{{ manzil }}</small>{% endif %}
 			</span>
 		</div>
 
